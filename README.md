@@ -12,7 +12,7 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
 ## Installation
 1. Clone this repository:
     ```bash
-    git clone https://github.com/<your_username>/telegram-video-downloader.git
+    git clone https://github.com/animalsina/telegram-video-downloader.git
     cd telegram-video-downloader
     ```
 
@@ -21,7 +21,10 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     pip install telethon tqdm
     ```
 
-3. Create a configuration file `tg-config.txt` with the following information:
+3. Create an account and gets the data to add in the config file: [Link MyTelegram App](https://my.telegram.org/apps) 
+
+
+4. Create a configuration file `tg-config.txt` with the following information:
     ```txt
     api_id=YOUR_API_ID
     api_hash=YOUR_API_HASH
@@ -32,7 +35,7 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     ```
 
 ## Usage
-1. Ensure you have created and configured the `tg-config.txt` file as described above.
+1. Ensure you have created and configured the `tg-config.txt` file as described above. [Link MyTelegram App](https://my.telegram.org/apps)
 2. Run the script:
     ```bash
     python run.py
@@ -61,7 +64,7 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
 ## Installazione
 1. Clona questo repository:
     ```bash
-    git clone https://github.com/<tuo_username>/telegram-video-downloader.git
+    git clone https://github.com/animalsina/telegram-video-downloader.git
     cd telegram-video-downloader
     ```
 
@@ -70,7 +73,9 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     pip install telethon tqdm
     ```
 
-3. Crea un file di configurazione `tg-config.txt` con le seguenti informazioni:
+3. Crea un account e recupera i dati da aggiungere nel file config: [Link MyTelegram App](https://my.telegram.org/apps) 
+
+4. Crea un file di configurazione `tg-config.txt` con le seguenti informazioni:
     ```txt
     api_id=YOUR_API_ID
     api_hash=YOUR_API_HASH
@@ -81,7 +86,7 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     ```
 
 ## Uso
-1. Assicurati di aver creato e configurato il file `tg-config.txt` come descritto sopra.
+1. Assicurati di aver creato e configurato il file `tg-config.txt` come descritto sopra. [Link MyTelegram App](https://my.telegram.org/apps)
 2. Esegui lo script:
     ```bash
     python run.py
