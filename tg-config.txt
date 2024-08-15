@@ -1,0 +1,6 @@
+api_id=
+api_hash=
+phone=
+download_folder=tg-video
+completed_folder=
+check_file=downloaded_files.txt
