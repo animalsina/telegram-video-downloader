@@ -81,34 +81,31 @@ def is_file_corrupted(file_path):
 # Funzione per ottenere il nome del video
 def get_video_name(message, all_messages):
     if message.text:
-        video_name = message.text.split('\n')[0].strip()
-    else:
-        # Trova l'indice del messaggio corrente nella lista di tutti i messaggi
-        try:
-            current_index = all_messages.index(message)
-        except ValueError:
-            print(f"Impossibile trovare il messaggio corrente nella lista di tutti i messaggi.")
-            return None
-        
-        # Ottieni il messaggio successivo se esiste
-        if current_index + 1 < len(all_messages):
-            next_message = all_messages[current_index + 1]
-            print(f"Debug - Next Message ID: {next_message.id}")
-            print(f"Debug - Next Message Text: {next_message.text}")
-            print(f"Debug - Next Message Type: {next_message.__class__.__name__}")
+        return message.text.split('\n')[0].strip()
+    
+    # Trova l'indice del messaggio corrente nella lista di tutti i messaggi
+    try:
+        current_index = all_messages.index(message)
+    except ValueError:
+        print(f"Impossibile trovare il messaggio corrente nella lista di tutti i messaggi.")
+        return None
 
-            if next_message.text:
-                video_name = next_message.text.split('\n')[0].strip()
-            else:
-                print(f"Il messaggio successivo non contiene testo. Il video verrà ignorato.")
-                return None
+    # Ottieni il messaggio precedente se esiste
+    if current_index > 0:
+        prev_message = all_messages[current_index - 1]
+        print(f"Debug - Previous Message ID: {prev_message.id}")
+        print(f"Debug - Previous Message Text: {prev_message.text}")
+        print(f"Debug - Previous Message Type: {prev_message.__class__.__name__}")
+
+        if prev_message.text:
+            video_name = prev_message.text.split('\n')[0].strip()
+            return ''.join(c for c in video_name if c.isalnum() or c in (' ', '_', '-')).rstrip()
         else:
-            print(f"Nessun messaggio successivo disponibile. Il video verrà ignorato.")
+            print(f"Il messaggio precedente non contiene testo. Il video verrà ignorato.")
             return None
-
-    # Rimuove caratteri speciali
-    video_name = ''.join(c for c in video_name if c.isalnum() or c in (' ', '_', '-')).rstrip()
-    return video_name if video_name else None
+    else:
+        print(f"Nessun messaggio precedente disponibile. Il video verrà ignorato.")
+        return None
 
 # Crea un client Telegram
 client = TelegramClient('session_name', api_id, api_hash)
@@ -134,7 +131,7 @@ async def main():
 
         # Crea una progress bar
         for message in tqdm(messages, desc="Downloading Videos"):
-            # Ottieni il nome del video, cercando nel messaggio corrente o successivo
+            # Ottieni il nome del video, cercando nel messaggio corrente o precedente
             video_name = get_video_name(message, all_messages)
 
             if not video_name:
