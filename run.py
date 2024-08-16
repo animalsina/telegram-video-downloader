@@ -239,6 +239,7 @@ async def main():
                     print(messages['error_message'])
 
         downloaded_files = load_downloaded_files()
+        status_messages = []  # Store status messages for updates
 
         for message in tqdm(messages_list, desc="Downloading Videos"):
             video_name = get_video_name(message, all_messages)
@@ -250,21 +251,28 @@ async def main():
             file_path = os.path.join(download_folder, f"{video_name}.mp4")
             completed_file_path = os.path.join(completed_folder, f"{video_name}.mp4")
 
-            status_message = await client.send_message('me', messages['starting_download'].format(video_name))
+            # Initialize status_message only if needed
+            status_message = None
+            if video_name not in downloaded_files or not os.path.exists(completed_file_path):
+                status_message = await client.send_message('me', messages['starting_download'].format(video_name))
+                status_messages.append((video_name, status_message))
 
             if video_name in downloaded_files:
                 if os.path.exists(completed_file_path):
-                    await status_message.edit(messages['download_complete'].format(video_name))
-                    await status_message.delete()
+                    if status_message:
+                        await status_message.edit(messages['download_complete'].format(video_name))
+                        await status_message.delete()
                     continue
                 else:
-                    await status_message.edit(f"⏳ The video '{video_name}' has been downloaded but not moved. Retrying move...")
+                    if status_message:
+                        await status_message.edit(f"⏳ The video '{video_name}' has been downloaded but not moved. Retrying move...")
 
             if os.path.exists(file_path):
                 if is_file_corrupted(file_path, min_valid_file_size):
                     print(messages['corrupted_file'].format(file_path))
                     os.remove(file_path)
-                    await status_message.edit(messages['corrupted_file'].format(video_name))
+                    if status_message:
+                        await status_message.edit(messages['corrupted_file'].format(video_name))
 
                     # Re-download the video
                     try:
@@ -272,7 +280,8 @@ async def main():
                         print(f"Re-downloaded video to: {file_path}")
                     except Exception as e:
                         print(messages['error_download'].format(video_name, str(e)))
-                        await status_message.edit(messages['error_download'].format(video_name, str(e)))
+                        if status_message:
+                            await status_message.edit(messages['error_download'].format(video_name, str(e)))
                         continue
 
             try:
@@ -282,15 +291,22 @@ async def main():
 
                 if move_file(file_path, completed_file_path):
                     save_downloaded_file(video_name)
-                    await status_message.edit(messages['download_complete'].format(video_name))
+                    if status_message:
+                        await status_message.edit(messages['download_complete'].format(video_name))
+                        await status_message.delete()
+                    status_messages = [msg for name, msg in status_messages if name != video_name]  # Remove completed status messages
                 else:
-                    await status_message.edit(messages['error_move_file'].format(video_name))
+                    if status_message:
+                        await status_message.edit(messages['error_move_file'].format(video_name))
 
             except Exception as e:
                 print(messages['error_download'].format('', str(e)))
-                await status_message.edit(messages['error_download'].format('', str(e)))
+                if status_message:
+                    await status_message.edit(messages['error_download'].format('', str(e)))
 
-            if '✅' in status_message.text:
+        # Clean up remaining status messages if any
+        for _, status_message in status_messages:
+            if status_message:
                 await status_message.delete()
 
     except PermissionError as e:
