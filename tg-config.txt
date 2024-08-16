@@ -1,6 +1,6 @@
-api_id=
-api_hash=
-phone=
+api_id=22916436
+api_hash=1f55f47ad91cd7a12232f048a720c9c5
+phone=+393517872829
 download_folder=tg-video
-completed_folder=
+completed_folder=/mnt/fastgate/Movie/FilmTG/
 check_file=downloaded_files.txt
