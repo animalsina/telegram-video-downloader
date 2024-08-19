@@ -12,7 +12,7 @@ def create_telegram_client(session_name, api_id, api_hash):
     return TelegramClient(session_name, api_id, api_hash)
 
 async def update_download_message(message, percent, file_name):
-    await message.edit(f"⬇️ Scaricando '{file_name}': {percent:.2f}% completato")
+    await message.edit(f"⬇️ Download '{file_name}': {percent:.2f}% completato")
 
 def save_progress(file_path, progress):
     with open(f"{file_path}.progress", 'w') as f:
@@ -40,7 +40,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
             progress_file_path = f"{file_path}.progress"
             progress = load_progress(file_path) if os.path.exists(progress_file_path) else 0
 
-            # Prima di eseguire il necessario, andiamo a controllare se esiste il progress file + temp_file e se il temp_file è zero rimuoviamo entrambi
+            # Controlla se esiste il file temporaneo e se è vuoto, rimuovi entrambi
             if os.path.exists(temp_file_path) and os.path.getsize(temp_file_path) == 0:
                 os.remove(temp_file_path)
                 os.remove(progress_file_path)
@@ -54,7 +54,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         percent_complete = (current / total) * 100
                         current_time = time.time()
                         if current_time - last_update_time >= 5:
-                            await update_download_message(status_message, percent_complete, file_name)
+                            await update_download_message(status_message, percent_complete, video_name)
                             last_update_time = current_time
                         pbar.update(current - pbar.n)
                         pbar.total = total
@@ -85,16 +85,21 @@ async def download_with_retry(client, message, file_path, status_message, file_n
             wait_time = e.seconds + 10  # Aggiungi un buffer di tempo per sicurezza
             print(f"Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
             await asyncio.sleep(wait_time)
-            time.sleep(wait_time)
             attempt += 1
+
         except KeyboardInterrupt:
-            print("Download interrupted manually.")
+            print("Download interrupted manually inside retry.")
             update_file_info(file_info_path, file_name, 'manual_interruption', file_size)
-            release_lock(lock_file)
-            break
+            raise
+
         except Exception as e:
-            print(e)
             print(f"Error downloading video: {str(e)}")
             update_file_info(file_info_path, file_name, f'error: {str(e)}', file_size)
-            release_lock(lock_file)
             break
+
+        finally:
+            release_lock(lock_file)
+
+    else:
+        print("All retry attempts failed.")
+        release_lock(lock_file)
