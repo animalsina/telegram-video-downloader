@@ -15,8 +15,14 @@ from func.messages import get_message
 # Get the directory where the script is located
 root_dir = os.path.dirname(os.path.abspath(__file__))
 
+# Check if a configuration file is provided as the first argument
+if len(sys.argv) > 1:
+    config_file_name = sys.argv[1]
+else:
+    config_file_name = 'tg-config.txt'
+
 # Load the configuration
-config_path = os.path.join(root_dir, 'tg-config.txt')
+config_path = os.path.join(root_dir, config_file_name)
 file_info_path = os.path.join(root_dir, 'file_info.csv')
 config = load_config(config_path)
 
@@ -29,6 +35,10 @@ check_file = os.path.join(root_dir, config.get('check_file', 'downloaded_files.t
 lock_file = os.path.join(root_dir, 'script.lock')
 session_name = os.path.join(root_dir, config.get('session_name', 'session_name'))
 min_valid_file_size = config.get('min_valid_file_size', 100)
+max_simultaneous_file_to_download = config.get('max_simultaneous_file_to_download', 2)
+
+# List of chat names or IDs to retrieve messages from
+group_chats = config.get('group_chats', [])
 
 # Determine the system language and load messages
 language = get_system_language()
@@ -38,18 +48,31 @@ messages = get_message('', language)
 check_folder_permissions(download_folder)
 check_folder_permissions(completed_folder)
 
+# Semaphore to limit the number of concurrent tasks
+sem = asyncio.Semaphore(int(max_simultaneous_file_to_download))
+
+async def download_with_limit(client, message, file_path, file_name, video_name, messages, lock_file, status_messages):
+    async with sem:
+        status_message = await client.send_message('me', f"Downloading video '{video_name}'...")
+        status_messages.append(status_message)
+        await download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file)
+
 async def main():
     client = create_telegram_client(session_name, api_id, api_hash)
 
     try:
-        print(messages['start_connection'])
         await client.start(phone)
         print(messages['connection_success'])
 
         all_messages = []
-        print(messages['retrieving_messages'])
-        async for message in client.iter_messages('me', limit=1000):
-            all_messages.append(message)
+        for chat in group_chats:
+            print(f"Retrieving messages from {chat}: ...")
+            async for message in client.iter_messages(chat, limit=1000):
+                all_messages.append(message)
+
+        if len(all_messages) == 0:
+            print('No Messages found')
+            return
 
         # Extract video messages and map them to their positions
         video_messages = [msg for msg in all_messages if msg.document and any(isinstance(attr, DocumentAttributeVideo) for attr in msg.document.attributes)]
@@ -57,6 +80,8 @@ async def main():
 
         downloaded_files = load_downloaded_files(check_file)
         status_messages = []
+
+        tasks = []
 
         for message in video_messages:
             video_name = sanitize_filename(message.text.split('\n')[0].strip()) if message.text else None
@@ -93,10 +118,9 @@ async def main():
             else:
                 file_path = os.path.join(download_folder, file_name)
 
-            status_message = await client.send_message('me', f"Downloading video '{video_name}'...")
-            status_messages.append(status_message)
 
-            await download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file)
+            task = download_with_limit(client, message, file_path, file_name, video_name, messages, lock_file, status_messages)
+            tasks.append(task)
 
             if not is_file_corrupted(file_path, file_info_path):
                 if(os.path.exists(file_path)):
@@ -109,14 +133,19 @@ async def main():
                         await status_message.edit(messages['download_complete'].format(file_name))
                     else:
                         await status_message.edit(messages['error_move_file'].format(file_name))
-                else:
-                    await status_message.edit(messages['not_found_file'].format(file_name))
             else:
                 await status_message.edit(messages['corrupted_file'].format(file_name))
+
+        await asyncio.gather(*tasks)
 
         for status_message in status_messages:
             await status_message.delete()
 
+    except KeyboardInterrupt:
+        print("Script interrupted manually.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        traceback.print_exc()
     finally:
         await client.disconnect()
         release_lock(lock_file)
@@ -125,8 +154,10 @@ if __name__ == '__main__':
     try:
         acquire_lock(lock_file, messages)
         asyncio.run(main())
-        release_lock(lock_file)
+    except KeyboardInterrupt:
+        print("Script interrupted manually.")
     except Exception as e:
         print(f"An error occurred: {e}")
         traceback.print_exc()
+    finally:
         release_lock(lock_file)

@@ -165,6 +165,7 @@ cython_debug/
 *.session-journal
 script.lock
 *.txt
-!tg-config.txt
+*.csv
+!tg-config-example.txt
 tg-video
 tg-video-completed
