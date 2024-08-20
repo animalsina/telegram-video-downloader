@@ -6,7 +6,7 @@ import os
 import asyncio
 import csv
 
-from func.utils import update_file_info, release_lock
+from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file
 
 def create_telegram_client(session_name, api_id, api_hash):
     return TelegramClient(session_name, api_id, api_hash)
@@ -25,7 +25,7 @@ def load_progress(file_path):
     except FileNotFoundError:
         return 0
 
-async def download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file, retry_attempts=5):
+async def download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file, check_file, retry_attempts=5):
     attempt = 0
     last_update_time = time.time()
     file_size = message.media.document.size
@@ -79,6 +79,8 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                 os.rename(temp_file_path, file_path)
                 os.remove(progress_file_path)
                 print(f"Downloaded video to: {file_path}")
+                status_message = await client.send_message('me',f"🔔 File ready to move: {file_name}")
+                print(f"File ready to move: {file_name}")
 
                 if not is_file_corrupted(file_path, file_info_path):
                     if(os.path.exists(file_path)):
@@ -88,11 +90,11 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         completed_file_path = os.path.join(completed_folder, video_name + extension)
 
                         if move_file(file_path, completed_file_path, messages):
-                            await client.send_message('me',messages['download_complete'].format(video_name))
+                            await status_message.edit('me',messages['download_complete'].format(video_name))
                         else:
-                            await client.send_message('me',messages['error_move_file'].format(video_name))
+                            await status_message.edit('me',messages['error_move_file'].format(video_name))
                 else:
-                    await client.send_message('me',messages['corrupted_file'].format(file_name))
+                    await status_message.edit('me',messages['corrupted_file'].format(file_name))
 
                 update_file_info(file_info_path, file_name, 'completed', file_size)
                 return
