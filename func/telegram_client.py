@@ -70,16 +70,37 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                             f.write(chunk)
                             await progress_callback(f.tell(), file_size)
 
+            temp_file_size = os.path.getsize(temp_file_path)
+
+            tolerance = 2048  # Tolleranza in byte, puoi cambiarla a seconda delle tue necessità
+
             # Verifica se il file temporaneo è completo e poi spostalo al percorso finale
-            if os.path.getsize(temp_file_path) == file_size:
+            if abs(temp_file_size - file_size) <= tolerance:
                 os.rename(temp_file_path, file_path)
                 os.remove(progress_file_path)
-                print(f"Downloaded video to: {file_path}")
+                print(f"⬇️ Downloaded video to: {file_path}")
+
+                if not is_file_corrupted(file_path, file_info_path):
+                    if(os.path.exists(file_path)):
+                        save_downloaded_file(check_file, file_name)
+                        mime_type, _ = mimetypes.guess_type(file_path)
+                        extension = mimetypes.guess_extension(mime_type) if mime_type else ''
+                        completed_file_path = os.path.join(completed_folder, video_name + extension)
+
+                        if move_file(file_path, completed_file_path, messages):
+                            await client.send_message('me',messages['download_complete'].format(video_name))
+                        else:
+                            await client.send_message('me',messages['error_move_file'].format(video_name))
+                else:
+                    await client.send_message('me',messages['corrupted_file'].format(file_name))
 
                 update_file_info(file_info_path, file_name, 'completed', file_size)
                 return
             else:
-                raise Exception("File size mismatch")
+                await status_message.edit(f"‼️ File {video_name} size mismatch - I will delete temp file and retry.")
+                os.remove(temp_file_path)
+                os.remove(progress_file_path)
+                raise Exception(f"File {video_name} size mismatch - I will delete temp file and retry.")
 
         except FloodWaitError as e:
             wait_time = e.seconds + 10  # Aggiungi un buffer di tempo per sicurezza
@@ -87,13 +108,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
             await asyncio.sleep(wait_time)
             attempt += 1
 
-        except KeyboardInterrupt:
-            print("Download interrupted manually inside retry.")
-            update_file_info(file_info_path, file_name, 'manual_interruption', file_size)
-            raise
-
         except Exception as e:
-            print(f"Error downloading video: {str(e)}")
             update_file_info(file_info_path, file_name, f'error: {str(e)}', file_size)
             break
 
