@@ -1,6 +1,7 @@
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 from tqdm import tqdm
+import mimetypes
 import time
 import os
 import asyncio
@@ -25,7 +26,7 @@ def load_progress(file_path):
     except FileNotFoundError:
         return 0
 
-async def download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file, check_file, retry_attempts=5):
+async def download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file, check_file, completed_folder, retry_attempts=5):
     attempt = 0
     last_update_time = time.time()
     file_size = message.media.document.size
@@ -90,11 +91,11 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         completed_file_path = os.path.join(completed_folder, video_name + extension)
 
                         if move_file(file_path, completed_file_path, messages):
-                            await status_message.edit('me',messages['download_complete'].format(video_name))
+                            await status_message.edit(messages['download_complete'].format(video_name))
                         else:
-                            await status_message.edit('me',messages['error_move_file'].format(video_name))
+                            await status_message.edit(messages['error_move_file'].format(video_name))
                 else:
-                    await status_message.edit('me',messages['corrupted_file'].format(file_name))
+                    await status_message.edit(messages['corrupted_file'].format(file_name))
 
                 update_file_info(file_info_path, file_name, 'completed', file_size)
                 return
