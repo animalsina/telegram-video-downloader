@@ -29,9 +29,9 @@ config = load_config(config_path)
 api_id = config.get('api_id')
 api_hash = config.get('api_hash')
 phone = config.get('phone')
-download_folder = config.get('download_folder', 'tg-video')
-completed_folder = config.get('completed_folder', 'tg-video-completed')
-check_file = os.path.join(root_dir, config.get('check_file', 'downloaded_files.txt'))
+download_folder = config.get('download_folder', os.path.join(root_dir, 'tg-video'))
+completed_folder = config.get('completed_folder', os.path.join(root_dir, 'tg-video-completed'))
+check_file = os.path.join(root_dir, config.get('check_file', './downloaded_files.txt'))
 lock_file = os.path.join(root_dir, 'script.lock')
 session_name = os.path.join(root_dir, config.get('session_name', 'session_name'))
 min_valid_file_size = config.get('min_valid_file_size', 100)
@@ -53,9 +53,18 @@ sem = asyncio.Semaphore(int(max_simultaneous_file_to_download))
 
 async def download_with_limit(client, message, file_path, file_name, video_name, messages, lock_file, status_messages):
     async with sem:
-        status_message = await client.send_message('me', f"Downloading video '{video_name}'...")
+        status_message = await client.send_message('me', f"🔔 Downloading video '{video_name}'...")
         status_messages.append(status_message)
         await download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file)
+
+async def delete_service_messages(client, all_messages):
+    for message in all_messages:
+        if message.text and any(icon in message.text for icon in ["⬇️", "‼️", "🔔"]):
+            try:
+                await client.delete_messages('me', [message.id])
+                print(f"Deleted message with id: {message.id}")
+            except Exception as delete_error:
+                print(f"Failed to delete message with id: {message.id} - {delete_error}")
 
 async def main():
     client = create_telegram_client(session_name, api_id, api_hash)
@@ -73,6 +82,9 @@ async def main():
         if len(all_messages) == 0:
             print('No Messages found')
             return
+
+
+        await delete_service_messages(client, all_messages)
 
         # Extract video messages and map them to their positions
         video_messages = [msg for msg in all_messages if msg.document and any(isinstance(attr, DocumentAttributeVideo) for attr in msg.document.attributes)]
@@ -118,37 +130,16 @@ async def main():
             else:
                 file_path = os.path.join(download_folder, file_name)
 
-
             task = download_with_limit(client, message, file_path, file_name, video_name, messages, lock_file, status_messages)
             tasks.append(task)
-
-            if not is_file_corrupted(file_path, file_info_path):
-                if(os.path.exists(file_path)):
-                    save_downloaded_file(check_file, file_name)
-                    mime_type, _ = mimetypes.guess_type(file_path)
-                    extension = mimetypes.guess_extension(mime_type) if mime_type else ''
-                    completed_file_path = os.path.join(completed_folder, video_name + extension)
-
-                    if move_file(file_path, completed_file_path, messages):
-                        await status_message.edit(messages['download_complete'].format(file_name))
-                    else:
-                        await status_message.edit(messages['error_move_file'].format(file_name))
-            else:
-                await status_message.edit(messages['corrupted_file'].format(file_name))
 
         await asyncio.gather(*tasks)
 
         for status_message in status_messages:
             await status_message.delete()
 
-    except KeyboardInterrupt:
-        print("Script interrupted manually.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-        traceback.print_exc()
     finally:
         await client.disconnect()
-        release_lock(lock_file)
 
 if __name__ == '__main__':
     try:
@@ -161,4 +152,3 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"An error occurred: {e}")
         traceback.print_exc()
-        release_lock(lock_file)
