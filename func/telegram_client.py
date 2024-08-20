@@ -78,7 +78,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
             if abs(temp_file_size - file_size) <= tolerance:
                 os.rename(temp_file_path, file_path)
                 os.remove(progress_file_path)
-                print(f"⬇️ Downloaded video to: {file_path}")
+                print(f"Downloaded video to: {file_path}")
 
                 if not is_file_corrupted(file_path, file_info_path):
                     if(os.path.exists(file_path)):
@@ -105,11 +105,13 @@ async def download_with_retry(client, message, file_path, status_message, file_n
         except FloodWaitError as e:
             wait_time = e.seconds + 10  # Aggiungi un buffer di tempo per sicurezza
             print(f"Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
+            await status_message.edit(f"‼️ Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
             await asyncio.sleep(wait_time)
             attempt += 1
 
         except Exception as e:
             update_file_info(file_info_path, file_name, f'error: {str(e)}', file_size)
+            await status_message.edit(f"‼️ error {str(e)}")
             break
 
         finally:
@@ -117,4 +119,5 @@ async def download_with_retry(client, message, file_path, status_message, file_n
 
     else:
         print("All retry attempts failed.")
+        await status_message.edit(f"‼️ All retry attempts failed - {video_name} - retry on next check.")
         release_lock(lock_file)
