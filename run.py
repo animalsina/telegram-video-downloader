@@ -34,7 +34,6 @@ completed_folder = config.get('completed_folder', os.path.join(root_dir, 'tg-vid
 check_file = os.path.join(root_dir, config.get('check_file', './downloaded_files.txt'))
 lock_file = os.path.join(root_dir, 'script.lock')
 session_name = os.path.join(root_dir, config.get('session_name', 'session_name'))
-min_valid_file_size = config.get('min_valid_file_size', 100)
 max_simultaneous_file_to_download = config.get('max_simultaneous_file_to_download', 2)
 
 # List of chat names or IDs to retrieve messages from
@@ -55,7 +54,7 @@ async def download_with_limit(client, message, file_path, file_name, video_name,
     async with sem:
         status_message = await client.send_message('me', f"🔔 Downloading video '{video_name}'...")
         status_messages.append(status_message)
-        await download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file, check_file)
+        await download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file, check_file, completed_folder)
 
 async def delete_service_messages(client, all_messages):
     for message in all_messages:
@@ -121,10 +120,6 @@ async def main():
             if file_name is None:
                 file_name = f"{video_name}.mp4"
 
-            if file_name in downloaded_files:
-                print(f"File already downloaded: {file_name}")
-                continue
-
             if file_name is None:
                 print("Errore: file_name è None. Impossibile determinare il percorso del file.")
             else:
@@ -140,12 +135,17 @@ async def main():
                     completed_file_path = os.path.join(completed_folder, video_name + extension)
 
                     if move_file(file_path, completed_file_path, messages):
-                        await status_message.edit('me',messages['download_complete'].format(video_name))
+                        await status_message.edit(messages['download_complete'].format(video_name))
                     else:
-                        await status_message.edit('me',messages['error_move_file'].format(video_name))
+                        await status_message.edit(messages['error_move_file'].format(video_name))
                 else:
-                    await status_message.edit('me',messages['corrupted_file'].format(file_name))
+                    await status_message.edit(messages['corrupted_file'].format(file_name))
                 continue
+
+            if file_name in downloaded_files:
+                print(f"File already downloaded: {file_name}")
+                continue
+
 
             task = download_with_limit(client, message, file_path, file_name, video_name, messages, lock_file, status_messages)
             tasks.append(task)
