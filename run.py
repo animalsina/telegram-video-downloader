@@ -8,7 +8,7 @@ from telethon.tl.types import DocumentAttributeVideo
 sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
 
 from func.config import load_config, get_system_language
-from func.utils import check_folder_permissions, sanitize_filename, load_downloaded_files, save_downloaded_file, acquire_lock, release_lock, is_file_corrupted, move_file
+from func.utils import check_folder_permissions, sanitize_filename, load_downloaded_files, acquire_lock, release_lock, is_file_corrupted, save_downloaded_file, move_file
 from func.telegram_client import create_telegram_client, download_with_retry
 from func.messages import get_message
 
@@ -55,7 +55,7 @@ async def download_with_limit(client, message, file_path, file_name, video_name,
     async with sem:
         status_message = await client.send_message('me', f"🔔 Downloading video '{video_name}'...")
         status_messages.append(status_message)
-        await download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file)
+        await download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file, check_file)
 
 async def delete_service_messages(client, all_messages):
     for message in all_messages:
@@ -129,6 +129,23 @@ async def main():
                 print("Errore: file_name è None. Impossibile determinare il percorso del file.")
             else:
                 file_path = os.path.join(download_folder, file_name)
+
+            if os.path.exists(file_path):
+                status_message = await client.send_message('me',f"🔔 File ready to move: {file_name}")
+                print(f"File ready to move: {file_name}")
+                if not is_file_corrupted(file_path, file_info_path):
+                    save_downloaded_file(check_file, file_name)
+                    mime_type, _ = mimetypes.guess_type(file_path)
+                    extension = mimetypes.guess_extension(mime_type) if mime_type else ''
+                    completed_file_path = os.path.join(completed_folder, video_name + extension)
+
+                    if move_file(file_path, completed_file_path, messages):
+                        await status_message.edit('me',messages['download_complete'].format(video_name))
+                    else:
+                        await status_message.edit('me',messages['error_move_file'].format(video_name))
+                else:
+                    await status_message.edit('me',messages['corrupted_file'].format(file_name))
+                continue
 
             task = download_with_limit(client, message, file_path, file_name, video_name, messages, lock_file, status_messages)
             tasks.append(task)
