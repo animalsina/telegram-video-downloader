@@ -6,14 +6,33 @@ import time
 import os
 import asyncio
 import csv
+import collections
 
 from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file
+
+# Buffer per memorizzare i dati di velocità
+speed_samples = collections.deque(maxlen=10)  # Mantieni solo gli ultimi 10 campioni
+
+def calculate_download_speed(current, last_current, time_elapsed):
+    """Calcola la velocità di download."""
+    if time_elapsed <= 0:
+        return 0
+    return (current - last_current) / time_elapsed
 
 def create_telegram_client(session_name, api_id, api_hash):
     return TelegramClient(session_name, api_id, api_hash)
 
-async def update_download_message(message, percent, file_name):
-    await message.edit(f"⬇️ Download '{file_name}': {percent:.2f}% completato")
+async def update_download_message(message, percent, video_name, time_remaining_formatted):
+    await message.edit(f"⬇️ Download '{video_name}': {percent:.2f}% completato.\nTempo rimanente: {time_remaining_formatted}")
+
+def format_time(seconds):
+    """Formatta il tempo in secondi in una stringa leggibile come hh:mm:ss."""
+    if seconds <= 0 or seconds == float('inf'):
+        return "Calculating..."
+
+    hours, rem = divmod(seconds, 3600)
+    minutes, seconds = divmod(rem, 60)
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
 def save_progress(file_path, progress):
     with open(f"{file_path}.progress", 'w') as f:
@@ -23,12 +42,16 @@ def load_progress(file_path):
     try:
         with open(f"{file_path}.progress", 'r') as f:
             return int(f.read())
+    except ValueError:
+        # Gestisci il caso in cui il contenuto non è convertibile in int
+        return 0
     except FileNotFoundError:
         return 0
 
 async def download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file, check_file, completed_folder, retry_attempts=5):
     attempt = 0
     last_update_time = time.time()
+    last_current = 0
     file_size = message.media.document.size
     file_info_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'file_info.csv')
 
@@ -51,12 +74,41 @@ async def download_with_retry(client, message, file_path, status_message, file_n
             with tqdm(total=file_size, initial=progress, desc=f"Downloading {message.id} - {file_name} - {video_name}", unit='B', unit_scale=True, unit_divisor=1024) as pbar:
                 async def progress_callback(current, total):
                     nonlocal last_update_time
+                    nonlocal last_current
+                    file_size = message.file.size
+                    progress = load_progress(file_path)
+
                     if total is not None:
                         percent_complete = (current / total) * 100
                         current_time = time.time()
+
+                        # Calcola il tempo trascorso
+                        time_elapsed = current_time - last_update_time
+
+                        # Calcola la velocità di download
+                        download_speed = calculate_download_speed(current, last_current, time_elapsed)
+
+                        if download_speed > 0:
+                            time_remaining = (total - current) / download_speed
+                        else:
+                            time_remaining = float('inf')
+
+                        # Aggiungi la velocità al buffer di campioni
+                        speed_samples.append(download_speed)
+
+                        # Calcola la velocità media per una stima più precisa
+                        if speed_samples:
+                            average_speed = sum(speed_samples) / len(speed_samples)
+                            time_remaining = (total - current) / average_speed if average_speed > 0 else float('inf')
+                        else:
+                            average_speed = 0
+
                         if current_time - last_update_time >= 5:
-                            await update_download_message(status_message, percent_complete, video_name)
+                            time_remaining_formatted = format_time(time_remaining)
+                            await update_download_message(status_message, percent_complete, video_name, time_remaining_formatted)
                             last_update_time = current_time
+                            last_current = current
+
                         pbar.update(current - pbar.n)
                         pbar.total = total
                         pbar.n = current
