@@ -1,0 +1,15 @@
+[telegram]
+api_id=
+api_hash=
+phone=
+#completed_folder=./tg-video
+#completed_folder=./tg-video-completed
+check_file=./downloaded_files.txt
+session_name=session_name
+max_simultaneous_file_to_download=3
+
+[groups]
+# Key = ChannelID(@channelId/@botId)
+personal=me
+other_channel=channel_id
+other_bot=bot_id
