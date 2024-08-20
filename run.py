@@ -154,10 +154,11 @@ if __name__ == '__main__':
     try:
         acquire_lock(lock_file, messages)
         asyncio.run(main())
+        release_lock(lock_file)
     except KeyboardInterrupt:
         print("Script interrupted manually.")
+        release_lock(lock_file)
     except Exception as e:
         print(f"An error occurred: {e}")
         traceback.print_exc()
-    finally:
         release_lock(lock_file)
