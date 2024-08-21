@@ -37,7 +37,11 @@ def get_message(key, language):
                 "‼️ Rate limit exceeded. Waiting for {} seconds before retrying..."
             ),
             'file_system_error': "‼️ File system error: {}",
-            'all_attempts_failed': "‼️ All retry attempts failed - {} - retry on next check."
+            'all_attempts_failed': "‼️ All retry attempts failed - {} - retry on next check.",
+            'video_saved_and_moved': (
+                "🔔 Video is saved and moved in {}"
+            )
+
         },
         'it': {
             'start_connection': "Inizio connessione al client...",
@@ -66,6 +70,9 @@ def get_message(key, language):
             'file_system_error': "‼️ Errore file system: {}",
             'all_attempts_failed': (
                 "‼️ Tutti i tentativi sono falliti - {} - Riprovo al prossimo controllo."
+            ),
+            'video_saved_and_moved': (
+                "🔔 Il video è stato salvato e spostato su {}"
             )
         }
     }
