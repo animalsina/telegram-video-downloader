@@ -36,6 +36,21 @@ def move_file(src, dest, messages):
         print(messages['error_move_file'].format(os.path.basename(src)))
         return False
 
+def remove_file_info(file_path, file_name):
+    lines = []
+
+    if os.path.exists(file_path):
+        with open(file_path, 'r') as f:
+            reader = csv.reader(f)
+            lines = list(reader)
+
+    with open(file_path, 'w', newline='') as f:
+        writer = csv.writer(f)
+        for row in lines:
+            if row[0] != file_name:
+                writer.writerow(row)
+
+
 def update_file_info(file_path, file_name, status, file_size):
     lines = []
     file_exists = False
