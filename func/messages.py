@@ -33,7 +33,9 @@ def get_message(key, language):
             'script_running': "Script already running.",
             'ready_to_move': "🔔 File ready to move: {}",
             'file_mismatch_error': "‼️ File {} size mismatch - I will delete temp file and retry.",
-            'rate_limit_exceeded_error': "‼️ Rate limit exceeded. Waiting for {} seconds before retrying...",
+            'rate_limit_exceeded_error': (
+                "‼️ Rate limit exceeded. Waiting for {} seconds before retrying..."
+            ),
             'file_system_error': "‼️ File system error: {}",
             'all_attempts_failed': "‼️ All retry attempts failed - {} - retry on next check."
         },
@@ -55,11 +57,19 @@ def get_message(key, language):
             'permission_error': "Errore di permesso: {}",
             'script_running': "Script già in esecuzione.",
             'ready_to_move': "🔔 File pronto per essere spostato: {}",
-            'file_mismatch_error': "‼️ Grandezza del file {} non corrisponde - Sarà cancellato e riscaricato.",
-            'rate_limit_exceeded_error': "‼️ Superato il limite. Attendi {} secondi prima di riprovare...",
+            'file_mismatch_error': (
+                "‼️ Grandezza del file {} non corrisponde - Sarà cancellato e riscaricato."
+            ),
+            'rate_limit_exceeded_error': (
+                "‼️ Superato il limite. Attendi {} secondi prima di riprovare..."
+            ),
             'file_system_error': "‼️ Errore file system: {}",
-            'all_attempts_failed': "‼️ Tutti i tentativi sono falliti - {} - Riprovo al prossimo controllo."
+            'all_attempts_failed': (
+                "‼️ Tutti i tentativi sono falliti - {} - Riprovo al prossimo controllo."
+            )
         }
     }
     # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese
+    if key:
+        return messages.get(language, messages['en']).get(key, "Message key not found")
     return messages.get(language, messages['en'])
