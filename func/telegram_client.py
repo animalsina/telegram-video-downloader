@@ -1,12 +1,17 @@
-from telethon import TelegramClient
-from telethon.errors import FloodWaitError
-from tqdm import tqdm
+"""
+Module for interacting with Telegram API to download files with progress tracking and retry logic.
+"""
+
 import mimetypes
 import time
 import os
 import asyncio
 import csv
 import collections
+
+from telethon import TelegramClient
+from telethon.errors import FloodWaitError
+from tqdm import tqdm
 
 from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file, remove_file_info
 
@@ -38,13 +43,13 @@ def format_time(seconds):
 
 def save_progress(file_path, progress):
     """Save the current download progress to a .progress file."""
-    with open(f"{file_path}.progress", 'w') as f:
+    with open(f"{file_path}.progress", 'w', encoding='utf-8') as f:
         f.write(str(progress))
 
 def load_progress(file_path):
     """Load and return the download progress from a .progress file."""
     try:
-        with open(f"{file_path}.progress", 'r') as f:
+        with open(f"{file_path}.progress", 'r', encoding='utf-8') as f:
             return int(f.read())
     except ValueError:
         # Handle the case where the content cannot be converted to int
@@ -99,20 +104,14 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         download_speed = calculate_download_speed(current, last_current, time_elapsed)
 
                         # Estimate time remaining
-                        if download_speed > 0:
-                            time_remaining = (total - current) / download_speed
-                        else:
-                            time_remaining = float('inf')
+                        time_remaining = (total - current) / download_speed if download_speed > 0 else float('inf')
 
                         # Add the current speed to the speed sample buffer
                         speed_samples.append(download_speed)
 
                         # Calculate average speed for a more accurate estimate
-                        if speed_samples:
-                            average_speed = sum(speed_samples) / len(speed_samples)
-                            time_remaining = (total - current) / average_speed if average_speed > 0 else float('inf')
-                        else:
-                            average_speed = 0
+                        average_speed = sum(speed_samples) / len(speed_samples) if speed_samples else 0
+                        time_remaining = (total - current) / average_speed if average_speed > 0 else float('inf')
 
                         # Update the status message every 3 seconds
                         if current_time - last_update_time >= 3:
@@ -145,7 +144,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                 os.rename(temp_file_path, file_path)
                 os.remove(progress_file_path)
                 print(f"Downloaded video to: {file_path}")
-                status_message = await client.send_message('me', f"🔔 File ready to move: {file_name}")
+                status_message = await client.send_message('me', messages['ready_to_move'].format(video_name))
                 print(f"File ready to move: {file_name}")
 
                 if(os.path.exists(file_path)):
@@ -159,12 +158,13 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                             await status_message.edit(messages['download_complete'].format(video_name))
                         else:
                             await status_message.edit(messages['error_move_file'].format(video_name))
+                        return
                     else:
                         await status_message.edit(messages['corrupted_file'].format(file_name))
                     update_file_info(file_info_path, file_name, 'completed', file_size)
                 return
             else:
-                await status_message.edit(f"‼️ File {video_name} size mismatch - I will delete temp file and retry.")
+                await status_message.edit(messages['file_mismatch_error'].format(video_name))
                 os.remove(temp_file_path)
                 os.remove(progress_file_path)
                 raise Exception(f"File {video_name} size mismatch - I will delete temp file and retry.")
@@ -172,14 +172,19 @@ async def download_with_retry(client, message, file_path, status_message, file_n
         except FloodWaitError as e:
             wait_time = e.seconds + 10  # Add a buffer time for safety
             print(f"Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
-            await status_message.edit(f"‼️ Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
+            await status_message.edit(messages['rate_limit_exceeded_error'].format(wait_time))
             await asyncio.sleep(wait_time)
             attempt += 1
+
+        except (OSError, IOError) as e:
+            update_file_info(file_info_path, file_name, f'error: {str(e)}', file_size)
+            await status_message.edit(messages['file_system_error'].format(str(e)))
+            break
 
         except Exception as e:
             # Update the CSV with error information and stop the process
             update_file_info(file_info_path, file_name, f'error: {str(e)}', file_size)
-            await status_message.edit(f"‼️ Error: {str(e)}")
+            await status_message.edit(f"‼️ Unexpected error: {str(e)}")
             break
 
         finally:
@@ -188,5 +193,5 @@ async def download_with_retry(client, message, file_path, status_message, file_n
 
     else:
         print("All retry attempts failed.")
-        await status_message.edit(f"‼️ All retry attempts failed - {video_name} - retry on next check.")
+        await status_message.edit(messages['all_attempts_failed'].format(video_name))
         release_lock(lock_file)

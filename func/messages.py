@@ -4,14 +4,14 @@ This module contains functions for retrieving localized messages based on the la
 
 def get_message(key, language):
     """
-    Retrieve a localized message based on the provided key and language.
+    Retrieve a dictionary of localized messages based on the provided language.
 
     Args:
         key (str): The key for the message.
         language (str): The language code ('en' for English, 'it' for Italian).
 
     Returns:
-        str: The localized message corresponding to the key and language.
+        dict: A dictionary of localized messages corresponding to the language.
     """
     messages = {
         'en': {
@@ -30,7 +30,12 @@ def get_message(key, language):
             'not_found_file': "❌ File Not Found: {}",
             'error_download': "❌ Error downloading video '{}': {}",
             'permission_error': "Permission error: {}",
-            'script_running': "Script already running."
+            'script_running': "Script already running.",
+            'ready_to_move': "🔔 File ready to move: {}",
+            'file_mismatch_error': "‼️ File {} size mismatch - I will delete temp file and retry.",
+            'rate_limit_exceeded_error': "‼️ Rate limit exceeded. Waiting for {} seconds before retrying...",
+            'file_system_error': "‼️ File system error: {}",
+            'all_attempts_failed': "‼️ All retry attempts failed - {} - retry on next check."
         },
         'it': {
             'start_connection': "Inizio connessione al client...",
@@ -48,7 +53,13 @@ def get_message(key, language):
             'not_found_file': "❌ File non trovato: {}",
             'error_download': "❌ Errore durante il download del video '{}': {}",
             'permission_error': "Errore di permesso: {}",
-            'script_running': "Script già in esecuzione."
+            'script_running': "Script già in esecuzione.",
+            'ready_to_move': "🔔 File pronto per essere spostato: {}",
+            'file_mismatch_error': "‼️ Grandezza del file {} non corrisponde - Sarà cancellato e riscaricato.",
+            'rate_limit_exceeded_error': "‼️ Superato il limite. Attendi {} secondi prima di riprovare...",
+            'file_system_error': "‼️ Errore file system: {}",
+            'all_attempts_failed': "‼️ Tutti i tentativi sono falliti - {} - Riprovo al prossimo controllo."
         }
     }
-    return messages.get(language, messages['en']).get(key, "Message key not found")
+    # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese
+    return messages.get(language, messages['en'])
