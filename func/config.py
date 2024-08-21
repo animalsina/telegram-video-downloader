@@ -1,4 +1,8 @@
-import os
+"""
+This module contains functions to load configuration from a file and determine
+the system's default language based on locale settings.
+"""
+
 import locale
 
 def load_config(file_path):
@@ -11,7 +15,7 @@ def load_config(file_path):
     config = {}
     groups = {}
 
-    with open(file_path, 'r') as f:
+    with open(file_path, 'r', encoding='utf-8') as f:
         section = None
         for line in f:
             line = line.strip()
