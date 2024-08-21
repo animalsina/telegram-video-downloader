@@ -135,6 +135,8 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                             f.write(chunk)
                             await progress_callback(f.tell(), file_size)
 
+            # Wait 3 seconds before to get temp file size
+            asyncio.sleep(3)
             temp_file_size = os.path.getsize(temp_file_path)
 
             tolerance = 5  # Tolerance in bytes, adjust as needed
