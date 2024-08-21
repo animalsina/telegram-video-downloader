@@ -8,10 +8,10 @@ import asyncio
 import csv
 import collections
 
-from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file
+from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file, remove_file_info
 
 # Buffer per memorizzare i dati di velocità
-speed_samples = collections.deque(maxlen=10)  # Mantieni solo gli ultimi 10 campioni
+speed_samples = collections.deque(maxlen=100)  # Mantieni solo gli ultimi 100 campioni
 
 def calculate_download_speed(current, last_current, time_elapsed):
     """Calcola la velocità di download."""
@@ -54,14 +54,18 @@ async def download_with_retry(client, message, file_path, status_message, file_n
     last_current = 0
     file_size = message.media.document.size
     file_info_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'file_info.csv')
+    temp_file_path = f"{file_path}.temp"
+    progress_file_path = f"{file_path}.progress"
+
+    # Prima di iniziare controlla se il file progress/temp esiste, se non esiste andiamo a rimuovere la riga
+    if os.path.exists(temp_file_path) is False or os.path.exists(progress_file_path) is False:
+        remove_file_info(file_info_path, file_name)
 
     # Scrivi le informazioni iniziali sul file CSV
     update_file_info(file_info_path, file_name, 'downloading', file_size)
 
     while attempt < retry_attempts:
         try:
-            temp_file_path = f"{file_path}.temp"
-            progress_file_path = f"{file_path}.progress"
             progress = load_progress(file_path) if os.path.exists(progress_file_path) else 0
 
             # Controlla se esiste il file temporaneo e se è vuoto, rimuovi entrambi
@@ -103,7 +107,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         else:
                             average_speed = 0
 
-                        if current_time - last_update_time >= 5:
+                        if current_time - last_update_time >= 3:
                             time_remaining_formatted = format_time(time_remaining)
                             await update_download_message(status_message, percent_complete, video_name, time_remaining_formatted)
                             last_update_time = current_time
@@ -125,7 +129,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
 
             temp_file_size = os.path.getsize(temp_file_path)
 
-            tolerance = 2048  # Tolleranza in byte, puoi cambiarla a seconda delle tue necessità
+            tolerance = 5  # Tolleranza in byte, puoi cambiarla a seconda delle tue necessità
 
             # Verifica se il file temporaneo è completo e poi spostalo al percorso finale
             if abs(temp_file_size - file_size) <= tolerance:
@@ -135,21 +139,20 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                 status_message = await client.send_message('me',f"🔔 File ready to move: {file_name}")
                 print(f"File ready to move: {file_name}")
 
-                if not is_file_corrupted(file_path, file_info_path):
-                    if(os.path.exists(file_path)):
-                        save_downloaded_file(check_file, file_name)
-                        mime_type, _ = mimetypes.guess_type(file_path)
-                        extension = mimetypes.guess_extension(mime_type) if mime_type else ''
-                        completed_file_path = os.path.join(completed_folder, video_name + extension)
+                if(os.path.exists(file_path)):
+                    if not is_file_corrupted(file_path, file_info_path):
+                            save_downloaded_file(check_file, file_name)
+                            mime_type, _ = mimetypes.guess_type(file_path)
+                            extension = mimetypes.guess_extension(mime_type) if mime_type else ''
+                            completed_file_path = os.path.join(completed_folder, video_name + extension)
 
-                        if move_file(file_path, completed_file_path, messages):
-                            await status_message.edit(messages['download_complete'].format(video_name))
-                        else:
-                            await status_message.edit(messages['error_move_file'].format(video_name))
-                else:
-                    await status_message.edit(messages['corrupted_file'].format(file_name))
-
-                update_file_info(file_info_path, file_name, 'completed', file_size)
+                            if move_file(file_path, completed_file_path, messages):
+                                await status_message.edit(messages['download_complete'].format(video_name))
+                            else:
+                                await status_message.edit(messages['error_move_file'].format(video_name))
+                    else:
+                        await status_message.edit(messages['corrupted_file'].format(file_name))
+                    update_file_info(file_info_path, file_name, 'completed', file_size)
                 return
             else:
                 await status_message.edit(f"‼️ File {video_name} size mismatch - I will delete temp file and retry.")
