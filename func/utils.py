@@ -1,3 +1,8 @@
+"""
+Utility functions for file handling, including permission checks, file moving,
+logging, and corruption checking.
+"""
+
 import os
 import csv
 import shutil
@@ -35,16 +40,13 @@ def load_downloaded_files(check_file):
     If the file doesn't exist, return an empty set.
     """
     if os.path.exists(check_file):
-        with open(check_file, 'r') as f:
+        with open(check_file, 'r', encoding='utf-8') as f:
             return set(line.strip() for line in f)
     return set()
 
 def save_downloaded_file(check_file, file_name):
-    """
-    Append the name of a newly downloaded file to the list of downloaded files,
-    saving it in the specified check_file.
-    """
-    with open(check_file, 'a') as f:
+    """Append the name of a newly downloaded file to the list of downloaded files."""
+    with open(check_file, 'a', encoding='utf-8') as f:
         f.write(file_name + '\n')
 
 def move_file(src, dest, messages):
@@ -57,7 +59,7 @@ def move_file(src, dest, messages):
         shutil.move(src, dest)
         print(messages['video_saved_and_moved'].format(dest))
         return True
-    except Exception as e:
+    except (shutil.Error, OSError):
         print(messages['error_move_file'].format(os.path.basename(src)))
         return False
 
@@ -70,11 +72,11 @@ def remove_file_info(file_path, file_name):
     lines = []
 
     if os.path.exists(file_path):
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
             lines = list(reader)
 
-    with open(file_path, 'w', newline='') as f:
+    with open(file_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         for row in lines:
             if row[0] != file_name:
@@ -90,11 +92,11 @@ def update_file_info(file_path, file_name, status, file_size):
     file_exists = False
 
     if os.path.exists(file_path):
-        with open(file_path, 'r') as f:
+        with open(file_path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
             lines = list(reader)
 
-    with open(file_path, 'w', newline='') as f:
+    with open(file_path, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
         for row in lines:
             if row[0] == file_name:
@@ -114,7 +116,7 @@ def get_file_size_from_log(file_info_path, file_name):
     return None.
     """
     if os.path.exists(file_info_path):
-        with open(file_info_path, 'r') as f:
+        with open(file_info_path, 'r', encoding='utf-8') as f:
             reader = csv.reader(f)
             for row in reader:
                 if row[0] == file_name:
@@ -146,7 +148,8 @@ def acquire_lock(lock_file, messages):
     if os.path.exists(lock_file):
         print(messages['script_running'])
         sys.exit()
-    open(lock_file, 'w').close()
+    with open(lock_file, 'w') as f:
+        pass
 
 def release_lock(lock_file):
     """
