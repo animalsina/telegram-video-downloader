@@ -1,4 +1,18 @@
+"""
+This module contains functions for retrieving localized messages based on the language key.
+"""
+
 def get_message(key, language):
+    """
+    Retrieve a localized message based on the provided key and language.
+
+    Args:
+        key (str): The key for the message.
+        language (str): The language code ('en' for English, 'it' for Italian).
+
+    Returns:
+        str: The localized message corresponding to the key and language.
+    """
     messages = {
         'en': {
             'start_connection': "Starting connection to the client...",
@@ -9,7 +23,9 @@ def get_message(key, language):
             'starting_download': "⬇️ Starting download: {}",
             'download_started': "⬇️ Downloading: {}%",
             'corrupted_file': "The file '{}' is corrupted. Re-downloading...",
-            'download_complete': "✅ Download completed and moved: {}\nCompleted",
+            'download_complete': (
+                "✅ Download completed and moved: {}\nCompleted"
+            ),
             'error_move_file': "❌ Error moving file: {}",
             'not_found_file': "❌ File Not Found: {}",
             'error_download': "❌ Error downloading video '{}': {}",
@@ -25,7 +41,9 @@ def get_message(key, language):
             'starting_download': "️⬇️ Inizio download: {}",
             'download_started': "⬇️ Scaricando: {}%",
             'corrupted_file': "Il file '{}' è corrotto. Riscaricando...",
-            'download_complete': "✅ Download completato e spostato: {}\nCompletato",
+            'download_complete': (
+                "✅ Download completato e spostato: {}\nCompletato"
+            ),
             'error_move_file': "❌ Errore durante lo spostamento del file: {}",
             'not_found_file': "❌ File non trovato: {}",
             'error_download': "❌ Errore durante il download del video '{}': {}",
@@ -33,4 +51,4 @@ def get_message(key, language):
             'script_running': "Script già in esecuzione."
         }
     }
-    return messages.get(language, messages['en'])  # Default to English if the language is not supported
+    return messages.get(language, messages['en']).get(key, "Message key not found")
