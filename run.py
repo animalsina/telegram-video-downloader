@@ -109,7 +109,7 @@ async def main():
 
             # Extract the file name from the message's document attributes
             if len(message.media.document.attributes) > 1:
-                file_name = message.media.document.attributes[1].file_name
+                file_name = sanitize_filename(message.media.document.attributes[1].file_name)
             else:
                 file_name = None  # Handle the case where file_name is missing
 
@@ -120,17 +120,14 @@ async def main():
                 position = video_positions.get(message.id)
                 if position is not None and 0 <= position - 1 < len(all_messages):
                     next_message = all_messages[position - 1]
-                    if next_message.text:
+                    if next_message.text and not any(symbol in next_message.text for symbol in ["⬇️", "‼️", "🔔", "✅ "]):
                         video_name = sanitize_filename(next_message.text.split('\n')[0].strip())
-                else:
-                    print(f"Index {position - 1} is out of range for all_messages")
 
-                if not video_name and file_name is not None:
+                if video_name is None and file_name is not None:
                     # Set video_name based on file_name if no valid video name was found
                     video_name = sanitize_filename(file_name.split('.')[0].strip())
 
-                if not video_name:
-                    print(f"Cannot get name for the message: {message.id}")
+                if video_name is None:
                     break
 
             if file_name is None:
@@ -138,6 +135,7 @@ async def main():
 
             if file_name is None:
                 print("Error: file_name is None. Unable to determine the file path.")
+                continue
             else:
                 file_path = os.path.join(download_folder, file_name)
 
