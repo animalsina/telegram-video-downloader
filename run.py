@@ -124,10 +124,14 @@ async def main():
                         video_name = sanitize_filename(next_message.text.split('\n')[0].strip())
                 else:
                     print(f"Index {position - 1} is out of range for all_messages")
-                if not video_name:
+
+                if not video_name and file_name is not None:
                     # Set video_name based on file_name if no valid video name was found
-                    video_name = file_name.split('.')[0]
+                    video_name = sanitize_filename(file_name.split('.')[0].strip())
+
+                if not video_name:
                     print(f"Cannot get name for the message: {message.id}")
+                    break
 
             if file_name is None:
                 file_name = f"{video_name}.mp4"
@@ -186,3 +190,4 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"An error occurred: {e}")
         traceback.print_exc()
+        release_lock(lock_file)
