@@ -40,7 +40,8 @@ def get_message(key, language):
             'all_attempts_failed': "‼️ All retry attempts failed - {} - retry on next check.",
             'video_saved_and_moved': (
                 "🔔 Video is saved and moved in {}"
-            )
+            ),
+            'no_message_found': "‼️ No message found"
 
         },
         'it': {
@@ -73,7 +74,8 @@ def get_message(key, language):
             ),
             'video_saved_and_moved': (
                 "🔔 Il video è stato salvato e spostato su {}"
-            )
+            ),
+            'no_message_found': "‼️ Nessun messaggio trovato"
         }
     }
     # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese
