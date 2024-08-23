@@ -54,14 +54,14 @@ check_folder_permissions(completed_folder)
 # Semaphore to limit the number of concurrent downloads
 sem = asyncio.Semaphore(int(max_simultaneous_file_to_download))
 
-async def download_with_limit(client, message, file_path, file_name, video_name, lock_file, status_messages):
+async def download_with_limit(client, message, file_path, file_name, video_name, p_lock_file, status_messages):
     """Download a file with concurrency limit."""
     async with sem:
         # Send a status message before starting the download
         status_message = await client.send_message('me', f"🔔 Downloading video '{video_name}'...")
         status_messages.append(status_message)
         # Start downloading the file with retry logic
-        await download_with_retry(client, message, file_path, status_message, file_name, video_name, lock_file, check_file, completed_folder)
+        await download_with_retry(client, message, file_path, status_message, file_name, video_name, p_lock_file, check_file, completed_folder)
 
 async def delete_service_messages(client, all_messages):
     """Delete service messages from Telegram that match certain icons."""
@@ -89,7 +89,7 @@ async def main():
 
         if len(all_messages) == 0:
             print('No Messages found')
-            await status_message.edit(messages['no_message_found'])
+            await client.send_message('me', messages['no_message_found'])
             return
 
         # Delete previously created service messages
@@ -143,7 +143,7 @@ async def main():
 
             # Check if the file already exists
             if os.path.exists(file_path):
-                status_message = await client.send_message('me', f"🔔 File ready to move: {file_name}")
+                status_message = await client.send_message('me', messages['ready_to_move'].format(file_name))
                 print(f"File ready to move: {file_name}")
                 # Check if the file is corrupted before moving it
                 if not is_file_corrupted(file_path, file_info_path):
@@ -152,7 +152,7 @@ async def main():
                     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
                     completed_file_path = os.path.join(completed_folder, video_name + extension)
 
-                    if move_file(file_path, completed_file_path, messages):
+                    if move_file(file_path, completed_file_path):
                         await status_message.edit(messages['download_complete'].format(video_name))
                     else:
                         await status_message.edit(messages['error_move_file'].format(video_name))

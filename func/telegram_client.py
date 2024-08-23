@@ -91,8 +91,6 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                 async def progress_callback(current, total):
                     nonlocal last_update_time
                     nonlocal last_current
-                    file_size = message.file.size
-                    progress = load_progress(file_path)
 
                     if total is not None:
                         percent_complete = (current / total) * 100
@@ -148,7 +146,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                 os.rename(temp_file_path, file_path)
                 os.remove(progress_file_path)
                 print(f"Downloaded video to: {file_path}")
-                status_message = await client.send_message('me', messages['ready_to_move'].format(video_name))
+                status_message = await status_message.edit(messages['ready_to_move'].format(video_name))
                 print(f"File ready to move: {file_name}")
 
                 if os.path.exists(file_path):
