@@ -6,17 +6,17 @@ import mimetypes
 import time
 import os
 import asyncio
-import csv
 import collections
 
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 from tqdm import tqdm
 
+from func.messages import get_message
 from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file, remove_file_info, acquire_lock
 
 # Buffer to store speed data samples
-speed_samples = collections.deque(maxlen=100)  # Keep only the last 100 samples
+speed_samples = collections.deque(maxlen=20)  # Keep only the last 100 samples
 
 def calculate_download_speed(current, last_current, time_elapsed):
     """Calculate download speed."""
@@ -58,7 +58,7 @@ def load_progress(file_path):
         # Handle the case where the progress file doesn't exist
         return 0
 
-async def download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file, check_file, completed_folder, retry_attempts=5):
+async def download_with_retry(client, message, file_path, status_message, file_name, video_name, lock_file, check_file, completed_folder, retry_attempts=5):
     """Download a file with retry attempts in case of failure."""
     attempt = 0
     last_update_time = time.time()
@@ -67,6 +67,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
     file_info_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'file_info.csv')
     temp_file_path = f"{file_path}.temp"
     progress_file_path = f"{file_path}.progress"
+    messages = get_message('')
 
     # Before starting, check if the progress/temp file exists; if not, remove the corresponding row from the CSV
     if os.path.exists(temp_file_path) is False or os.path.exists(progress_file_path) is False:
@@ -115,7 +116,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
 
                         # Update the status message every 3 seconds
                         if current_time - last_update_time >= 3:
-                            acquire_lock(lock_file, messages)
+                            acquire_lock(lock_file)
                             time_remaining_formatted = format_time(time_remaining)
                             await update_download_message(status_message, percent_complete, video_name, time_remaining_formatted)
                             last_update_time = current_time
@@ -137,7 +138,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                             await progress_callback(f.tell(), file_size)
 
             # Wait 3 seconds before to get temp file size
-            asyncio.sleep(3)
+            await asyncio.sleep(3)
             temp_file_size = os.path.getsize(temp_file_path)
 
             tolerance = 0  # Tolerance in bytes, adjust as needed
@@ -150,14 +151,14 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                 status_message = await client.send_message('me', messages['ready_to_move'].format(video_name))
                 print(f"File ready to move: {file_name}")
 
-                if(os.path.exists(file_path)):
+                if os.path.exists(file_path):
                     if not is_file_corrupted(file_path, file_info_path):
                         save_downloaded_file(check_file, file_name)
                         mime_type, _ = mimetypes.guess_type(file_path)
                         extension = mimetypes.guess_extension(mime_type) if mime_type else ''
                         completed_file_path = os.path.join(completed_folder, video_name + extension)
 
-                        if move_file(file_path, completed_file_path, messages):
+                        if move_file(file_path, completed_file_path):
                             await status_message.edit(messages['download_complete'].format(video_name))
                         else:
                             await status_message.edit(messages['error_move_file'].format(video_name))

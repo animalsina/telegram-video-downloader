@@ -2,7 +2,9 @@
 This module contains functions for retrieving localized messages based on the language key.
 """
 
-def get_message(key, language):
+from func.config import get_system_language
+
+def get_message(key, language = None):
     """
     Retrieve a dictionary of localized messages based on the provided language.
 
@@ -13,6 +15,10 @@ def get_message(key, language):
     Returns:
         dict: A dictionary of localized messages corresponding to the language.
     """
+
+    if language is None:
+        language = get_language()
+
     messages = {
         'en': {
             'start_connection': "Starting connection to the client...",
@@ -82,3 +88,6 @@ def get_message(key, language):
     if key:
         return messages.get(language, messages['en']).get(key, "Message key not found")
     return messages.get(language, messages['en'])
+
+def get_language():
+    return get_system_language()

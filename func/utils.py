@@ -9,6 +9,8 @@ import shutil
 import sys
 import re
 
+from func.messages import get_message
+
 def check_folder_permissions(folder_path):
     """
     Ensure that the specified folder exists and has the appropriate write permissions.
@@ -49,18 +51,19 @@ def save_downloaded_file(check_file, file_name):
     with open(check_file, 'a', encoding='utf-8') as f:
         f.write(file_name + '\n')
 
-def move_file(src, dest, messages):
+def move_file(src, dest):
     """
     Move a file from the source path to the destination path.
     If the move is successful, return True. If an error occurs during the move,
     print an error message and return False.
     """
+    msgs =  get_message('')
     try:
         shutil.move(src, dest)
-        print(messages['video_saved_and_moved'].format(dest))
+        print(msgs['video_saved_and_moved'].format(dest))
         return True
     except (shutil.Error, OSError):
-        print(messages['error_move_file'].format(os.path.basename(src)))
+        print(msgs['error_move_file'].format(os.path.basename(src)))
         return False
 
 def remove_file_info(file_path, file_name):
@@ -140,14 +143,16 @@ def is_file_corrupted(file_path, file_info_path):
         return True
     return False
 
-def acquire_lock(lock_file, messages):
+def check_lock(lock_file):
+    if os.path.exists(lock_file):
+        print(get_message('script_running'))
+        sys.exit()
+
+def acquire_lock(lock_file):
     """
     Acquire a lock to prevent multiple instances of the script from running simultaneously.
     If the lock file already exists, print a message and exit the script.
     """
-    if os.path.exists(lock_file):
-        print(messages['script_running'])
-        sys.exit()
     with open(lock_file, 'w') as f:
         pass
 
