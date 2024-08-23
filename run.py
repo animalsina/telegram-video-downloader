@@ -10,7 +10,8 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
 
 # Import necessary functions from custom modules
 from func.config import load_config, get_system_language
-from func.utils import check_folder_permissions, sanitize_filename, load_downloaded_files, acquire_lock, release_lock, is_file_corrupted, save_downloaded_file, move_file
+from func.utils import check_folder_permissions, sanitize_filename, load_downloaded_files, acquire_lock, release_lock, \
+    is_file_corrupted, save_downloaded_file, move_file, check_lock
 from func.telegram_client import create_telegram_client, download_with_retry
 from func.messages import get_message
 
@@ -53,14 +54,14 @@ check_folder_permissions(completed_folder)
 # Semaphore to limit the number of concurrent downloads
 sem = asyncio.Semaphore(int(max_simultaneous_file_to_download))
 
-async def download_with_limit(client, message, file_path, file_name, video_name, messages, lock_file, status_messages):
+async def download_with_limit(client, message, file_path, file_name, video_name, lock_file, status_messages):
     """Download a file with concurrency limit."""
     async with sem:
         # Send a status message before starting the download
         status_message = await client.send_message('me', f"🔔 Downloading video '{video_name}'...")
         status_messages.append(status_message)
         # Start downloading the file with retry logic
-        await download_with_retry(client, message, file_path, status_message, file_name, video_name, messages, lock_file, check_file, completed_folder)
+        await download_with_retry(client, message, file_path, status_message, file_name, video_name, lock_file, check_file, completed_folder)
 
 async def delete_service_messages(client, all_messages):
     """Delete service messages from Telegram that match certain icons."""
@@ -165,7 +166,7 @@ async def main():
                 continue
 
             # Queue the download task with the limit on simultaneous downloads
-            task = download_with_limit(client, message, file_path, file_name, video_name, messages, lock_file, status_messages)
+            task = download_with_limit(client, message, file_path, file_name, video_name, lock_file, status_messages)
             tasks.append(task)
 
         # Execute all queued tasks concurrently
@@ -180,7 +181,8 @@ async def main():
 
 if __name__ == '__main__':
     try:
-        acquire_lock(lock_file, messages)
+        check_lock(lock_file)
+        acquire_lock(lock_file)
         asyncio.run(main())
         release_lock(lock_file)
     except KeyboardInterrupt:
