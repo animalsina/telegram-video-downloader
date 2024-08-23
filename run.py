@@ -88,6 +88,7 @@ async def main():
 
         if len(all_messages) == 0:
             print('No Messages found')
+            await status_message.edit(messages['no_message_found'])
             return
 
         # Delete previously created service messages
@@ -128,7 +129,7 @@ async def main():
                     video_name = sanitize_filename(file_name.split('.')[0].strip())
 
                 if video_name is None:
-                    break
+                    continue
 
             if file_name is None:
                 file_name = f"{video_name}.mp4"
