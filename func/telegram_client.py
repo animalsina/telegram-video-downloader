@@ -13,7 +13,7 @@ from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 from tqdm import tqdm
 
-from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file, remove_file_info
+from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file, remove_file_info, acquire_lock
 
 # Buffer to store speed data samples
 speed_samples = collections.deque(maxlen=100)  # Keep only the last 100 samples
@@ -140,7 +140,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
             asyncio.sleep(3)
             temp_file_size = os.path.getsize(temp_file_path)
 
-            tolerance = 5  # Tolerance in bytes, adjust as needed
+            tolerance = 0  # Tolerance in bytes, adjust as needed
 
             # Check if the temp file is complete and then move it to the final path
             if abs(temp_file_size - file_size) <= tolerance:
