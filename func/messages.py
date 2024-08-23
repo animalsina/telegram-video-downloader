@@ -35,6 +35,7 @@ def get_message(key, language = None):
             'error_move_file': "❌ Error moving file: {}",
             'not_found_file': "❌ File Not Found: {}",
             'error_download': "❌ Error downloading video '{}': {}",
+            "download_video": "🔔 Downloading video '{}'...",
             'permission_error': "Permission error: {}",
             'script_running': "Script already running.",
             'ready_to_move': "🔔 File ready to move: {}",
@@ -81,7 +82,8 @@ def get_message(key, language = None):
             'video_saved_and_moved': (
                 "🔔 Il video è stato salvato e spostato su {}"
             ),
-            'no_message_found': "‼️ Nessun messaggio trovato"
+            'no_message_found': "‼️ Nessun messaggio trovato",
+            "download_video": "🔔 Scaricamento video '{}'...",
         }
     }
     # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese

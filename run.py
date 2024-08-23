@@ -54,12 +54,12 @@ check_folder_permissions(completed_folder)
 # Semaphore to limit the number of concurrent downloads
 sem = asyncio.Semaphore(int(max_simultaneous_file_to_download))
 
-async def download_with_limit(client, message, file_path, file_name, video_name, p_lock_file, status_messages):
+async def download_with_limit(client, message, file_path, file_name, video_name, p_lock_file):
     """Download a file with concurrency limit."""
+    msgs = get_message('')
     async with sem:
         # Send a status message before starting the download
-        status_message = await client.send_message('me', f"🔔 Downloading video '{video_name}'...")
-        status_messages.append(status_message)
+        status_message = await client.send_message('me', msgs['download_video'].format(video_name))
         # Start downloading the file with retry logic
         await download_with_retry(client, message, file_path, status_message, file_name, video_name, p_lock_file, check_file, completed_folder)
 
@@ -101,7 +101,6 @@ async def main():
 
         # Load the list of previously downloaded files
         downloaded_files = load_downloaded_files(check_file)
-        status_messages = []
 
         tasks = []
 
@@ -166,15 +165,11 @@ async def main():
                 continue
 
             # Queue the download task with the limit on simultaneous downloads
-            task = download_with_limit(client, message, file_path, file_name, video_name, lock_file, status_messages)
+            task = download_with_limit(client, message, file_path, file_name, video_name, lock_file)
             tasks.append(task)
 
         # Execute all queued tasks concurrently
         await asyncio.gather(*tasks)
-
-        # Delete status messages after downloads are completed
-        for status_message in status_messages:
-            await status_message.delete()
 
     finally:
         await client.disconnect()
