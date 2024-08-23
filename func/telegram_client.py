@@ -115,6 +115,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
 
                         # Update the status message every 3 seconds
                         if current_time - last_update_time >= 3:
+                            acquire_lock(lock_file, messages)
                             time_remaining_formatted = format_time(time_remaining)
                             await update_download_message(status_message, percent_complete, video_name, time_remaining_formatted)
                             last_update_time = current_time
