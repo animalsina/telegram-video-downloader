@@ -126,7 +126,7 @@ async def main():
 
                 if video_name is None and file_name is not None:
                     # Set video_name based on file_name if no valid video name was found
-                    video_name = sanitize_filename(file_name.split('.')[0].strip())
+                    video_name = sanitize_filename(file_name.rsplit('.', 1)[0].strip())
 
                 if video_name is None:
                     continue
