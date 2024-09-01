@@ -4,6 +4,7 @@ import asyncio
 import traceback
 import mimetypes
 from telethon.tl.types import DocumentAttributeVideo
+from telethon.tl.types import DocumentAttributeFilename
 
 # Add the 'func' directory to the system path to import custom modules
 sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
@@ -82,9 +83,12 @@ async def main():
         print(messages['connection_success'])
 
         all_messages = []
+        replies_msg = []
         for chat in group_chats:
             print(f"Retrieving messages from {chat}: ...")
             async for message in client.iter_messages(chat, limit=1000):
+                if message.reply_to_msg_id:
+                    replies_msg.append(message)
                 all_messages.append(message)
 
         if len(all_messages) == 0:
@@ -97,7 +101,6 @@ async def main():
 
         # Extract video messages and map them to their positions
         video_messages = [msg for msg in all_messages if msg.document and any(isinstance(attr, DocumentAttributeVideo) for attr in msg.document.attributes)]
-        video_positions = {msg.id: idx for idx, msg in enumerate(all_messages) if msg in video_messages}
 
         # Load the list of previously downloaded files
         downloaded_files = load_downloaded_files(check_file)
@@ -105,31 +108,49 @@ async def main():
         tasks = []
 
         for message in video_messages:
-            # Sanitize and get the video name from the message text
-            video_name = sanitize_filename(message.text.split('\n')[0].strip()) if message.text else None
+            video_name = None
 
-            # Extract the file name from the message's document attributes
-            if len(message.media.document.attributes) > 1:
-                file_name = sanitize_filename(message.media.document.attributes[1].file_name)
-            else:
-                file_name = None  # Handle the case where file_name is missing
+            if not video_name and replies_msg:
+                for replyMsg in replies_msg:
+                    if replyMsg.reply_to_msg_id == message.id:
+                        video_name = sanitize_filename(replyMsg.text.split('\n')[0].strip())
 
-            file_size = message.media.document.size
+            # Cerca il nome del file dal messaggio corrente
+            if not video_name:
+                video_name = sanitize_filename(message.text.split('\n')[0].strip()) if message.text else None
+            file_name = None
+
+            # Codice esistente per trovare il file_name
+            for attr in message.media.document.attributes:
+                if isinstance(attr, DocumentAttributeFilename):
+                    file_name = sanitize_filename(attr.file_name)
+                    break
+            if not file_name:
+                async for msg in client.iter_messages(message.chat_id, reverse=True):
+                    if msg.media and hasattr(msg.media, 'document'):
+                        for attr in msg.media.document.attributes:
+                            if isinstance(attr, DocumentAttributeFilename):
+                                file_name = sanitize_filename(attr.file_name)
+                                break
+                    if file_name:
+                        break
+
+            print(file_name)
 
             # Get the next message if video_name is missing
-            if not video_name:
-                position = video_positions.get(message.id)
-                if position is not None and 0 <= position - 1 < len(all_messages):
-                    next_message = all_messages[position - 1]
-                    if next_message.text and not any(symbol in next_message.text for symbol in ["⬇️", "‼️", "🔔", "✅ "]):
-                        video_name = sanitize_filename(next_message.text.split('\n')[0].strip())
+            #if not video_name:
+                # position = video_positions.get(message.id)
+                # if position is not None and 0 <= position - 1 < len(all_messages):
+                #    next_message = all_messages[position - 1]
+                #    if next_message.text and not any(symbol in next_message.text for symbol in ["⬇️", "‼️", "🔔", "✅ "]):
+                #        video_name = sanitize_filename(next_message.text.split('\n')[0].strip())
 
-                if video_name is None and file_name is not None:
+                #if video_name is None and file_name is not None:
                     # Set video_name based on file_name if no valid video name was found
-                    video_name = sanitize_filename(file_name.rsplit('.', 1)[0].strip())
+                #    video_name = sanitize_filename(file_name.rsplit('.', 1)[0].strip())
 
-                if video_name is None:
-                    continue
+            if video_name is None:
+                continue
 
             if file_name is None:
                 file_name = f"{video_name}.mp4"
