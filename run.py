@@ -109,45 +109,27 @@ async def main():
 
         for message in video_messages:
             video_name = None
+            file_name = None
 
-            if not video_name and replies_msg:
+            if not video_name and len(replies_msg) > 0:
                 for replyMsg in replies_msg:
                     if replyMsg.reply_to_msg_id == message.id:
                         video_name = sanitize_filename(replyMsg.text.split('\n')[0].strip())
 
             # Cerca il nome del file dal messaggio corrente
-            if not video_name:
+            if video_name is None:
                 video_name = sanitize_filename(message.text.split('\n')[0].strip()) if message.text else None
-            file_name = None
+
 
             # Codice esistente per trovare il file_name
             for attr in message.media.document.attributes:
                 if isinstance(attr, DocumentAttributeFilename):
                     file_name = sanitize_filename(attr.file_name)
                     break
-            if not file_name:
-                async for msg in client.iter_messages(message.chat_id, reverse=True):
-                    if msg.media and hasattr(msg.media, 'document'):
-                        for attr in msg.media.document.attributes:
-                            if isinstance(attr, DocumentAttributeFilename):
-                                file_name = sanitize_filename(attr.file_name)
-                                break
-                    if file_name:
-                        break
 
-            print(file_name)
-
-            # Get the next message if video_name is missing
-            #if not video_name:
-                # position = video_positions.get(message.id)
-                # if position is not None and 0 <= position - 1 < len(all_messages):
-                #    next_message = all_messages[position - 1]
-                #    if next_message.text and not any(symbol in next_message.text for symbol in ["⬇️", "‼️", "🔔", "✅ "]):
-                #        video_name = sanitize_filename(next_message.text.split('\n')[0].strip())
-
-                #if video_name is None and file_name is not None:
-                    # Set video_name based on file_name if no valid video name was found
-                #    video_name = sanitize_filename(file_name.rsplit('.', 1)[0].strip())
+            if video_name is None and file_name is not None:
+                # Set video_name based on file_name if no valid video name was found
+                video_name = sanitize_filename(file_name.rsplit('.', 1)[0].strip())
 
             if video_name is None:
                 continue
@@ -160,6 +142,10 @@ async def main():
                 continue
             else:
                 file_path = os.path.join(download_folder, file_name)
+
+
+            if file_name is None:
+                break
 
             # Check if the file already exists
             if os.path.exists(file_path):
