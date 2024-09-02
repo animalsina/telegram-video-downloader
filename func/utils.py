@@ -63,7 +63,9 @@ def move_file(src: Path, dest: Path) -> bool:
         file_name = src.name
         file_name_without_ext = src.stem
 
-        dest_dir = dest / file_name_without_ext
+        base_dest_dir = dest.parent
+
+        dest_dir = base_dest_dir / file_name_without_ext
         dest_dir.mkdir(parents=True, exist_ok=True)
 
         final_dest = dest_dir / file_name
