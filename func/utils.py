@@ -8,6 +8,7 @@ import csv
 import shutil
 import sys
 import re
+from pathlib import Path
 
 from func.messages import get_message
 
@@ -51,7 +52,7 @@ def save_downloaded_file(check_file, file_name):
     with open(check_file, 'a', encoding='utf-8') as f:
         f.write(file_name + '\n')
 
-def move_file(src, dest):
+def move_file(src: Path, dest: Path) -> bool:
     """
     Move a file from the source path to the destination path.
     If the move is successful, return True. If an error occurs during the move,
@@ -59,8 +60,16 @@ def move_file(src, dest):
     """
     msgs =  get_message('')
     try:
-        shutil.move(src, dest)
-        print(msgs['video_saved_and_moved'].format(dest))
+        file_name = src.name
+        file_name_without_ext = src.stem
+
+        dest_dir = dest / file_name_without_ext
+        dest_dir.mkdir(parents=True, exist_ok=True)
+
+        final_dest = dest_dir / file_name
+
+        shutil.move(str(src), str(final_dest))
+        print(msgs['video_saved_and_moved'].format(final_dest))
         return True
     except (shutil.Error, OSError):
         print(msgs['error_move_file'].format(os.path.basename(src)))
