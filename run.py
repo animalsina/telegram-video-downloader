@@ -3,6 +3,7 @@ import sys
 import asyncio
 import traceback
 import mimetypes
+from pathlib import Path
 from telethon.tl.types import DocumentAttributeVideo
 from telethon.tl.types import DocumentAttributeFilename
 
@@ -158,7 +159,7 @@ async def main():
                     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
                     completed_file_path = os.path.join(completed_folder, video_name + extension)
 
-                    if move_file(file_path, completed_file_path):
+                    if move_file(Path(str(file_path)), Path(str(completed_file_path))):
                         await status_message.edit(messages['download_complete'].format(video_name))
                     else:
                         await status_message.edit(messages['error_move_file'].format(video_name))
