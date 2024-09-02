@@ -7,6 +7,7 @@ import time
 import os
 import asyncio
 import collections
+from pathlib import Path
 
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
@@ -156,7 +157,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         extension = mimetypes.guess_extension(mime_type) if mime_type else ''
                         completed_file_path = os.path.join(completed_folder, video_name + extension)
 
-                        if move_file(file_path, completed_file_path):
+                        if move_file(Path(str(file_path)), Path(str(completed_file_path))):
                             await status_message.edit(messages['download_complete'].format(video_name))
                         else:
                             await status_message.edit(messages['error_move_file'].format(video_name))
