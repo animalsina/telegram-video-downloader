@@ -60,15 +60,15 @@ def move_file(src: Path, dest: Path) -> bool:
     """
     msgs =  get_message('')
     try:
-        file_name = src.name
-        file_name_without_ext = src.stem
+        dest_file_name = dest.name
+        dest_file_name_without_ext = dest.stem
 
         base_dest_dir = dest.parent
 
-        dest_dir = base_dest_dir / file_name_without_ext
+        dest_dir = base_dest_dir / dest_file_name_without_ext
         dest_dir.mkdir(parents=True, exist_ok=True)
 
-        final_dest = dest_dir / file_name
+        final_dest = dest_dir / dest_file_name
 
         shutil.move(str(src), str(final_dest))
         print(msgs['video_saved_and_moved'].format(final_dest))
