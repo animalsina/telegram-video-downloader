@@ -117,7 +117,7 @@ async def main():
                 for replyMsg in replies_msg:
                     if replyMsg.reply_to_msg_id == message.id:
                         message_title = sanitize_filename(replyMsg.text.split('\n')[0].strip())
-                        if message_title and any(icon in message.text for icon in ["⬇️", "‼️", "🔔", "❌", "✅"]):
+                        if message_title and not any(icon in message_title for icon in ["⬇️", "‼️", "🔔", "❌", "✅"]):
                             video_name = message_title
 
             # Cerca il nome del file dal messaggio corrente
