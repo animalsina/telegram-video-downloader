@@ -40,6 +40,7 @@ def get_message(key, language = None):
             'script_running': "Script already running.",
             'ready_to_move': "🔔 File ready to move: {}",
             'file_mismatch_error': "‼️ File {} size mismatch - I will delete temp file and retry.",
+            'empty_reference_specify_name': "‼️ This video does not have a name. Please specify one by replying to the video with the correct file name.",
             'rate_limit_exceeded_error': (
                 "‼️ Rate limit exceeded. Waiting for {} seconds before retrying..."
             ),
@@ -69,6 +70,7 @@ def get_message(key, language = None):
             'permission_error': "Errore di permesso: {}",
             'script_running': "Script già in esecuzione.",
             'ready_to_move': "🔔 File pronto per essere spostato: {}",
+            'empty_reference_specify_name': "‼️ Questo video non ha un nome. Specificane uno rispondendo a questo video con il nome del file corretto.",
             'file_mismatch_error': (
                 "‼️ Grandezza del file {} non corrisponde - Sarà cancellato e riscaricato."
             ),
