@@ -13,7 +13,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
 # Import necessary functions from custom modules
 from func.config import load_config, get_system_language
 from func.utils import check_folder_permissions, sanitize_filename, load_downloaded_files, acquire_lock, release_lock, \
-    is_file_corrupted, save_downloaded_file, move_file, check_lock
+    is_file_corrupted, save_downloaded_file, move_file, check_lock, is_video_file
 from func.telegram_client import create_telegram_client, download_with_retry
 from func.messages import get_message
 
@@ -100,8 +100,23 @@ async def main():
         # Delete previously created service messages
         await delete_service_messages(client, all_messages)
 
-        # Extract video messages and map them to their positions
-        video_messages = [msg for msg in all_messages if msg.document and any(isinstance(attr, DocumentAttributeVideo) for attr in msg.document.attributes)]
+        video_messages = []
+        file_messages = []
+
+        for message in all_messages:
+            if message.document:
+                if any(isinstance(attr, DocumentAttributeVideo) for attr in message.document.attributes):
+                    video_messages.append(message)
+                else:
+                    # Check if the document is a video based on its extension
+                    file_name = None
+                    for attr in message.media.document.attributes:
+                        if isinstance(attr, DocumentAttributeFilename):
+                            file_name = sanitize_filename(attr.file_name)
+                            break
+                    if file_name and is_video_file(file_name):
+                        video_messages.append(message)
+
 
         # Load the list of previously downloaded files
         downloaded_files = load_downloaded_files(check_file)

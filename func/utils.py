@@ -12,6 +12,8 @@ from pathlib import Path
 
 from func.messages import get_message
 
+VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm']
+
 def check_folder_permissions(folder_path):
     """
     Ensure that the specified folder exists and has the appropriate write permissions.
@@ -24,6 +26,11 @@ def check_folder_permissions(folder_path):
         raise PermissionError(f"{folder_path} is not a directory.")
     if not os.access(folder_path, os.W_OK):
         raise PermissionError(f"Permission denied: {folder_path}")
+
+def is_video_file(file_name):
+    """Check if the file has a video extension."""
+    _, ext = os.path.splitext(file_name)
+    return ext.lower() in VIDEO_EXTENSIONS
 
 def sanitize_filename(filename):
     """
