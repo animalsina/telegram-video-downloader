@@ -127,15 +127,17 @@ async def main():
             video_name = None
             file_name = None
 
+
             if not video_name and len(replies_msg) > 0:
                 for replyMsg in replies_msg:
                     if replyMsg.reply_to_msg_id == message.id:
-                        video_name = sanitize_filename(replyMsg.text.split('\n')[0].strip())
+                        message_title = sanitize_filename(replyMsg.text.split('\n')[0].strip())
+                        if message_title and not any(icon in message_title for icon in ["⬇️", "‼️", "🔔", "❌", "✅"]):
+                            video_name = message_title
 
             # Cerca il nome del file dal messaggio corrente
             if video_name is None:
                 video_name = sanitize_filename(message.text.split('\n')[0].strip()) if message.text else None
-
 
             # Codice esistente per trovare il file_name
             for attr in message.media.document.attributes:
@@ -148,6 +150,11 @@ async def main():
                 video_name = sanitize_filename(file_name.rsplit('.', 1)[0].strip())
 
             if video_name is None:
+                await client.send_message(
+                    message.peer_id,
+                    messages['empty_reference_specify_name'],
+                    reply_to=message.id
+                )
                 continue
 
             if file_name is None:
