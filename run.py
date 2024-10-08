@@ -131,7 +131,17 @@ async def main():
             if not video_name and len(replies_msg) > 0:
                 for replyMsg in replies_msg:
                     if replyMsg.reply_to_msg_id == message.id:
-                        message_title = sanitize_filename(replyMsg.text.split('\n')[0].strip())
+                        fullMsgRows = replyMsg.text.split('\n')
+                        if len(fullMsgRows) > 0:
+                            msg1 = fullMsgRows[0].strip()
+                        else:
+                            msg1 = ''
+
+                        if len(fullMsgRows) > 1:
+                            msg2 = fullMsgRows[1].strip()
+                        else:
+                            msg2 = ''
+                        message_title = sanitize_filename(msg1 + ' ' + msg2)
                         if message_title and not any(icon in message_title for icon in ["⬇️", "‼️", "🔔", "❌", "✅"]):
                             video_name = message_title
 
