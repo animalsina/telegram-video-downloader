@@ -131,23 +131,24 @@ async def main():
             if not video_name and len(replies_msg) > 0:
                 for replyMsg in replies_msg:
                     if replyMsg.reply_to_msg_id == message.id:
-                        fullMsgRows = replyMsg.text.split('\n')
-                        if len(fullMsgRows) > 0:
-                            msg1 = fullMsgRows[0].strip()
-                        else:
-                            msg1 = ''
-
-                        if len(fullMsgRows) > 1:
-                            msg2 = fullMsgRows[1].strip()
-                        else:
-                            msg2 = ''
-                        message_title = sanitize_filename(msg1 + ' ' + msg2)
+                        message_title = sanitize_filename(replyMsg.text.split('\n')[0].strip())
                         if message_title and not any(icon in message_title for icon in ["⬇️", "‼️", "🔔", "❌", "✅"]):
                             video_name = message_title
 
             # Cerca il nome del file dal messaggio corrente
             if video_name is None:
-                video_name = sanitize_filename(message.text.split('\n')[0].strip()) if message.text else None
+                fullMsgRows = message.text.split('\n')
+                if len(fullMsgRows) > 0:
+                    msg1 = fullMsgRows[0].strip()
+                else:
+                    msg1 = ''
+
+                if len(fullMsgRows) > 1:
+                    msg2 = fullMsgRows[1].strip()
+                else:
+                    msg2 = ''
+
+                video_name = sanitize_filename(msg1 + msg2) if message.text else None
 
             # Codice esistente per trovare il file_name
             for attr in message.media.document.attributes:
@@ -156,7 +157,7 @@ async def main():
                     break
 
             if video_name is None and file_name is not None:
-                # Set video_name based on file_name if no valid video name was found
+                    # Set video_name based on file_name if no valid video name was found
                 video_name = sanitize_filename(file_name.rsplit('.', 1)[0].strip())
 
             if video_name is None:
