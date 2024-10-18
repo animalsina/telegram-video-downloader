@@ -101,7 +101,6 @@ async def main():
         await delete_service_messages(client, all_messages)
 
         video_messages = []
-        file_messages = []
 
         for message in all_messages:
             if message.document:
