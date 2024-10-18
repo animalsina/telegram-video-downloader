@@ -137,18 +137,23 @@ async def main():
 
             # Cerca il nome del file dal messaggio corrente
             if video_name is None:
-                fullMsgRows = message.text.split('\n')
-                if len(fullMsgRows) > 0:
-                    msg1 = fullMsgRows[0].strip()
+                full_msg_rows = message.text.split('\n')
+                if len(full_msg_rows) > 0:
+                    msg1 = full_msg_rows[0].strip()
                 else:
                     msg1 = ''
 
-                if len(fullMsgRows) > 1:
-                    msg2 = fullMsgRows[1].strip()
+                if len(full_msg_rows) > 1:
+                    msg2 = full_msg_rows[1].strip()
                 else:
                     msg2 = ''
 
-                video_name = sanitize_filename(msg1 + msg2) if message.text else None
+                if len(full_msg_rows) > 2:
+                    msg3 = full_msg_rows[2].strip()
+                else:
+                    msg3 = ''
+
+                video_name = sanitize_filename(msg1 + msg2 + msg3) if message.text else None
 
             # Codice esistente per trovare il file_name
             for attr in message.media.document.attributes:
