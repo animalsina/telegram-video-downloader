@@ -103,9 +103,6 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         # Calculate download speed
                         download_speed = calculate_download_speed(current, last_current, time_elapsed)
 
-                        # Estimate time remaining
-                        time_remaining = (total - current) / download_speed if download_speed > 0 else float('inf')
-
                         # Add the current speed to the speed sample buffer
                         speed_samples.append(download_speed)
 
