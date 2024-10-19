@@ -43,6 +43,7 @@ lock_file = os.path.join(root_dir, 'script.lock')
 session_name = os.path.join(root_dir, config.get('session_name', 'session_name'))
 max_simultaneous_file_to_download = config.get('max_simultaneous_file_to_download', 2)
 enable_video_compression = config.get('enable_video_compression', 0) == "1"
+compression_ratio =  max(0, min(int(config.get('compression_ratio', 28)), 51))
 disabled = config.get('disabled', 0) == "1"
 
 # List of chat names or IDs to retrieve messages from
@@ -68,13 +69,13 @@ async def download_with_limit(client, message, file_path, file_name, video_name,
         status_message = await client.send_message('me', msgs['download_video'].format(video_name))
         # Start downloading the file with retry logic
         await download_with_retry(client, message, file_path, status_message, file_name, video_name, p_lock_file,
-                                  check_file, completed_folder, enable_video_compression)
+                                  check_file, completed_folder, enable_video_compression, compression_ratio)
 
 
 async def delete_service_messages(client, all_messages):
     """Delete service messages from Telegram that match certain icons."""
     for message in all_messages:
-        if message.text and any(icon in message.text for icon in ["⬇️", "‼️", "🔔", "🗜️"]):
+        if message.text and any(icon in message.text for icon in ["⬇️", "‼️", "🔔"]):
             try:
                 await client.delete_messages('me', [message.id])
                 print(f"Deleted message with id: {message.id}")
@@ -205,19 +206,22 @@ async def main():
 
                     print(f"{file_path_source} {file_path_dest}")
 
+                    async def compression_message(time_info):
+                        await status_message.edit(messages['trace_compress_action'].format(time_info))
+
                     if enable_video_compression:
                         print(messages['start_compress_file'].format(file_path_source))
                         await status_message.edit(messages['start_compress_file'].format(file_path_source))
                         file_path_c = Path(str(file_path))
                         converted_file_path = file_path_c.with_name(file_path_c.stem + "_converted" + file_path_c.suffix)
-                        if compress_video_h265(file_path_source, converted_file_path):
+                        if await compress_video_h265(file_path_source, converted_file_path,  compression_ratio, compression_message):
                             file_path_source = converted_file_path
                             print(messages['complete_compress_file'].format(file_path_source))
                             await status_message.edit(messages['complete_compress_file'].format(file_path_source))
                         else:
                             print(messages['cant_compress_file'].format(file_path_source))
                             await status_message.edit(messages['cant_compress_file'].format(file_path_source))
-                            continue
+                            raise
 
                     save_downloaded_file(check_file, file_name)
 

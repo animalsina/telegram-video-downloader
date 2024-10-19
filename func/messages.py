@@ -53,7 +53,7 @@ def get_message(key, language = None):
             'cant_compress_file': "‼️ Can't compress the file {}",
             'start_compress_file': "🗜️ Start compression of the file {}",
             'complete_compress_file': "✅ Complete compression of the file {}",
-
+            'trace_compress_action': "🗜️ estimated missing time to complete the compression: {}",
         },
         'it': {
             'start_connection': "Inizio connessione al client...",
@@ -92,6 +92,7 @@ def get_message(key, language = None):
             'cant_compress_file': "‼️ Impossibile comprimere il file {}",
             'start_compress_file': "🗜️ Inizio compressione del file {}",
             'complete_compress_file': "✅ Completamento compressione del file {}",
+            'trace_compress_action': "🗜️ tempo mancante stimato per compressione: {}",
         }
     }
     # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese

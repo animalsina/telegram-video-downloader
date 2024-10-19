@@ -69,7 +69,7 @@ def load_progress(file_path):
 
 
 async def download_with_retry(client, message, file_path, status_message, file_name, video_name, lock_file, check_file,
-                              completed_folder, enable_video_compression, retry_attempts=5):
+                              completed_folder, enable_video_compression, compression_ratio, retry_attempts=5):
     """Download a file with retry attempts in case of failure."""
     attempt = 0
     last_update_time = time.time()
@@ -177,7 +177,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                             file_path_c = Path(str(file_path))
                             converted_file_path = file_path_c.with_name(
                                 file_path_c.stem + "_converted" + file_path_c.suffix)
-                            if compress_video_h265(file_path_source, converted_file_path):
+                            if bool(await compress_video_h265(file_path_source, converted_file_path, compression_ratio)):
                                 file_path_source.unlink()
                                 file_path_source = converted_file_path
                                 print(messages['complete_compress_file'].format(file_path_source))
@@ -185,7 +185,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                             else:
                                 print(messages['cant_compress_file'].format(file_path_source))
                                 await status_message.edit(messages['cant_compress_file'].format(file_path_source))
-                                continue
+                                raise
 
                         save_downloaded_file(check_file, file_name)
 

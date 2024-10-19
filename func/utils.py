@@ -2,12 +2,13 @@
 Utility functions for file handling, including permission checks, file moving,
 logging, and corruption checking.
 """
-
+import asyncio
 import os
 import csv
 import shutil
 import sys
 import re
+from logging import debug
 
 import ffmpeg
 
@@ -184,17 +185,39 @@ def release_lock(lock_file):
     if os.path.exists(lock_file):
         os.remove(lock_file)
 
-def compress_video_h265(input_file, output_file, crf=28) -> bool:
-    print(f"{input_file} {output_file}")
+async def compress_video_h265(input_file, output_file, crf=28, callback=None) -> bool:
+    if os.path.exists(output_file):
+        os.remove(output_file)
+        print(f"Existing old file converted removed: {output_file}")
     try:
-        (
+        process = (
             ffmpeg
             .input(str(input_file))
-            .output(str(output_file), vcodec='libx265', crf=crf, preset='slow')
-            .run()  # Cattura l'output e l'errore
+            .output(str(output_file), vcodec='libx265', crf=crf, preset='slow', tune='zerolatency', progress='pipe')
+            .run_async(pipe_stdout=True, pipe_stderr=True)
         )
-        print(f"Compressione H.265 completata! File salvato come {output_file}")
+        while True:
+            # Leggi dall'output standard di errore
+            output = process.stderr.read(4096).decode('utf-8')
+            if output:  # Se c'è output
+                lines = output.splitlines()
+                last_line = lines[-1]
+                match = re.search(r'time=(\d{2}:\d{2}:\d{2}.\d{2})', last_line)
+                time_value = None
+                if match:
+                    time_value = match.group(1)
+                if time_value is not None:
+                    if callback and callable(callback):
+                        await callback(time_value)  # Chiamata al callback qui
+                    print(f"Progress: {time_value}")
+                else:
+                    await asyncio.sleep(0.1)  # Attendere un attimo prima di controllare di nuovo
+
+            if process.poll() is not None:  # Se il processo è terminato
+                break
+
+        print(f"Compression H.265 completed! File save {output_file}")
         return True
     except Exception as e:
-        print(f"Errore durante la compressione: {str(e)}")
+        print(f"Error during the compression: {str(e)}")
         return False
