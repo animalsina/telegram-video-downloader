@@ -39,7 +39,7 @@ def get_message(key, language = None):
             'error_message': "Error message deleted.",
             'starting_download': "⬇️ Starting download: {}",
             'download_started': "⬇️ Downloading: {}%",
-            'corrupted_file': "The file '{}' is corrupted. Re-downloading...",
+            'corrupted_file': "‼️ The file '{}' is corrupted. Re-downloading...",
             'download_complete': (
                 "✅ Download completed and moved: {}\nCompleted"
             ),
@@ -75,7 +75,7 @@ def get_message(key, language = None):
             'error_message': "Messaggio di errore eliminato.",
             'starting_download': "️⬇️ Inizio download: {}",
             'download_started': "⬇️ Scaricando: {}%",
-            'corrupted_file': "Il file '{}' è corrotto. Verrà riscaricato...",
+            'corrupted_file': "‼️ Il file '{}' è corrotto. Verrà riscaricato...",
             'download_complete': (
                 "✅ Download completato e spostato: {}\nCompletato"
             ),

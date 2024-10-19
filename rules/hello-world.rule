@@ -1,0 +1,2 @@
+on:message:pattern="^(Hello World) (\d{2}) Test$"
+action:message:translate="{0} {1}"

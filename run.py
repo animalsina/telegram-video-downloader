@@ -2,11 +2,13 @@ import os
 import sys
 import asyncio
 import traceback
+from pathlib import Path
 
 from telethon.tl.types import DocumentAttributeVideo
 from telethon.tl.types import DocumentAttributeFilename
 
 from func.config import load_configuration
+from func.load_rules import load_rules, apply_rules
 
 # Add the 'func' directory to the system path to import custom modules
 sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
@@ -141,6 +143,8 @@ async def main():
                 )
                 continue
 
+            video_name = apply_rules('message', video_name)
+
             if file_name is None:
                 file_name = f"{video_name}.mp4"
 
@@ -184,6 +188,7 @@ async def main():
 
 
 if __name__ == '__main__':
+    load_rules(Path(root_dir))
     config = load_configuration()
     messages = config.messages
     lock_file = config.lock_file

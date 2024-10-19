@@ -171,3 +171,5 @@ script.lock
 tg-video
 tg-video-completed
 pipe
+rules/*.rule
+!rules/hello-world.rule
