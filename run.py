@@ -2,74 +2,32 @@ import os
 import sys
 import asyncio
 import traceback
-import mimetypes
-from pathlib import Path
 
 from telethon.tl.types import DocumentAttributeVideo
 from telethon.tl.types import DocumentAttributeFilename
+
+from func.config import load_configuration
 
 # Add the 'func' directory to the system path to import custom modules
 sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
 
 # Import necessary functions from custom modules
-from func.config import load_config, get_system_language
-from func.utils import check_folder_permissions, sanitize_filename, load_downloaded_files, acquire_lock, release_lock, \
-    is_file_corrupted, save_downloaded_file, move_file, check_lock, is_video_file, compress_video_h265
+from func.utils import sanitize_filename, load_downloaded_files, acquire_lock, release_lock, is_file_corrupted, \
+    check_lock, is_video_file, download_complete_action
 from func.telegram_client import create_telegram_client, download_with_retry
 from func.messages import get_message
 
-# Get the directory where the script is located
 root_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Check if a configuration file is provided as the first argument
-if len(sys.argv) > 1:
-    config_file_name = sys.argv[1]
-else:
-    config_file_name = 'tg-config.txt'
-
-# Load the configuration
-config_path = os.path.join(root_dir, config_file_name)
-file_info_path = os.path.join(root_dir, 'file_info.csv')
-config = load_config(config_path)
-
-# Extract relevant information from the configuration
-api_id = config.get('api_id')
-api_hash = config.get('api_hash')
-phone = config.get('phone')
-download_folder = config.get('download_folder', os.path.join(root_dir, 'tg-video'))
-completed_folder = config.get('completed_folder', os.path.join(root_dir, 'tg-video-completed'))
-check_file = os.path.join(root_dir, config.get('check_file', './downloaded_files.txt'))
-lock_file = os.path.join(root_dir, 'script.lock')
-session_name = os.path.join(root_dir, config.get('session_name', 'session_name'))
-max_simultaneous_file_to_download = config.get('max_simultaneous_file_to_download', 2)
-enable_video_compression = config.get('enable_video_compression', 0) == "1"
-compression_ratio =  max(0, min(int(config.get('compression_ratio', 28)), 51))
-disabled = config.get('disabled', 0) == "1"
-
-# List of chat names or IDs to retrieve messages from
-group_chats = config.get('group_chats', [])
-
-# Determine the system language and load corresponding messages
-language = get_system_language()
-messages = get_message('', language)
-
-# Create and check folders for downloads and completed files
-check_folder_permissions(download_folder)
-check_folder_permissions(completed_folder)
-
-# Semaphore to limit the number of concurrent downloads
-sem = asyncio.Semaphore(int(max_simultaneous_file_to_download))
-
 
 async def download_with_limit(client, message, file_path, file_name, video_name, p_lock_file):
     """Download a file with concurrency limit."""
+    configuration = load_configuration()
     msgs = get_message('')
-    async with sem:
+    async with configuration.sem:
         # Send a status message before starting the download
         status_message = await client.send_message('me', msgs['download_video'].format(video_name))
         # Start downloading the file with retry logic
-        await download_with_retry(client, message, file_path, status_message, file_name, video_name, p_lock_file,
-                                  check_file, completed_folder, enable_video_compression, compression_ratio)
+        await download_with_retry(client, message, file_path, status_message, file_name, video_name, p_lock_file)
 
 
 async def delete_service_messages(client, all_messages):
@@ -85,16 +43,20 @@ async def delete_service_messages(client, all_messages):
 
 async def main():
     """Main function to manage the Telegram client and download files."""
-    client = create_telegram_client(session_name, api_id, api_hash)
+    configuration = load_configuration()
+
+    messages_el = configuration.messages
+    lock_file_el = configuration.lock_file
+    client = create_telegram_client(configuration.session_name, configuration.api_id, configuration.api_hash)
 
     try:
-        await client.start(phone)
-        print(messages['connection_success'])
+        await client.start(configuration.phone)
+        print(messages_el['connection_success'])
 
         all_messages = []
         replies_msg = []
-        for chat in group_chats:
-            print(f"Retrieving messages from {chat}: ...")
+        for chat in configuration.group_chats:
+            print(messages_el['retrieving_messages'].format(chat))
             async for message in client.iter_messages(chat, limit=1000):
                 if message.reply_to_msg_id:
                     replies_msg.append(message)
@@ -102,7 +64,7 @@ async def main():
 
         if len(all_messages) == 0:
             print('No Messages found')
-            await client.send_message('me', messages['no_message_found'])
+            await client.send_message('me', messages_el['no_message_found'])
             return
 
         # Delete previously created service messages
@@ -125,7 +87,7 @@ async def main():
                         video_messages.append(message)
 
         # Load the list of previously downloaded files
-        downloaded_files = load_downloaded_files(check_file)
+        downloaded_files = load_downloaded_files(configuration.check_file)
 
         tasks = []
 
@@ -174,7 +136,7 @@ async def main():
             if video_name is None:
                 await client.send_message(
                     message.peer_id,
-                    messages['empty_reference_specify_name'],
+                    messages_el['empty_reference_specify_name'],
                     reply_to=message.id
                 )
                 continue
@@ -186,60 +148,32 @@ async def main():
                 print("Error: file_name is None. Unable to determine the file path.")
                 continue
             else:
-                file_path = os.path.join(download_folder, file_name)
+                file_path = os.path.join(configuration.download_folder, file_name)
 
             if file_name is None:
                 break
 
             # Check if the file already exists
             if os.path.exists(file_path):
-                status_message = await client.send_message('me', messages['ready_to_move'].format(file_name))
-                print(f"File ready to move: {file_name}")
+                status_message = await client.send_message('me', messages_el['ready_to_move'].format(file_name))
+                print(messages['ready_to_move'].format(file_name))
+
                 # Check if the file is corrupted before moving it
-                if not is_file_corrupted(file_path, file_info_path):
-                    mime_type, _ = mimetypes.guess_type(file_path)
-                    extension = mimetypes.guess_extension(mime_type) if mime_type else ''
-                    completed_file_path = os.path.join(completed_folder, video_name + extension)
-
-                    file_path_source = Path(str(file_path))
-                    file_path_dest = Path(str(completed_file_path))
-
-                    print(f"{file_path_source} {file_path_dest}")
-
-                    async def compression_message(time_info):
-                        await status_message.edit(messages['trace_compress_action'].format(time_info))
-
-                    if enable_video_compression:
-                        print(messages['start_compress_file'].format(file_path_source))
-                        await status_message.edit(messages['start_compress_file'].format(file_path_source))
-                        file_path_c = Path(str(file_path))
-                        converted_file_path = file_path_c.with_name(file_path_c.stem + "_converted" + file_path_c.suffix)
-                        if await compress_video_h265(file_path_source, converted_file_path,  compression_ratio, compression_message):
-                            file_path_source = converted_file_path
-                            print(messages['complete_compress_file'].format(file_path_source))
-                            await status_message.edit(messages['complete_compress_file'].format(file_path_source))
-                        else:
-                            print(messages['cant_compress_file'].format(file_path_source))
-                            await status_message.edit(messages['cant_compress_file'].format(file_path_source))
-                            raise
-
-                    save_downloaded_file(check_file, file_name)
-
-                    if move_file(file_path_source, file_path_dest):
-                        await status_message.edit(messages['download_complete'].format(video_name))
-                    else:
-                        await status_message.edit(messages['error_move_file'].format(video_name))
+                if not is_file_corrupted(file_path, configuration.file_info_path):
+                    await download_complete_action(file_path, file_name, video_name, status_message)
                 else:
-                    await status_message.edit(messages['corrupted_file'].format(file_name))
+                    await status_message.edit(messages_el['corrupted_file'].format(file_name))
+                    print(messages_el['corrupted_file'].format(file_name))
+                    os.remove(file_path)
                 continue
 
             # Skip already downloaded files
             if file_name in downloaded_files:
-                print(f"File already downloaded: {file_name}")
+                print(messages_el['already_downloaded'].format(file_name))
                 continue
 
             # Queue the download task with the limit on simultaneous downloads
-            task = download_with_limit(client, message, file_path, file_name, video_name, lock_file)
+            task = download_with_limit(client, message, file_path, file_name, video_name, lock_file_el)
             tasks.append(task)
 
         # Execute all queued tasks concurrently
@@ -250,7 +184,10 @@ async def main():
 
 
 if __name__ == '__main__':
-    if disabled:
+    config = load_configuration()
+    messages = config.messages
+    lock_file = config.lock_file
+    if config.disabled:
         print("Disabled")
         exit(0)
     try:

@@ -1,8 +1,18 @@
 """
 This module contains functions for retrieving localized messages based on the language key.
 """
+import locale
 
-from func.config import get_system_language
+def get_system_language():
+    """
+    Determine the system's default language based on locale settings.
+    If the system language starts with 'it' (indicating Italian), return 'it'.
+    Otherwise, default to English ('en').
+    """
+    lang, _ = locale.getdefaultlocale()
+    if lang.startswith('it'):
+        return 'it'
+    return 'en'
 
 def get_message(key, language = None):
     """
@@ -16,14 +26,15 @@ def get_message(key, language = None):
         dict: A dictionary of localized messages corresponding to the language.
     """
 
+
     if language is None:
-        language = get_language()
+        language = get_system_language()
 
     messages = {
         'en': {
             'start_connection': "Starting connection to the client...",
             'connection_success': "Connection successful.",
-            'retrieving_messages': "Retrieving messages...",
+            'retrieving_messages': "Retrieving messages from: {}...",
             'found_videos': "Found {} videos.",
             'error_message': "Error message deleted.",
             'starting_download': "⬇️ Starting download: {}",
@@ -39,6 +50,7 @@ def get_message(key, language = None):
             'permission_error': "Permission error: {}",
             'script_running': "Script already running.",
             'ready_to_move': "🔔 File ready to move: {}",
+            'already_downloaded': "File already downloaded: {}",
             'file_mismatch_error': "‼️ File {} size mismatch - I will delete temp file and retry.",
             'empty_reference_specify_name': "‼️ This video does not have a name. Please specify one by replying to the video with the correct file name.",
             'rate_limit_exceeded_error': (
@@ -58,12 +70,12 @@ def get_message(key, language = None):
         'it': {
             'start_connection': "Inizio connessione al client...",
             'connection_success': "Connessione avvenuta con successo.",
-            'retrieving_messages': "Recupero dei messaggi...",
+            'retrieving_messages': "Recupero dei messaggi da: {}...",
             'found_videos': "Trovati {} video.",
             'error_message': "Messaggio di errore eliminato.",
             'starting_download': "️⬇️ Inizio download: {}",
             'download_started': "⬇️ Scaricando: {}%",
-            'corrupted_file': "Il file '{}' è corrotto. Riscaricando...",
+            'corrupted_file': "Il file '{}' è corrotto. Verrà riscaricato...",
             'download_complete': (
                 "✅ Download completato e spostato: {}\nCompletato"
             ),
@@ -73,6 +85,7 @@ def get_message(key, language = None):
             'permission_error': "Errore di permesso: {}",
             'script_running': "Script già in esecuzione.",
             'ready_to_move': "🔔 File pronto per essere spostato: {}",
+            'already_downloaded': "File già scaricato: {}",
             'empty_reference_specify_name': "‼️ Questo video non ha un nome. Specificane uno rispondendo a questo video con il nome del file corretto.",
             'file_mismatch_error': (
                 "‼️ Grandezza del file {} non corrisponde - Sarà cancellato e riscaricato."
@@ -99,6 +112,3 @@ def get_message(key, language = None):
     if key:
         return messages.get(language, messages['en']).get(key, "Message key not found")
     return messages.get(language, messages['en'])
-
-def get_language():
-    return get_system_language()

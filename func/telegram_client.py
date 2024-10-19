@@ -2,20 +2,18 @@
 Module for interacting with Telegram API to download files with progress tracking and retry logic.
 """
 
-import mimetypes
 import time
 import os
 import asyncio
 import collections
-from pathlib import Path
 
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 from tqdm import tqdm
 
 from func.messages import get_message
-from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file, \
-    remove_file_info, acquire_lock, compress_video_h265
+from func.utils import update_file_info, release_lock, is_file_corrupted, remove_file_info, acquire_lock, \
+    download_complete_action
 
 # Buffer to store speed data samples
 speed_samples = collections.deque(maxlen=20)  # Keep only the last 100 samples
@@ -68,8 +66,8 @@ def load_progress(file_path):
         return 0
 
 
-async def download_with_retry(client, message, file_path, status_message, file_name, video_name, lock_file, check_file,
-                              completed_folder, enable_video_compression, compression_ratio, retry_attempts=5):
+async def download_with_retry(client, message, file_path, status_message, file_name, video_name, lock_file,
+                              retry_attempts=5):
     """Download a file with retry attempts in case of failure."""
     attempt = 0
     last_update_time = time.time()
@@ -158,45 +156,16 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                 os.remove(progress_file_path)
                 print(f"Downloaded video to: {file_path}")
                 status_message = await status_message.edit(messages['ready_to_move'].format(video_name))
-                print(f"File ready to move: {file_name}")
+                print(messages['ready_to_move'].format(video_name))
 
                 if os.path.exists(file_path):
                     if not is_file_corrupted(file_path, file_info_path):
-                        mime_type, _ = mimetypes.guess_type(file_path)
-                        extension = mimetypes.guess_extension(mime_type) if mime_type else ''
-                        completed_file_path = os.path.join(completed_folder, video_name + extension)
-
-                        file_path_source = Path(str(file_path))
-                        file_path_dest = Path(str(completed_file_path))
-
-                        print(f"{file_path_source} {file_path_dest}")
-
-                        if enable_video_compression:
-                            print(messages['start_compress_file'].format(file_path_source))
-                            await status_message.edit(messages['start_compress_file'].format(file_path_source))
-                            file_path_c = Path(str(file_path))
-                            converted_file_path = file_path_c.with_name(
-                                file_path_c.stem + "_converted" + file_path_c.suffix)
-                            if bool(await compress_video_h265(file_path_source, converted_file_path, compression_ratio)):
-                                file_path_source.unlink()
-                                file_path_source = converted_file_path
-                                print(messages['complete_compress_file'].format(file_path_source))
-                                await status_message.edit(messages['complete_compress_file'].format(file_path_source))
-                            else:
-                                print(messages['cant_compress_file'].format(file_path_source))
-                                await status_message.edit(messages['cant_compress_file'].format(file_path_source))
-                                raise
-
-                        save_downloaded_file(check_file, file_name)
-
-                        if move_file(file_path_source, file_path_dest):
-                            await status_message.edit(messages['download_complete'].format(video_name))
-                        else:
-                            await status_message.edit(messages['error_move_file'].format(video_name))
+                        await download_complete_action(file_path, file_name, video_name, status_message)
+                        update_file_info(file_info_path, file_name, 'completed', file_size)
                         return
                     else:
                         await status_message.edit(messages['corrupted_file'].format(file_name))
-                    update_file_info(file_info_path, file_name, 'completed', file_size)
+                        print(messages['corrupted_file'].format(file_name))
                 return
             else:
                 await status_message.edit(messages['file_mismatch_error'].format(video_name))
