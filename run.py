@@ -93,6 +93,8 @@ async def main():
 
         tasks = []
 
+        video_messages.reverse()
+
         for message in video_messages:
             video_name = None
             file_name = None
