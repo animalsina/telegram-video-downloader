@@ -21,15 +21,19 @@ from func.messages import get_message
 
 root_dir = os.path.dirname(os.path.abspath(__file__))
 
-async def download_with_limit(client, message, file_path, file_name, video_name, p_lock_file):
+configuration = load_configuration()
+sem = asyncio.Semaphore(configuration.max_simultaneous_file_to_download)
+
+async def download_with_limit(client, message, file_path, file_name, video_name):
     """Download a file with concurrency limit."""
-    configuration = load_configuration()
     msgs = get_message('')
-    async with configuration.sem:
+
+    # Inizializza il semaforo per gestire i download simultanei
+    async with sem:
         # Send a status message before starting the download
         status_message = await client.send_message('me', msgs['download_video'].format(video_name))
         # Start downloading the file with retry logic
-        await download_with_retry(client, message, file_path, status_message, file_name, video_name, p_lock_file)
+        await download_with_retry(client, message, file_path, status_message, file_name, video_name)
 
 
 async def delete_service_messages(client, all_messages):
@@ -45,10 +49,8 @@ async def delete_service_messages(client, all_messages):
 
 async def main():
     """Main function to manage the Telegram client and download files."""
-    configuration = load_configuration()
 
     messages_el = configuration.messages
-    lock_file_el = configuration.lock_file
     client = create_telegram_client(configuration.session_name, configuration.api_id, configuration.api_hash)
 
     try:
@@ -179,7 +181,7 @@ async def main():
                 continue
 
             # Queue the download task with the limit on simultaneous downloads
-            task = download_with_limit(client, message, file_path, file_name, video_name, lock_file_el)
+            task = download_with_limit(client, message, file_path, file_name, video_name)
             tasks.append(task)
 
         # Execute all queued tasks concurrently
@@ -191,10 +193,9 @@ async def main():
 
 if __name__ == '__main__':
     load_rules(Path(root_dir))
-    config = load_configuration()
-    messages = config.messages
-    lock_file = config.lock_file
-    if config.disabled:
+    messages = configuration.messages
+    lock_file = configuration.lock_file
+    if configuration.disabled:
         print("Disabled")
         exit(0)
     try:

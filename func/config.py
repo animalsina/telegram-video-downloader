@@ -50,9 +50,6 @@ def load_configuration():
     check_folder_permissions(download_folder)
     check_folder_permissions(completed_folder)
 
-    # Inizializza il semaforo per gestire i download simultanei
-    sem = asyncio.Semaphore(max_simultaneous_file_to_download)
-
     # Restituisce tutti gli elementi come dizionario
     return Config({
         'api_id': api_id,
@@ -69,7 +66,6 @@ def load_configuration():
         'disabled': disabled,
         'group_chats': group_chats,
         'messages': messages,
-        'sem': sem,
         'file_info_path': file_info_path
     })
 class Config:

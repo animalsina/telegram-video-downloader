@@ -11,6 +11,7 @@ from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 from tqdm import tqdm
 
+from func.config import load_configuration
 from func.messages import get_message
 from func.utils import update_file_info, release_lock, is_file_corrupted, remove_file_info, acquire_lock, \
     download_complete_action
@@ -66,9 +67,9 @@ def load_progress(file_path):
         return 0
 
 
-async def download_with_retry(client, message, file_path, status_message, file_name, video_name, lock_file,
-                              retry_attempts=5):
+async def download_with_retry(client, message, file_path, status_message, file_name, video_name, retry_attempts=5):
     """Download a file with retry attempts in case of failure."""
+    configuration = load_configuration()
     attempt = 0
     last_update_time = time.time()
     last_current = 0
@@ -77,6 +78,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
     temp_file_path = f"{file_path}.temp"
     progress_file_path = f"{file_path}.progress"
     messages = get_message('')
+    lock_file = configuration.lock_file
 
     # Before starting, check if the progress/temp file exists; if not, remove the corresponding row from the CSV
     if os.path.exists(temp_file_path) is False or os.path.exists(progress_file_path) is False:
