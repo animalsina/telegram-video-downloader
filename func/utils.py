@@ -3,16 +3,17 @@ Utility functions for file handling, including permission checks, file moving,
 logging, and corruption checking.
 """
 import asyncio
+import mimetypes
 import os
 import csv
 import shutil
 import sys
 import re
-from logging import debug
 
 import ffmpeg
 
 from pathlib import Path
+
 from func.messages import get_message
 
 VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm']
@@ -38,7 +39,7 @@ def is_video_file(file_name):
 def sanitize_filename(filename):
     """
     Remove or replace characters in the filename that are not allowed in file names
-    on most operating systems, such as <, >, :, ", /, \, |, ?, *, etc.
+    on most operating systems, such as <, >, :, \", /, \, |, ?, *, etc.
     This function also removes any non-alphanumeric characters, except for dots,
     hyphens, and underscores.
     """
@@ -46,20 +47,20 @@ def sanitize_filename(filename):
     sanitized_name = re.sub(r'[^\w\s.-]', '', sanitized_name)
     return sanitized_name.strip()
 
-def load_downloaded_files(check_file):
+def load_downloaded_files(check_file_path):
     """
     Load the list of previously downloaded files from a text file.
     Each line in the file represents a file that has been downloaded.
     If the file doesn't exist, return an empty set.
     """
-    if os.path.exists(check_file):
-        with open(check_file, 'r', encoding='utf-8') as f:
+    if os.path.exists(check_file_path):
+        with open(check_file_path, 'r', encoding='utf-8') as f:
             return set(line.strip() for line in f)
     return set()
 
-def save_downloaded_file(check_file, file_name):
+def save_downloaded_file(check_file_path, file_name):
     """Append the name of a newly downloaded file to the list of downloaded files."""
-    with open(check_file, 'a', encoding='utf-8') as f:
+    with open(check_file_path, 'a', encoding='utf-8') as f:
         f.write(file_name + '\n')
 
 def move_file(src: Path, dest: Path) -> bool:
@@ -174,7 +175,7 @@ def acquire_lock(lock_file):
     Acquire a lock to prevent multiple instances of the script from running simultaneously.
     If the lock file already exists, print a message and exit the script.
     """
-    with open(lock_file, 'w') as f:
+    with open(lock_file, 'w'):
         pass
 
 def release_lock(lock_file):
@@ -221,3 +222,90 @@ async def compress_video_h265(input_file, output_file, crf=28, callback=None) ->
     except Exception as e:
         print(f"Error during the compression: {str(e)}")
         return False
+
+async def download_complete_action(file_path, file_name, video_name, status_message):
+    from func.config import load_configuration
+    config = load_configuration()
+
+    messages = config.messages
+    mime_type, _ = mimetypes.guess_type(file_path)
+    extension = mimetypes.guess_extension(mime_type) if mime_type else ''
+    completed_file_path = os.path.join(config.completed_folder, video_name + extension)
+
+    file_path_source = Path(str(file_path))
+    file_path_dest = Path(str(completed_file_path))
+
+    print(f"{file_path_source} {file_path_dest}")
+
+    async def compression_message(time_info):
+        await status_message.edit(str(get_message('trace_compress_action')).format(time_info))
+
+    if config.enable_video_compression:
+        print(messages['start_compress_file'].format(file_path_source))
+        await status_message.edit(messages['start_compress_file'].format(file_path_source))
+        file_path_c = Path(str(file_path))
+        converted_file_path = file_path_c.with_name(
+            file_path_c.stem + "_converted" + file_path_c.suffix)
+        if await compress_video_h265(file_path_source, converted_file_path, config.compression_ratio,
+                                     compression_message):
+            file_path_source.unlink()
+            file_path_source = converted_file_path
+            print(messages['complete_compress_file'].format(file_path_source))
+            await status_message.edit(messages['complete_compress_file'].format(file_path_source))
+        else:
+            print(messages['cant_compress_file'].format(file_path_source))
+            await status_message.edit(messages['cant_compress_file'].format(file_path_source))
+            raise
+
+    save_downloaded_file(config.check_file, file_name)
+
+    if move_file(file_path_source, file_path_dest):
+        await status_message.edit(messages['download_complete'].format(video_name))
+    else:
+        await status_message.edit(messages['error_move_file'].format(video_name))
+
+def load_config(file_path):
+    """
+    Loads the configuration from the specified path.
+    This function reads the configuration file line by line, processes section headers
+    (e.g., '[section]'), and key-value pairs (e.g., 'key=value'). It also handles a special case
+    for the 'groups' section, storing its values in a separate dictionary.
+    """
+    config_data = {}
+    groups = {}
+
+    with open(file_path, 'r', encoding='utf-8') as f:
+        section = None
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):  # Skip empty lines and comments
+                continue
+
+            if line.startswith('[') and line.endswith(']'):
+                section = line[1:-1].strip()  # Section header
+            else:
+                if '=' in line:  # Key=value pair
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip()
+                    if section == 'groups':
+                        # In the 'groups' section, map the value to the key
+                        groups[value] = key
+                    else:
+                        # For other sections, store the key-value pair in config
+                        config_data[key] = value
+
+    # Convert min_valid_file_size_mb to bytes, if present
+    if 'min_valid_file_size_mb' in config_data:
+        try:
+            min_size_mb = float(config_data['min_valid_file_size_mb'])
+            config_data['min_valid_file_size'] = min_size_mb * 1024 * 1024  # Convert MB to bytes
+        except ValueError:
+            config_data['min_valid_file_size'] = 0  # Default to 0 if conversion fails
+    else:
+        config_data['min_valid_file_size'] = 0  # Default to 0 if key is absent
+
+    # Add the 'groups' dictionary to the config under the 'group_chats' key
+    config_data['group_chats'] = groups
+
+    return config_data

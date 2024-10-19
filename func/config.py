@@ -1,63 +1,78 @@
-"""
-This module contains functions to load configuration from a file and determine
-the system's default language based on locale settings.
-"""
+import asyncio
+import os
+import sys
 
-import locale
+from func.messages import get_message
+from func.utils import check_folder_permissions, load_config
 
-def load_config(file_path):
+def load_configuration():
     """
-    Loads the configuration from the specified path.
-    This function reads the configuration file line by line, processes section headers
-    (e.g., '[section]'), and key-value pairs (e.g., 'key=value'). It also handles a special case
-    for the 'groups' section, storing its values in a separate dictionary.
+    Carica e restituisce la configurazione come un dizionario.
     """
-    config = {}
-    groups = {}
 
-    with open(file_path, 'r', encoding='utf-8') as f:
-        section = None
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('#'):  # Skip empty lines and comments
-                continue
+    import run
 
-            if line.startswith('[') and line.endswith(']'):
-                section = line[1:-1].strip()  # Section header
-            else:
-                if '=' in line:  # Key=value pair
-                    key, value = line.split('=', 1)
-                    key = key.strip()
-                    value = value.strip()
-                    if section == 'groups':
-                        # In the 'groups' section, map the value to the key
-                        groups[value] = key
-                    else:
-                        # For other sections, store the key-value pair in config
-                        config[key] = value
-
-    # Convert min_valid_file_size_mb to bytes, if present
-    if 'min_valid_file_size_mb' in config:
-        try:
-            min_size_mb = float(config['min_valid_file_size_mb'])
-            config['min_valid_file_size'] = min_size_mb * 1024 * 1024  # Convert MB to bytes
-        except ValueError:
-            config['min_valid_file_size'] = 0  # Default to 0 if conversion fails
+    # Usa il nome del file di configurazione passato o il valore di default
+    if len(sys.argv) > 1:
+        config_file_name = sys.argv[1]
     else:
-        config['min_valid_file_size'] = 0  # Default to 0 if key is absent
+        config_file_name = 'tg-config.txt'
 
-    # Add the 'groups' dictionary to the config under the 'group_chats' key
-    config['group_chats'] = groups
+    # Ottieni la directory radice del progetto
+    root_dir = run.root_dir
 
-    return config
+    # Percorsi relativi
+    config_path = os.path.join(root_dir, config_file_name)
+    file_info_path = os.path.join(root_dir, 'file_info.csv')
 
-def get_system_language():
-    """
-    Determine the system's default language based on locale settings.
-    If the system language starts with 'it' (indicating Italian), return 'it'.
-    Otherwise, default to English ('en').
-    """
-    lang, _ = locale.getdefaultlocale()
-    if lang.startswith('it'):
-        return 'it'
-    return 'en'
+    # Carica la configurazione
+    config = load_config(config_path)
+
+    # Estrai le informazioni rilevanti dalla configurazione
+    api_id = config.get('api_id')
+    api_hash = config.get('api_hash')
+    phone = config.get('phone')
+    download_folder = config.get('download_folder', os.path.join(root_dir, 'tg-video'))
+    completed_folder = config.get('completed_folder', os.path.join(root_dir, 'tg-video-completed'))
+    check_file = os.path.join(root_dir, config.get('check_file', './downloaded_files.txt'))
+    lock_file = os.path.join(root_dir, 'script.lock')
+    session_name = os.path.join(root_dir, config.get('session_name', 'session_name'))
+    max_simultaneous_file_to_download = int(config.get('max_simultaneous_file_to_download', 2))
+    enable_video_compression = config.get('enable_video_compression', 0) == "1"
+    compression_ratio = max(0, min(int(config.get('compression_ratio', 28)), 51))
+    disabled = config.get('disabled', 0) == "1"
+    group_chats = config.get('group_chats', [])
+
+    # Imposta la lingua e carica i messaggi corrispondenti
+    messages = get_message('')
+
+    # Verifica le cartelle di download
+    check_folder_permissions(download_folder)
+    check_folder_permissions(completed_folder)
+
+    # Inizializza il semaforo per gestire i download simultanei
+    sem = asyncio.Semaphore(max_simultaneous_file_to_download)
+
+    # Restituisce tutti gli elementi come dizionario
+    return Config({
+        'api_id': api_id,
+        'api_hash': api_hash,
+        'phone': phone,
+        'download_folder': download_folder,
+        'completed_folder': completed_folder,
+        'check_file': check_file,
+        'lock_file': lock_file,
+        'session_name': session_name,
+        'max_simultaneous_file_to_download': max_simultaneous_file_to_download,
+        'enable_video_compression': enable_video_compression,
+        'compression_ratio': compression_ratio,
+        'disabled': disabled,
+        'group_chats': group_chats,
+        'messages': messages,
+        'sem': sem,
+        'file_info_path': file_info_path
+    })
+class Config:
+    def __init__(self, config_dict):
+        for key, value in config_dict.items():
+            setattr(self, key, value)
