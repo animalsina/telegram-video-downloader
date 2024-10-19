@@ -4,6 +4,7 @@ import asyncio
 import traceback
 import mimetypes
 from pathlib import Path
+
 from telethon.tl.types import DocumentAttributeVideo
 from telethon.tl.types import DocumentAttributeFilename
 
@@ -13,7 +14,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
 # Import necessary functions from custom modules
 from func.config import load_config, get_system_language
 from func.utils import check_folder_permissions, sanitize_filename, load_downloaded_files, acquire_lock, release_lock, \
-    is_file_corrupted, save_downloaded_file, move_file, check_lock, is_video_file
+    is_file_corrupted, save_downloaded_file, move_file, check_lock, is_video_file, compress_video_h265
 from func.telegram_client import create_telegram_client, download_with_retry
 from func.messages import get_message
 
@@ -41,6 +42,8 @@ check_file = os.path.join(root_dir, config.get('check_file', './downloaded_files
 lock_file = os.path.join(root_dir, 'script.lock')
 session_name = os.path.join(root_dir, config.get('session_name', 'session_name'))
 max_simultaneous_file_to_download = config.get('max_simultaneous_file_to_download', 2)
+enable_video_compression = config.get('enable_video_compression', 0) == "1"
+disabled = config.get('disabled', 0) == "1"
 
 # List of chat names or IDs to retrieve messages from
 group_chats = config.get('group_chats', [])
@@ -56,6 +59,7 @@ check_folder_permissions(completed_folder)
 # Semaphore to limit the number of concurrent downloads
 sem = asyncio.Semaphore(int(max_simultaneous_file_to_download))
 
+
 async def download_with_limit(client, message, file_path, file_name, video_name, p_lock_file):
     """Download a file with concurrency limit."""
     msgs = get_message('')
@@ -63,17 +67,20 @@ async def download_with_limit(client, message, file_path, file_name, video_name,
         # Send a status message before starting the download
         status_message = await client.send_message('me', msgs['download_video'].format(video_name))
         # Start downloading the file with retry logic
-        await download_with_retry(client, message, file_path, status_message, file_name, video_name, p_lock_file, check_file, completed_folder)
+        await download_with_retry(client, message, file_path, status_message, file_name, video_name, p_lock_file,
+                                  check_file, completed_folder, enable_video_compression)
+
 
 async def delete_service_messages(client, all_messages):
     """Delete service messages from Telegram that match certain icons."""
     for message in all_messages:
-        if message.text and any(icon in message.text for icon in ["⬇️", "‼️", "🔔"]):
+        if message.text and any(icon in message.text for icon in ["⬇️", "‼️", "🔔", "🗜️"]):
             try:
                 await client.delete_messages('me', [message.id])
                 print(f"Deleted message with id: {message.id}")
             except Exception as delete_error:
                 print(f"Failed to delete message with id: {message.id} - {delete_error}")
+
 
 async def main():
     """Main function to manage the Telegram client and download files."""
@@ -116,7 +123,6 @@ async def main():
                     if file_name and is_video_file(file_name):
                         video_messages.append(message)
 
-
         # Load the list of previously downloaded files
         downloaded_files = load_downloaded_files(check_file)
 
@@ -126,12 +132,12 @@ async def main():
             video_name = None
             file_name = None
 
-
             if not video_name and len(replies_msg) > 0:
                 for replyMsg in replies_msg:
                     if replyMsg.reply_to_msg_id == message.id:
                         message_title = sanitize_filename(replyMsg.text.split('\n')[0].strip())
-                        if message_title and not any(icon in message_title for icon in ["⬇️", "‼️", "🔔", "❌", "✅"]):
+                        if message_title and not any(
+                                icon in message_title for icon in ["⬇️", "‼️", "🔔", "❌", "✅", "🗜️"]):
                             video_name = message_title
 
             # Cerca il nome del file dal messaggio corrente
@@ -161,7 +167,7 @@ async def main():
                     break
 
             if video_name is None and file_name is not None:
-                    # Set video_name based on file_name if no valid video name was found
+                # Set video_name based on file_name if no valid video name was found
                 video_name = sanitize_filename(file_name.rsplit('.', 1)[0].strip())
 
             if video_name is None:
@@ -181,7 +187,6 @@ async def main():
             else:
                 file_path = os.path.join(download_folder, file_name)
 
-
             if file_name is None:
                 break
 
@@ -191,12 +196,32 @@ async def main():
                 print(f"File ready to move: {file_name}")
                 # Check if the file is corrupted before moving it
                 if not is_file_corrupted(file_path, file_info_path):
-                    save_downloaded_file(check_file, file_name)
                     mime_type, _ = mimetypes.guess_type(file_path)
                     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
                     completed_file_path = os.path.join(completed_folder, video_name + extension)
 
-                    if move_file(Path(str(file_path)), Path(str(completed_file_path))):
+                    file_path_source = Path(str(file_path))
+                    file_path_dest = Path(str(completed_file_path))
+
+                    print(f"{file_path_source} {file_path_dest}")
+
+                    if enable_video_compression:
+                        print(messages['start_compress_file'].format(file_path_source))
+                        await status_message.edit(messages['start_compress_file'].format(file_path_source))
+                        file_path_c = Path(str(file_path))
+                        converted_file_path = file_path_c.with_name(file_path_c.stem + "_converted" + file_path_c.suffix)
+                        if compress_video_h265(file_path_source, converted_file_path):
+                            file_path_source = converted_file_path
+                            print(messages['complete_compress_file'].format(file_path_source))
+                            await status_message.edit(messages['complete_compress_file'].format(file_path_source))
+                        else:
+                            print(messages['cant_compress_file'].format(file_path_source))
+                            await status_message.edit(messages['cant_compress_file'].format(file_path_source))
+                            continue
+
+                    save_downloaded_file(check_file, file_name)
+
+                    if move_file(file_path_source, file_path_dest):
                         await status_message.edit(messages['download_complete'].format(video_name))
                     else:
                         await status_message.edit(messages['error_move_file'].format(video_name))
@@ -219,7 +244,11 @@ async def main():
     finally:
         await client.disconnect()
 
+
 if __name__ == '__main__':
+    if disabled:
+        print("Disabled")
+        exit(0)
     try:
         check_lock(lock_file)
         acquire_lock(lock_file)
