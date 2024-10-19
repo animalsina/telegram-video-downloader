@@ -14,10 +14,12 @@ from telethon.errors import FloodWaitError
 from tqdm import tqdm
 
 from func.messages import get_message
-from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file, remove_file_info, acquire_lock
+from func.utils import update_file_info, release_lock, is_file_corrupted, save_downloaded_file, move_file, \
+    remove_file_info, acquire_lock, compress_video_h265
 
 # Buffer to store speed data samples
 speed_samples = collections.deque(maxlen=20)  # Keep only the last 100 samples
+
 
 def calculate_download_speed(current, last_current, time_elapsed):
     """Calculate download speed."""
@@ -25,13 +27,17 @@ def calculate_download_speed(current, last_current, time_elapsed):
         return 0
     return (current - last_current) / time_elapsed
 
+
 def create_telegram_client(session_name, api_id, api_hash):
     """Create and return a new TelegramClient."""
     return TelegramClient(session_name, api_id, api_hash)
 
+
 async def update_download_message(message, percent, video_name, time_remaining_formatted):
     """Update the status message with the download progress and time remaining."""
-    await message.edit(f"⬇️ Download '{video_name}': {percent:.2f}% complete.\nTime remaining: {time_remaining_formatted}")
+    await message.edit(
+        f"⬇️ Download '{video_name}': {percent:.2f}% complete.\nTime remaining: {time_remaining_formatted}")
+
 
 def format_time(seconds):
     """Format time in seconds to a human-readable string like hh:mm:ss."""
@@ -42,10 +48,12 @@ def format_time(seconds):
     minutes, seconds = divmod(rem, 60)
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
+
 def save_progress(file_path, progress):
     """Save the current download progress to a .progress file."""
     with open(f"{file_path}.progress", 'w', encoding='utf-8') as f:
         f.write(str(progress))
+
 
 def load_progress(file_path):
     """Load and return the download progress from a .progress file."""
@@ -59,7 +67,9 @@ def load_progress(file_path):
         # Handle the case where the progress file doesn't exist
         return 0
 
-async def download_with_retry(client, message, file_path, status_message, file_name, video_name, lock_file, check_file, completed_folder, retry_attempts=5):
+
+async def download_with_retry(client, message, file_path, status_message, file_name, video_name, lock_file, check_file,
+                              completed_folder, enable_video_compression, retry_attempts=5):
     """Download a file with retry attempts in case of failure."""
     attempt = 0
     last_update_time = time.time()
@@ -88,7 +98,8 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                 progress = 0
 
             # Download the file with progress tracking
-            with tqdm(total=file_size, initial=progress, desc=f"Downloading {message.id} - {file_name} - {video_name}", unit='B', unit_scale=True, unit_divisor=1024) as pbar:
+            with tqdm(total=file_size, initial=progress, desc=f"Downloading {message.id} - {file_name} - {video_name}",
+                      unit='B', unit_scale=True, unit_divisor=1024) as pbar:
                 async def progress_callback(current, total):
                     nonlocal last_update_time
                     nonlocal last_current
@@ -114,7 +125,8 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         if current_time - last_update_time >= 3:
                             acquire_lock(lock_file)
                             time_remaining_formatted = format_time(time_remaining)
-                            await update_download_message(status_message, percent_complete, video_name, time_remaining_formatted)
+                            await update_download_message(status_message, percent_complete, video_name,
+                                                          time_remaining_formatted)
                             last_update_time = current_time
                             last_current = current
 
@@ -127,7 +139,8 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         save_progress(file_path, current)
 
                 # Download the media to the temp file using iter_download
-                async with client.iter_download(message.media, offset=progress, request_size=64 * 1024) as download_iter:
+                async with client.iter_download(message.media, offset=progress,
+                                                request_size=64 * 1024) as download_iter:
                     with open(temp_file_path, 'ab') as f:
                         async for chunk in download_iter:
                             f.write(chunk)
@@ -149,12 +162,34 @@ async def download_with_retry(client, message, file_path, status_message, file_n
 
                 if os.path.exists(file_path):
                     if not is_file_corrupted(file_path, file_info_path):
-                        save_downloaded_file(check_file, file_name)
                         mime_type, _ = mimetypes.guess_type(file_path)
                         extension = mimetypes.guess_extension(mime_type) if mime_type else ''
                         completed_file_path = os.path.join(completed_folder, video_name + extension)
 
-                        if move_file(Path(str(file_path)), Path(str(completed_file_path))):
+                        file_path_source = Path(str(file_path))
+                        file_path_dest = Path(str(completed_file_path))
+
+                        print(f"{file_path_source} {file_path_dest}")
+
+                        if enable_video_compression:
+                            print(messages['start_compress_file'].format(file_path_source))
+                            await status_message.edit(messages['start_compress_file'].format(file_path_source))
+                            file_path_c = Path(str(file_path))
+                            converted_file_path = file_path_c.with_name(
+                                file_path_c.stem + "_converted" + file_path_c.suffix)
+                            if compress_video_h265(file_path_source, converted_file_path):
+                                file_path_source.unlink()
+                                file_path_source = converted_file_path
+                                print(messages['complete_compress_file'].format(file_path_source))
+                                await status_message.edit(messages['complete_compress_file'].format(file_path_source))
+                            else:
+                                print(messages['cant_compress_file'].format(file_path_source))
+                                await status_message.edit(messages['cant_compress_file'].format(file_path_source))
+                                continue
+
+                        save_downloaded_file(check_file, file_name)
+
+                        if move_file(file_path_source, file_path_dest):
                             await status_message.edit(messages['download_complete'].format(video_name))
                         else:
                             await status_message.edit(messages['error_move_file'].format(video_name))

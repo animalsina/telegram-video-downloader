@@ -49,7 +49,10 @@ def get_message(key, language = None):
             'video_saved_and_moved': (
                 "🔔 Video is saved and moved in {}"
             ),
-            'no_message_found': "‼️ No message found"
+            'no_message_found': "‼️ No message found",
+            'cant_compress_file': "‼️ Can't compress the file {}",
+            'start_compress_file': "🗜️ Start compression of the file {}",
+            'complete_compress_file': "✅ Complete compression of the file {}",
 
         },
         'it': {
@@ -86,6 +89,9 @@ def get_message(key, language = None):
             ),
             'no_message_found': "‼️ Nessun messaggio trovato",
             "download_video": "🔔 Scaricamento video '{}'...",
+            'cant_compress_file': "‼️ Impossibile comprimere il file {}",
+            'start_compress_file': "🗜️ Inizio compressione del file {}",
+            'complete_compress_file': "✅ Completamento compressione del file {}",
         }
     }
     # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese

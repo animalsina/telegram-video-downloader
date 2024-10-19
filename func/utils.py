@@ -8,8 +8,10 @@ import csv
 import shutil
 import sys
 import re
-from pathlib import Path
 
+import ffmpeg
+
+from pathlib import Path
 from func.messages import get_message
 
 VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm']
@@ -181,3 +183,18 @@ def release_lock(lock_file):
     """
     if os.path.exists(lock_file):
         os.remove(lock_file)
+
+def compress_video_h265(input_file, output_file, crf=28) -> bool:
+    print(f"{input_file} {output_file}")
+    try:
+        (
+            ffmpeg
+            .input(str(input_file))
+            .output(str(output_file), vcodec='libx265', crf=crf, preset='slow')
+            .run()  # Cattura l'output e l'errore
+        )
+        print(f"Compressione H.265 completata! File salvato come {output_file}")
+        return True
+    except Exception as e:
+        print(f"Errore durante la compressione: {str(e)}")
+        return False
