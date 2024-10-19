@@ -8,6 +8,7 @@ check_file=./downloaded_files.txt
 session_name=session_name
 max_simultaneous_file_to_download=3
 enable_video_compression=0
+compression_ratio=28
 disabled=0
 
 [groups]
