@@ -1,2 +1,3 @@
+# Take care for sanitizing video_name with  <, >, :, \", /, \, |, ?, *, etc. and emoji
 on:message:pattern="^(Hello World) (\d{2}) Test$"
 action:message:translate="{0} {1}"

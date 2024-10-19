@@ -4,32 +4,33 @@ import os
 
 rules = {'message': []}
 
+
 def load_rules(root_directory):
     """
-    Carica tutte le regole dai file .rule nella directory specificata.
+    Load both rules from .rule files in the specified directory.
     """
 
-    rule_files = os.path.join(root_directory, 'rules', '*.rule')  # Cambiato per cercare direttamente nella directory
+    rule_files = os.path.join(root_directory, 'rules', '*.rule')
     for rule_file in glob.glob(rule_files):
         with open(rule_file, 'r') as f:
-            pattern = None  # Variabile per memorizzare temporaneamente il pattern
+            pattern = None
             for line in f:
                 if line.startswith("on:message:pattern"):
                     match = re.search(r'="(.*?)"', line)
-                    if match:  # Controlla se il pattern è stato trovato
-                        pattern = match.group(1)  # Assegna il pattern
+                    if match:
+                        pattern = match.group(1)
                 elif pattern and line.startswith("action:message:translate"):
                     match = re.search(r'="(.*?)"', line)
-                    if match:  # Controlla se l'azione è stata trovata
-                        action = match.group(1)  # Assegna l'azione
-                        # Aggiungi un dizionario con il pattern e l'azione alla lista delle regole
+                    if match:
+                        action = match.group(1)
                         rules['message'].append({'pattern': pattern, 'action': action})
-                        pattern = None  # Resetta il pattern dopo aver creato la regola
+                        pattern = None
     return rules
+
 
 def apply_rules(type_name, input_value):
     """
-    Applica le regole al testo fornito e restituisce il risultato trasformato.
+    Apply rules to input and returns edited output.
     """
 
     # Rules for messages
