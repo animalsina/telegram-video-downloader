@@ -2,6 +2,7 @@ import os
 import sys
 
 from func.messages import get_message
+from func.rules import apply_rules
 from func.utils import check_folder_permissions, load_config
 
 def load_configuration():
@@ -33,6 +34,7 @@ def load_configuration():
     phone = config.get('phone')
     download_folder = config.get('download_folder', os.path.join(root_dir, 'tg-video'))
     completed_folder = config.get('completed_folder', os.path.join(root_dir, 'tg-video-completed'))
+
     check_file = os.path.join(root_dir, config.get('check_file', './downloaded_files.txt'))
     lock_file = os.path.join(root_dir, 'script.lock')
     session_name = os.path.join(root_dir, config.get('session_name', 'session_name'))

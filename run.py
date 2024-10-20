@@ -8,7 +8,7 @@ from telethon.tl.types import DocumentAttributeVideo
 from telethon.tl.types import DocumentAttributeFilename
 
 from func.config import load_configuration
-from func.load_rules import load_rules, apply_rules
+from func.rules import load_rules, apply_rules
 
 # Add the 'func' directory to the system path to import custom modules
 sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
@@ -147,7 +147,7 @@ async def main():
                 )
                 continue
 
-            video_name = apply_rules('message', video_name)
+            video_name = apply_rules('translate', video_name)
 
             if file_name is None:
                 file_name = f"{video_name}.mp4"
