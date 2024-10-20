@@ -15,6 +15,7 @@ import ffmpeg
 from pathlib import Path
 
 from func.messages import get_message
+from func.rules import apply_rules
 
 VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm']
 
@@ -230,7 +231,13 @@ async def download_complete_action(file_path, file_name, video_name, status_mess
     messages = config.messages
     mime_type, _ = mimetypes.guess_type(file_path)
     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
-    completed_file_path = os.path.join(config.completed_folder, video_name + extension)
+    completed_folder_mask = apply_rules('completed_folder_mask', video_name)
+    completed_folder = config.completed_folder
+
+    if completed_folder_mask:
+        completed_folder = completed_folder_mask
+
+    completed_file_path = os.path.join(completed_folder, video_name + extension)
 
     file_path_source = Path(str(file_path))
     file_path_dest = Path(str(completed_file_path))
