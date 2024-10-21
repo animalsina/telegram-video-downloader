@@ -17,7 +17,7 @@ from pathlib import Path
 from func.messages import get_message
 from func.rules import apply_rules
 
-VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm']
+VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mpv']
 
 def check_folder_permissions(folder_path):
     """
