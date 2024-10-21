@@ -96,11 +96,13 @@ async def main():
         tasks = []
 
         video_messages.reverse()
+        video_messages.sort(key=lambda msg: not msg.pinned)
 
         for message in video_messages:
             video_name = None
             file_name = None
 
+            # Check for reply message and set like video_name
             if not video_name and len(replies_msg) > 0:
                 for replyMsg in replies_msg:
                     if replyMsg.reply_to_msg_id == message.id:
@@ -135,10 +137,12 @@ async def main():
                     file_name = sanitize_filename(attr.file_name)
                     break
 
+            # If video_name is None and file_name is not none then set file_name to video_name
             if video_name is None and file_name is not None:
                 # Set video_name based on file_name if no valid video name was found
                 video_name = sanitize_filename(file_name.rsplit('.', 1)[0].strip())
 
+            # If video_name is empty send an alert message to personal chat
             if video_name is None:
                 await client.send_message(
                     message.peer_id,
