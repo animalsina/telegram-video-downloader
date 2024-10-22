@@ -227,6 +227,7 @@ async def compress_video_h265(input_file, output_file, crf=28, callback=None) ->
 async def download_complete_action(file_path, file_name, video_name, status_message):
     from func.config import load_configuration
     config = load_configuration()
+    acquire_lock(config.lock_file)
 
     messages = config.messages
     mime_type, _ = mimetypes.guess_type(file_path)
