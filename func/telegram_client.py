@@ -157,8 +157,6 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                 os.rename(temp_file_path, file_path)
                 os.remove(progress_file_path)
                 print(f"Downloaded video to: {file_path}")
-                status_message = await status_message.edit(messages['ready_to_move'].format(video_name))
-                print(messages['ready_to_move'].format(video_name))
 
                 if os.path.exists(file_path):
                     if not is_file_corrupted(file_path, file_info_path):
