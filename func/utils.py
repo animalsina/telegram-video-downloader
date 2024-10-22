@@ -64,7 +64,7 @@ def save_downloaded_file(check_file_path, file_name):
     with open(check_file_path, 'a', encoding='utf-8') as f:
         f.write(file_name + '\n')
 
-def move_file(src: Path, dest: Path) -> bool:
+def move_file(src: Path, dest: Path, cb = None) -> bool:
     """
     Move a file from the source path to the destination path.
     If the move is successful, return True. If an error occurs during the move,
@@ -84,9 +84,13 @@ def move_file(src: Path, dest: Path) -> bool:
 
         shutil.move(str(src), str(final_dest))
         print(msgs['video_saved_and_moved'].format(final_dest))
+        if cb is not None:
+            cb(src, final_dest, True)
         return True
     except (shutil.Error, OSError):
         print(msgs['error_move_file'].format(os.path.basename(src)))
+        if cb is not None:
+            cb(src, None, False)
         return False
 
 def remove_file_info(file_path, file_name):
@@ -243,8 +247,6 @@ async def download_complete_action(file_path, file_name, video_name, status_mess
     file_path_source = Path(str(file_path))
     file_path_dest = Path(str(completed_file_path))
 
-    print(f"{file_path_source} {file_path_dest}")
-
     async def compression_message(time_info):
         await status_message.edit(str(get_message('trace_compress_action')).format(time_info))
 
@@ -265,12 +267,18 @@ async def download_complete_action(file_path, file_name, video_name, status_mess
             await status_message.edit(messages['cant_compress_file'].format(file_path_source))
             raise
 
+    await status_message.edit(messages['ready_to_move'].format(video_name))
     save_downloaded_file(config.check_file, file_name)
 
-    if move_file(file_path_source, file_path_dest):
-        await status_message.edit(messages['download_complete'].format(video_name))
-    else:
-        await status_message.edit(messages['error_move_file'].format(video_name))
+    print(messages['ready_to_move'].format(video_name))
+
+    async def cb_move_file(src, target, result):
+        if result:
+            await status_message.edit(messages['download_complete'].format(video_name))
+        else:
+            await status_message.edit(messages['error_move_file'].format(video_name))
+
+    move_file(file_path_source, file_path_dest,  cb_move_file)
 
 def load_config(file_path):
     """
