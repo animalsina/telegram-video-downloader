@@ -62,12 +62,13 @@ def apply_rules(type_name, input_value):
                 pattern = rule['pattern']
                 match = re.match(pattern.folder, input_value)
                 completed_folder = None
-                for i, valore in enumerate(match.groups()):
-                    if completed_folder is None:
-                        completed_folder = completed_folder_mask
-                    completed_folder = completed_folder.replace(f'#{i}', valore.strip())
-                if completed_folder:
-                    return completed_folder
+                if match is not None:
+                    for i, valore in enumerate(match.groups()):
+                        if completed_folder is None:
+                            completed_folder = completed_folder_mask
+                        completed_folder = completed_folder.replace(f'#{i}', valore.strip())
+                    if completed_folder:
+                        return completed_folder
         return None
     return input_value
 
