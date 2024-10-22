@@ -195,6 +195,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
 
         finally:
             # Release the file lock after each attempt
+            await status_message.edit(f"✅ Attempt end")
             release_lock(lock_file)
 
     else:
