@@ -90,7 +90,7 @@ async def main():
         for pickle_file_name, video in sorted_data or []:
 
             reference_message = await client.get_messages(video.chat_name, ids=video.message_id_reference)
-            video.chat_id = reference_message.chat_id
+            video.chat_id = 'me'
             save_pickle_data({
                 'pinned': reference_message.pinned
             }, pickle_file_name,['pinned'])
