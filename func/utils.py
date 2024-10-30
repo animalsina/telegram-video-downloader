@@ -276,7 +276,7 @@ async def download_complete_action(video):
 
     async def cb_move_file(src, target, result):
         if result:
-            remove_pickle_file(video)
+            complete_pickle_file(video)
             await add_line_to_text(video.reference_message, messages['download_complete'].format(video.video_name_cleaned),
                                    line_for_info_data)
         else:
@@ -287,11 +287,25 @@ async def download_complete_action(video):
 
 
 def remove_pickle_file(video):
+    if os.path.isfile(get_pickle_full_path(video)):
+        os.remove(str(get_pickle_full_path(video)))
+
+def pickle_file_exists(video):
+    return os.path.exists(get_pickle_full_path(video))
+
+def get_pickle_name(video):
     import run
-    pickles_dir = os.path.join(run.root_dir, 'pickles')
-    pickle_file_name = f"{run.client.api_id}_{video.chat_id}_{video.video_id}.pkl"
-    if os.path.isfile(os.path.join(pickles_dir, pickle_file_name)):
-        os.remove(str(os.path.join(pickles_dir, pickle_file_name)))
+    return f"{run.client.api_id}_{video.chat_id}_{video.id}.pkl"
+
+def get_pickle_full_path(video):
+    return os.path.join(get_pickle_path(), get_pickle_name(video))
+
+def get_pickle_path():
+    import run
+    return os.path.join(run.root_dir, 'pickles')
+
+def complete_pickle_file(video):
+    save_pickle_data({'completed': True}, video, ['completed'])
 
 def load_config(file_path):
     """
@@ -358,10 +372,8 @@ async def add_line_to_text(reference_message, new_line, line_number):
     await reference_message.edit("\n".join(lines))
 
 
-def save_pickle_data(data, file_name, fields_to_compare=None):
-    import run
-
-    file_path = os.path.join(run.root_dir, 'pickles', file_name)
+def save_pickle_data(data, video, fields_to_compare=None):
+    file_path = get_pickle_full_path(video)
 
     # Se il file esiste, carica i dati e controlla se ci sono differenze
     if os.path.exists(file_path):
@@ -370,8 +382,8 @@ def save_pickle_data(data, file_name, fields_to_compare=None):
 
         # Confronta i dati esistenti con quelli nuovi; se uguali, termina la funzione
         if fields_to_compare:
-            data_subset = {field: data.get(field) for field in fields_to_compare}
-            existing_data_subset = {field: existing_data.get(field) for field in fields_to_compare}
+            data_subset = {field: getattr(data, field, None) for field in fields_to_compare}
+            existing_data_subset = {field: getattr(existing_data, field, None) for field in fields_to_compare}
 
             # Confronta solo i campi specificati
             if data_subset == existing_data_subset:
@@ -400,7 +412,7 @@ def save_pickle_data(data, file_name, fields_to_compare=None):
 
 
 def default_video_message(video):
-    video_text = "".join(video.video_text.splitlines())
+    video_text = "".join(video.video_name.splitlines())
     file_name = "".join(video.file_name.splitlines())
     return (f'🎥 {video_text} - {file_name}\n'
             f'⚖️ {format_bytes(video.video_media.document.size)}\n'
