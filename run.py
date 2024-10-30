@@ -249,7 +249,7 @@ async def save_video_data():
             "video_name_cleaned": video_name_cleaned,
             "video_attribute": video_attribute,
             "chat_name": video.chat_name,
-            "chat_id": video.chat_id,
+            "chat_id": 'me',
             "file_name": file_name,
             "file_path": file_path,
             "pinned": video.pinned,
