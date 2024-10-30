@@ -19,7 +19,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
 # Import necessary functions from custom modules
 from func.utils import sanitize_filename, acquire_lock, release_lock, is_file_corrupted, \
     check_lock, is_video_file, download_complete_action, add_line_to_text, save_pickle_data, line_for_info_data, \
-    default_video_message, remove_pickle_file
+    default_video_message, remove_pickle_file, line_for_show_last_error
 from func.telegram_client import create_telegram_client, download_with_retry
 from func.messages import get_message
 
@@ -117,7 +117,7 @@ async def main():
                 if not is_file_corrupted(video.file_path, video.video_media.document.size):
                     await download_complete_action(video)
                 else:
-                    await add_line_to_text(reference_message, messages_el['corrupted_file'].format(video.file_name), line_for_info_data)
+                    await add_line_to_text(reference_message, messages_el['corrupted_file'].format(video.file_name), line_for_show_last_error)
                     print(messages_el['corrupted_file'].format(video.file_name))
                     os.remove(video.file_path)
                 continue

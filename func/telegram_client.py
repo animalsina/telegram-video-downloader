@@ -14,7 +14,7 @@ from tqdm import tqdm
 from func.config import load_configuration
 from func.messages import get_message
 from func.utils import release_lock, is_file_corrupted, acquire_lock, \
-    download_complete_action, add_line_to_text, line_for_info_data
+    download_complete_action, add_line_to_text, line_for_info_data, line_for_show_last_error
 
 # Buffer to store speed data samples
 speed_samples = collections.deque(maxlen=20)  # Keep only the last 100 samples
@@ -128,29 +128,29 @@ async def download_with_retry(client, video, retry_attempts=5):
                         return
                     else:
                         await add_line_to_text(video.reference_message,
-                                               messages['corrupted_file'].format(video.file_name), line_for_info_data)
+                                               messages['corrupted_file'].format(video.file_name), line_for_show_last_error)
                         print(messages['corrupted_file'].format(video.file_name))
                 return
             else:
                 await add_line_to_text(video.reference_message,
-                                       messages['file_mismatch_error'].format(video.video_name), line_for_info_data)
+                                       messages['file_mismatch_error'].format(video.video_name), line_for_show_last_error)
                 os.remove(temp_file_path)
                 raise Exception(f"File {video.video_name} size mismatch - I will delete temp file and retry.")
 
         except FloodWaitError as e:
             wait_time = e.seconds + 10  # Add a buffer time for safety
             print(f"Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
-            await add_line_to_text(video.reference_message, messages['rate_limit_exceeded_error'].format(wait_time), line_for_info_data)
+            await add_line_to_text(video.reference_message, messages['rate_limit_exceeded_error'].format(wait_time), line_for_show_last_error)
             await asyncio.sleep(wait_time)
             attempt += 1
 
         except (OSError, IOError) as e:
-            await add_line_to_text(video.reference_message, messages['file_system_error'].format(str(e)), line_for_info_data)
+            await add_line_to_text(video.reference_message, messages['file_system_error'].format(str(e)), line_for_show_last_error)
             break
 
         except Exception as e:
             # Update the CSV with error information and stop the process
-            await add_line_to_text(video.reference_message, f"‼️ Unexpected error: {str(e)}", line_for_info_data)
+            await add_line_to_text(video.reference_message, f"‼️ Unexpected error: {str(e)}", line_for_show_last_error)
             break
 
         finally:
