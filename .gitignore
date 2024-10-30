@@ -174,3 +174,4 @@ pipe
 rules/*.rule
 !rules/hello-world.rule
 pickles/
+.stop
