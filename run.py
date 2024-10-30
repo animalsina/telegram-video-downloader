@@ -35,6 +35,7 @@ replies_msg = []
 
 tasks = []
 
+
 async def download_with_limit(video):
     """Download a file with concurrency limit."""
     msgs = get_message('')
@@ -57,6 +58,7 @@ async def delete_service_messages():
                 print(f"Deleted message with id: {message.id}")
             except Exception as delete_error:
                 print(f"Failed to delete message with id: {message.id} - {delete_error}")
+
 
 async def main():
     """Main function to manage the Telegram client and download files."""
@@ -81,7 +83,7 @@ async def main():
             return
 
         # Delete previously created service messages
-        #await delete_service_messages()
+        # await delete_service_messages()
 
         # Prepare video files
         await save_video_data()
@@ -102,7 +104,7 @@ async def main():
             video.chat_id = 'me'
             save_pickle_data({
                 'pinned': reference_message.pinned
-            }, video,['pinned'])
+            }, video, ['pinned'])
 
             try:
                 await reference_message.edit(default_video_message(video))
@@ -114,14 +116,16 @@ async def main():
 
             # Check if the file already exists
             if os.path.exists(video.file_path):
-                await add_line_to_text(reference_message, messages_el['ready_to_move'].format(video.file_name), line_for_info_data)
+                await add_line_to_text(reference_message, messages_el['ready_to_move'].format(video.file_name),
+                                       line_for_info_data)
                 print(messages['ready_to_move'].format(video.file_name))
 
                 # Check if the file is corrupted before moving it
                 if not is_file_corrupted(video.file_path, video.video_media.document.size):
                     await download_complete_action(video)
                 else:
-                    await add_line_to_text(reference_message, messages_el['corrupted_file'].format(video.file_name), line_for_show_last_error)
+                    await add_line_to_text(reference_message, messages_el['corrupted_file'].format(video.file_name),
+                                           line_for_show_last_error)
                     print(messages_el['corrupted_file'].format(video.file_name))
                     os.remove(video.file_path)
                 continue
@@ -135,6 +139,7 @@ async def main():
 
     finally:
         await client.disconnect()
+
 
 async def save_video_data():
     videos = []
@@ -207,7 +212,6 @@ async def save_video_data():
             if isinstance(attr, DocumentAttributeVideo):
                 video_attribute = attr
 
-
         # If video_name is None and file_name is not none then set file_name to video_name
         if video_name is None and file_name is not None:
             # Set video_name based on file_name if no valid video name was found
@@ -273,7 +277,7 @@ async def save_video_data():
                 "video_attribute": video_attribute,
                 "pinned": video.pinned,
                 "video_media": video_media,
-                "video_name": f'{video_name_cleaned} (Forward Chat Protected)',
+                "video_name": f'{video_name_cleaned} (**Forward Chat Protected**)',
                 "file_name": file_name,
             })))
 
@@ -284,10 +288,10 @@ async def save_video_data():
 
         # Salvataggio del dizionario in un unico file, con il nome basato su video_id
         save_pickle_data(video_data, video_data,
-                         ['id', 'video_id', 'video_text', 'video_name', 'file_name', 'file_path', 'chat_id', 'chat_name', 'video_attribute', 'pinned', 'message_id_reference', 'video_name_cleaned'])
+                         ['id', 'video_id', 'video_text', 'video_name', 'file_name', 'file_path', 'chat_id',
+                          'chat_name', 'video_attribute', 'pinned', 'message_id_reference', 'video_name_cleaned'])
         if video_id and video.chat_name == 'me':
             await client.delete_messages(video.chat_name, [video_id])
-
 
 
 class VideoData:
@@ -297,6 +301,7 @@ class VideoData:
 
     def __repr__(self):
         return f"<VideoData {vars(self)}>"
+
 
 def load_all_pickle_data():
     # Percorso della cartella pickles
@@ -325,6 +330,7 @@ def load_all_pickle_data():
                     print(f"Errore nel caricamento di {file_name}: {e}")
 
     return all_data
+
 
 if __name__ == '__main__':
     load_rules(Path(root_dir))
