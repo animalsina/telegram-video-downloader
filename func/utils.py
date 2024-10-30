@@ -19,6 +19,7 @@ from func.messages import get_message
 from func.rules import apply_rules
 
 line_for_info_data = 7
+line_for_show_last_error = 9
 
 VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mpv']
 
@@ -265,7 +266,7 @@ async def download_complete_action(video):
         else:
             print(messages['cant_compress_file'].format(file_path_source))
             await add_line_to_text(video.reference_message, messages['cant_compress_file'].format(file_path_source),
-                                   line_for_info_data)
+                                   line_for_show_last_error)
             raise
 
     await add_line_to_text(video.reference_message, messages['ready_to_move'].format(video.video_name_cleaned),
@@ -280,7 +281,7 @@ async def download_complete_action(video):
                                    line_for_info_data)
         else:
             await add_line_to_text(video.reference_message, messages['error_move_file'].format(video.video_name_cleaned),
-                                   line_for_info_data)
+                                   line_for_show_last_error)
 
     await move_file(file_path_source, file_path_dest, cb_move_file)
 
