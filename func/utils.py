@@ -395,11 +395,8 @@ def save_pickle_data(data, video, fields_to_compare=None):
                 print("Nessuna differenza trovata, dati non salvati.")
                 return
 
-        # Merge dei dati esistenti con i nuovi
-        if isinstance(existing_data, dict) and isinstance(data, dict):
-            existing_data.update(data)
-        else:
-            print("I dati non sono in formato compatibile per il merge.")
+            for field in vars(data).keys():
+                setattr(existing_data, field, getattr(data, field))
             return
     else:
         # Se il file non esiste, usa i nuovi dati
@@ -412,8 +409,8 @@ def save_pickle_data(data, video, fields_to_compare=None):
 
 
 def default_video_message(video):
-    video_text = "".join(video.video_name.splitlines())
-    file_name = "".join(video.file_name.splitlines())
+    video_text = "".join(video.video_name.splitlines())[:40]
+    file_name = "".join(video.file_name.splitlines())[:40]
     return (f'🎥 {video_text} - {file_name}\n'
             f'⚖️ {format_bytes(video.video_media.document.size)}\n'
             f'↕️ {video.video_attribute.w}x{video.video_attribute.h}\n'

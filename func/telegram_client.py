@@ -149,7 +149,6 @@ async def download_with_retry(client, video, retry_attempts=5):
             break
 
         except Exception as e:
-            # Update the CSV with error information and stop the process
             await add_line_to_text(video.reference_message, f"‼️ Unexpected error: {str(e)}", line_for_show_last_error)
             break
 
