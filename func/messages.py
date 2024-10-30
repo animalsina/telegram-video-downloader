@@ -41,7 +41,7 @@ def get_message(key, language = None):
             'download_started': "⬇️ Downloading: {}%",
             'corrupted_file': "‼️ The file '{}' is corrupted. Re-downloading...",
             'download_complete': (
-                "✅ Download completed and moved: {}\nCompleted"
+                "✅ Download completed and moved: {} - Completed"
             ),
             'error_move_file': "❌ Error moving file: {}",
             'not_found_file': "❌ File Not Found: {}",

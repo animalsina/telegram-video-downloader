@@ -1,4 +1,4 @@
 ffmpeg-python===0.2.0
 tqdm===4.66.3
-Telethon===1.36.0
+telethon===1.36.0
 markdown-it-py===3.0.0
