@@ -1,7 +1,7 @@
 """
 Module for interacting with Telegram API to download files with progress tracking and retry logic.
 """
-
+import re
 import time
 import os
 import asyncio
@@ -19,7 +19,6 @@ from func.utils import release_lock, is_file_corrupted, acquire_lock, \
 # Buffer to store speed data samples
 speed_samples = collections.deque(maxlen=20)  # Keep only the last 100 samples
 
-
 def calculate_download_speed(current, last_current, time_elapsed):
     """Calculate download speed."""
     if time_elapsed <= 0:
@@ -35,7 +34,7 @@ def create_telegram_client(session_name, api_id, api_hash):
 async def update_download_message(reference_message, percent, time_remaining_formatted):
     """Update the status message with the download progress and time remaining."""
     await add_line_to_text(reference_message,
-                           f"⬇️ Download: {percent:.2f}% - Time remaining: {time_remaining_formatted}", line_for_info_data)
+                           f"⬇️ Download: {percent:.2f}% - {time_remaining_formatted}", line_for_info_data)
 
 
 def format_time(seconds):
@@ -49,6 +48,7 @@ def format_time(seconds):
 
 async def download_with_retry(client, video, retry_attempts=5):
     """Download a file with retry attempts in case of failure."""
+    from run import root_dir
     configuration = load_configuration()
     attempt = 0
     last_update_time = time.time()
@@ -71,6 +71,10 @@ async def download_with_retry(client, video, retry_attempts=5):
                 async def progress_callback(current, total):
                     nonlocal last_update_time
                     nonlocal last_current
+
+                    if os.path.exists(os.path.join(root_dir, '.stop')):
+                        os.remove(os.path.join(root_dir, '.stop'))
+                        raise Exception('Stop forzato del download')
 
                     if total is not None:
                         percent_complete = (current / total) * 100

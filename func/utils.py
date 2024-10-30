@@ -15,6 +15,9 @@ import ffmpeg
 
 from pathlib import Path
 
+from markdown_it import MarkdownIt
+
+from func.command import CommandHandler
 from func.messages import get_message
 from func.rules import apply_rules
 
@@ -22,7 +25,6 @@ line_for_info_data = 7
 line_for_show_last_error = 9
 
 VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mpv']
-
 
 def check_folder_permissions(folder_path):
     """
@@ -409,12 +411,17 @@ def save_pickle_data(data, video, fields_to_compare=None):
 
 
 def default_video_message(video):
-    video_text = "".join(video.video_name.splitlines())[:40]
-    file_name = "".join(video.file_name.splitlines())[:40]
-    return (f'🎥 {video_text} - {file_name}\n'
+    video_text = "".join(remove_markdown(video.video_name.splitlines()))[:40]
+    file_name = "".join(remove_markdown(video.file_name.splitlines()))[:40]
+    return (f'🎥 **{video_text}** - {file_name}\n'
             f'⚖️ {format_bytes(video.video_media.document.size)}\n'
             f'↕️ {video.video_attribute.w}x{video.video_attribute.h}\n'
             f'📌 {video.pinned}')
+
+def remove_markdown(text):
+    md = MarkdownIt()
+    tokens = md.parse(text)
+    return " ".join(token.content for token in tokens if token.type == "inline")
 
 
 def format_bytes(size):
