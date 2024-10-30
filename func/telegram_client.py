@@ -66,7 +66,7 @@ async def download_with_retry(client, video, retry_attempts=5):
 
             # Download the file with progress tracking
             with tqdm(total=file_size, initial=progress,
-                      desc=f"Downloading {video.video_id} - {video.file_name} - {video.video_name}",
+                      desc=f"Downloading {video.video_id} - {video.file_name} - {video.video_name_cleaned}",
                       unit='B', unit_scale=True, unit_divisor=1024) as pbar:
                 async def progress_callback(current, total):
                     nonlocal last_update_time

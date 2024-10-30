@@ -19,7 +19,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
 # Import necessary functions from custom modules
 from func.utils import sanitize_filename, acquire_lock, release_lock, is_file_corrupted, \
     check_lock, is_video_file, download_complete_action, add_line_to_text, save_pickle_data, line_for_info_data, \
-    default_video_message, remove_pickle_file, line_for_show_last_error
+    default_video_message, remove_pickle_file, line_for_show_last_error, pickle_file_exists
 from func.telegram_client import create_telegram_client, download_with_retry
 from func.messages import get_message
 
@@ -88,17 +88,21 @@ async def main():
 
         sorted_data = sorted(load_all_pickle_data(), key=lambda item: (not item[1].pinned, item[1].video_id))
         for pickle_file_name, video in sorted_data or []:
+            if video.completed is True:
+                continue
 
-            reference_message = await client.get_messages(video.chat_name, ids=video.message_id_reference)
+            reference_message = await client.get_messages('me', ids=video.message_id_reference)
 
             if reference_message is None:
                 remove_pickle_file(video)
                 continue
+            elif reference_message.media:
+                video.video_media = reference_message.media
 
             video.chat_id = 'me'
             save_pickle_data({
                 'pinned': reference_message.pinned
-            }, pickle_file_name,['pinned'])
+            }, video,['pinned'])
 
             try:
                 await reference_message.edit(default_video_message(video))
@@ -232,19 +236,11 @@ async def save_video_data():
         if file_name is None:
             break
 
-        message = await client.send_message('me', default_video_message(VideoData(**{
-            "video_attribute": video_attribute,
-            "pinned": video.pinned,
-            "video_media": video_media,
-            "video_text": video_text,
-            "file_name": file_name
-        })))
-
         video_name_cleaned = re.sub(r'[^a-zA-Z0-9\s-]', '', video_name.replace('_', ' '))
 
         # Creazione del dizionario contenente tutte le variabili
-        video_data = {
-            "message_id_reference": message.id,
+        video_data = VideoData(**{
+            "id": video_id,
             "video_id": video_id,
             "video_text": video_text,
             "video_message_document_attributes": video_message_document_attributes,
@@ -258,13 +254,38 @@ async def save_video_data():
             "file_name": file_name,
             "file_path": file_path,
             "pinned": video.pinned,
-        }
+            "completed": False
+        })
+
+        if pickle_file_exists(video_data):
+            continue
+
+        try:
+            message = await client.send_file('me', video_media, caption=default_video_message(VideoData(**{
+                "video_attribute": video_attribute,
+                "pinned": video.pinned,
+                "video_media": video_media,
+                "video_name": video_name_cleaned,
+                "file_name": file_name
+            })), parse_mode='Markdown')
+        except telethon.errors.ChatForwardsRestrictedError:
+            message = await client.send_message('me', default_video_message(VideoData(**{
+                "video_attribute": video_attribute,
+                "pinned": video.pinned,
+                "video_media": video_media,
+                "video_name": f'{video_name_cleaned} (Forward Chat Protected)',
+                "file_name": file_name,
+            })))
+
+        if video.pinned:
+            await message.pin()
+
+        video_data.message_id_reference = message.id
 
         # Salvataggio del dizionario in un unico file, con il nome basato su video_id
-        pickle_file_name = f"{client.api_id}_{video.chat_id}_{video_id}.pkl"
-        save_pickle_data(video_data, pickle_file_name,
-                         ['video_id', 'video_text', 'video_name', 'file_name', 'file_path', 'video_attribute', 'pinned', 'message_id_reference', 'video_name_cleaned'])
-        if video_id:
+        save_pickle_data(video_data, video_data,
+                         ['id', 'video_id', 'video_text', 'video_name', 'file_name', 'file_path', 'chat_id', 'chat_name', 'video_attribute', 'pinned', 'message_id_reference', 'video_name_cleaned'])
+        if video_id and video.chat_name == 'me':
             await client.delete_messages(video.chat_name, [video_id])
 
 
@@ -299,8 +320,7 @@ def load_all_pickle_data():
             with open(file_path, "rb") as f:
                 try:
                     data = pickle.load(f)
-                    video_data = VideoData(**data)
-                    all_data.append((file_name, video_data))
+                    all_data.append((file_name, data))
                 except Exception as e:
                     print(f"Errore nel caricamento di {file_name}: {e}")
 

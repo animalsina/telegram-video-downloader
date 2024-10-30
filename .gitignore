@@ -173,3 +173,4 @@ tg-video-completed
 pipe
 rules/*.rule
 !rules/hello-world.rule
+pickles/
