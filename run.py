@@ -19,7 +19,7 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
 # Import necessary functions from custom modules
 from func.utils import sanitize_filename, acquire_lock, release_lock, is_file_corrupted, \
     check_lock, is_video_file, download_complete_action, add_line_to_text, save_pickle_data, line_for_info_data, \
-    default_video_message
+    default_video_message, remove_pickle_file
 from func.telegram_client import create_telegram_client, download_with_retry
 from func.messages import get_message
 
@@ -92,6 +92,7 @@ async def main():
             reference_message = await client.get_messages(video.chat_name, ids=video.message_id_reference)
 
             if reference_message is None:
+                remove_pickle_file(video)
                 continue
 
             video.chat_id = 'me'
