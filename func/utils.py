@@ -6,6 +6,7 @@ import asyncio
 import mimetypes
 import os
 import csv
+import pickle
 import shutil
 import sys
 import re
@@ -17,7 +18,10 @@ from pathlib import Path
 from func.messages import get_message
 from func.rules import apply_rules
 
+line_for_info_data = 7
+
 VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mpv']
+
 
 def check_folder_permissions(folder_path):
     """
@@ -32,10 +36,12 @@ def check_folder_permissions(folder_path):
     if not os.access(folder_path, os.W_OK):
         raise PermissionError(f"Permission denied: {folder_path}")
 
+
 def is_video_file(file_name):
     """Check if the file has a video extension."""
     _, ext = os.path.splitext(file_name)
     return ext.lower() in VIDEO_EXTENSIONS
+
 
 def sanitize_filename(filename):
     """
@@ -48,29 +54,13 @@ def sanitize_filename(filename):
     sanitized_name = re.sub(r'[^\w\s.-]', '', sanitized_name)
     return sanitized_name.strip()
 
-def load_downloaded_files(check_file_path):
-    """
-    Load the list of previously downloaded files from a text file.
-    Each line in the file represents a file that has been downloaded.
-    If the file doesn't exist, return an empty set.
-    """
-    if os.path.exists(check_file_path):
-        with open(check_file_path, 'r', encoding='utf-8') as f:
-            return set(line.strip() for line in f)
-    return set()
-
-def save_downloaded_file(check_file_path, file_name):
-    """Append the name of a newly downloaded file to the list of downloaded files."""
-    with open(check_file_path, 'a', encoding='utf-8') as f:
-        f.write(file_name + '\n')
-
-def move_file(src: Path, dest: Path, cb = None) -> bool:
+async def move_file(src: Path, dest: Path, cb=None) -> bool:
     """
     Move a file from the source path to the destination path.
     If the move is successful, return True. If an error occurs during the move,
     print an error message and return False.
     """
-    msgs =  get_message('')
+    msgs = get_message('')
     try:
         dest_file_name = dest.name
         dest_file_name_without_ext = dest.stem
@@ -85,13 +75,14 @@ def move_file(src: Path, dest: Path, cb = None) -> bool:
         shutil.move(str(src), str(final_dest))
         print(msgs['video_saved_and_moved'].format(final_dest))
         if cb is not None:
-            cb(src, final_dest, True)
+            await cb(src, final_dest, True)
         return True
     except (shutil.Error, OSError):
         print(msgs['error_move_file'].format(os.path.basename(src)))
         if cb is not None:
-            cb(src, None, False)
+            await cb(src, None, False)
         return False
+
 
 def remove_file_info(file_path, file_name):
     """
@@ -111,6 +102,7 @@ def remove_file_info(file_path, file_name):
         for row in lines:
             if row[0] != file_name:
                 writer.writerow(row)
+
 
 def update_file_info(file_path, file_name, status, file_size):
     """
@@ -138,6 +130,7 @@ def update_file_info(file_path, file_name, status, file_size):
         if not file_exists:
             writer.writerow([file_name, file_size, status])
 
+
 def get_file_size_from_log(file_info_path, file_name):
     """
     Read the file size of a specific file from a CSV log file.
@@ -153,7 +146,8 @@ def get_file_size_from_log(file_info_path, file_name):
                     return int(row[1])
     return None
 
-def is_file_corrupted(file_path, file_info_path):
+
+def is_file_corrupted(file_path, total_file_size):
     """
     Check if a file is corrupted by comparing its actual size with the size
     recorded in the log file. If the actual size is smaller than the recorded size,
@@ -161,19 +155,19 @@ def is_file_corrupted(file_path, file_info_path):
     it's also considered corrupted.
     """
     if os.path.exists(file_path):
-        file_name = os.path.basename(file_path)
-        logged_size = get_file_size_from_log(file_info_path, file_name)
-        if logged_size is not None:
+        if total_file_size is not None:
             actual_size = os.path.getsize(file_path)
-            if actual_size >= logged_size:
+            if actual_size >= total_file_size:
                 return False
         return True
     return False
+
 
 def check_lock(lock_file):
     if os.path.exists(lock_file):
         print(get_message('script_running'))
         sys.exit()
+
 
 def acquire_lock(lock_file):
     """
@@ -183,6 +177,7 @@ def acquire_lock(lock_file):
     with open(lock_file, 'w'):
         pass
 
+
 def release_lock(lock_file):
     """
     Release the lock by deleting the lock file.
@@ -190,6 +185,7 @@ def release_lock(lock_file):
     """
     if os.path.exists(lock_file):
         os.remove(lock_file)
+
 
 async def compress_video_h265(input_file, output_file, crf=28, callback=None) -> bool:
     if os.path.exists(output_file):
@@ -228,32 +224,35 @@ async def compress_video_h265(input_file, output_file, crf=28, callback=None) ->
         print(f"Error during the compression: {str(e)}")
         return False
 
-async def download_complete_action(file_path, file_name, video_name, status_message):
+
+async def download_complete_action(video):
     from func.config import load_configuration
     config = load_configuration()
     acquire_lock(config.lock_file)
 
     messages = config.messages
-    mime_type, _ = mimetypes.guess_type(file_path)
+    mime_type, _ = mimetypes.guess_type(video.file_path)
     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
-    completed_folder_mask = apply_rules('completed_folder_mask', video_name)
+    completed_folder_mask = apply_rules('completed_folder_mask', video.video_name_cleaned)
     completed_folder = config.completed_folder
 
     if completed_folder_mask:
         completed_folder = completed_folder_mask
 
-    completed_file_path = os.path.join(completed_folder, video_name + extension)
+    completed_file_path = os.path.join(completed_folder, video.video_name_cleaned + extension)
 
-    file_path_source = Path(str(file_path))
+    file_path_source = Path(str(video.file_path))
     file_path_dest = Path(str(completed_file_path))
 
     async def compression_message(time_info):
-        await status_message.edit(str(get_message('trace_compress_action')).format(time_info))
+        await add_line_to_text(video.reference_message, str(get_message('trace_compress_action')).format(time_info),
+                               line_for_info_data)
 
     if config.enable_video_compression:
         print(messages['start_compress_file'].format(file_path_source))
-        await status_message.edit(messages['start_compress_file'].format(file_path_source))
-        file_path_c = Path(str(file_path))
+        await add_line_to_text(video.reference_message, messages['start_compress_file'].format(file_path_source),
+                               line_for_info_data)
+        file_path_c = Path(str(video.file_path))
         converted_file_path = file_path_c.with_name(
             file_path_c.stem + "_converted" + file_path_c.suffix)
         if await compress_video_h265(file_path_source, converted_file_path, config.compression_ratio,
@@ -261,24 +260,37 @@ async def download_complete_action(file_path, file_name, video_name, status_mess
             file_path_source.unlink()
             file_path_source = converted_file_path
             print(messages['complete_compress_file'].format(file_path_source))
-            await status_message.edit(messages['complete_compress_file'].format(file_path_source))
+            await add_line_to_text(video.reference_message, messages['complete_compress_file'].format(file_path_source),
+                                   line_for_info_data)
         else:
             print(messages['cant_compress_file'].format(file_path_source))
-            await status_message.edit(messages['cant_compress_file'].format(file_path_source))
+            await add_line_to_text(video.reference_message, messages['cant_compress_file'].format(file_path_source),
+                                   line_for_info_data)
             raise
 
-    await status_message.edit(messages['ready_to_move'].format(video_name))
-    save_downloaded_file(config.check_file, file_name)
+    await add_line_to_text(video.reference_message, messages['ready_to_move'].format(video.video_name_cleaned),
+                           line_for_info_data)
 
-    print(messages['ready_to_move'].format(video_name))
+    print(messages['ready_to_move'].format(video.video_name_cleaned))
 
     async def cb_move_file(src, target, result):
         if result:
-            await status_message.edit(messages['download_complete'].format(video_name))
+            remove_pickle_file(video)
+            await add_line_to_text(video.reference_message, messages['download_complete'].format(video.video_name_cleaned),
+                                   line_for_info_data)
         else:
-            await status_message.edit(messages['error_move_file'].format(video_name))
+            await add_line_to_text(video.reference_message, messages['error_move_file'].format(video.video_name_cleaned),
+                                   line_for_info_data)
 
-    move_file(file_path_source, file_path_dest,  cb_move_file)
+    await move_file(file_path_source, file_path_dest, cb_move_file)
+
+
+def remove_pickle_file(video):
+    import run
+    pickles_dir = os.path.join(run.root_dir, 'pickles')
+    pickle_file_name = f"{run.client.api_id}_{video.chat_id}_{video.video_id}.pkl"
+    if os.path.isfile(os.path.join(pickles_dir, pickle_file_name)):
+        os.remove(str(os.path.join(pickles_dir, pickle_file_name)))
 
 def load_config(file_path):
     """
@@ -325,3 +337,95 @@ def load_config(file_path):
     config_data['group_chats'] = groups
 
     return config_data
+
+
+async def add_line_to_text(reference_message, new_line, line_number):
+    # Divide il testo in righe
+    lines = reference_message.text.splitlines()
+
+    # Se ci sono meno righe di quelle richieste, aggiunge righe vuote fino alla riga specificata
+    while len(lines) < line_number - 1:
+        lines.append("")
+
+    # Aggiunge o sostituisce la riga specificata
+    if len(lines) >= line_number:
+        lines[line_number - 1] = new_line
+    else:
+        lines.append(new_line)
+
+    # Unisce di nuovo le righe in una singola stringa
+    await reference_message.edit("\n".join(lines))
+
+
+def save_pickle_data(data, file_name, fields_to_compare=None):
+    import run
+
+    file_path = os.path.join(run.root_dir, 'pickles', file_name)
+
+    # Se il file esiste, carica i dati e controlla se ci sono differenze
+    if os.path.exists(file_path):
+        with open(file_path, "rb") as f:
+            existing_data = pickle.load(f)
+
+        # Confronta i dati esistenti con quelli nuovi; se uguali, termina la funzione
+        if fields_to_compare:
+            data_subset = {field: data.get(field) for field in fields_to_compare}
+            existing_data_subset = {field: existing_data.get(field) for field in fields_to_compare}
+
+            # Confronta solo i campi specificati
+            if data_subset == existing_data_subset:
+                print("Nessuna differenza nei campi selezionati, dati non salvati.")
+                return
+        else:
+            # Confronto di tutto l'oggetto se non sono stati specificati campi
+            if data == existing_data:
+                print("Nessuna differenza trovata, dati non salvati.")
+                return
+
+        # Merge dei dati esistenti con i nuovi
+        if isinstance(existing_data, dict) and isinstance(data, dict):
+            existing_data.update(data)
+        else:
+            print("I dati non sono in formato compatibile per il merge.")
+            return
+    else:
+        # Se il file non esiste, usa i nuovi dati
+        existing_data = data
+
+    # Salva solo se ci sono differenze
+    with open(file_path, "wb") as f:
+        pickle.dump(existing_data, f)
+    print("Dati salvati con successo.")
+
+
+def default_video_message(video):
+    video_text = "".join(video.video_text.splitlines())
+    file_name = "".join(video.file_name.splitlines())
+    return (f'🎥 {video_text} - {file_name}\n'
+            f'⚖️ {format_bytes(video.video_media.document.size)}\n'
+            f'↕️ {video.video_attribute.w}x{video.video_attribute.h}\n'
+            f'📌 {video.pinned}')
+
+
+def format_bytes(size):
+    """
+    Convert byte size to a human-readable format.
+
+    Args:
+    size (int): Size in bytes.
+
+    Returns:
+    str: Formatted size string.
+    """
+    # Definire le unità
+    units = ['B', 'KB', 'MB', 'GB', 'TB']
+    i = 0
+
+    # Riduci la dimensione fino a raggiungere la dimensione desiderata
+    while size >= 1024 and i < len(units) - 1:
+        size /= 1024.0
+        i += 1
+
+    # Restituisci la dimensione formattata
+    return f"{size:.2f} {units[i]}"
+

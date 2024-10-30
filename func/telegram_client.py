@@ -13,8 +13,8 @@ from tqdm import tqdm
 
 from func.config import load_configuration
 from func.messages import get_message
-from func.utils import update_file_info, release_lock, is_file_corrupted, remove_file_info, acquire_lock, \
-    download_complete_action
+from func.utils import release_lock, is_file_corrupted, acquire_lock, \
+    download_complete_action, add_line_to_text, line_for_info_data
 
 # Buffer to store speed data samples
 speed_samples = collections.deque(maxlen=20)  # Keep only the last 100 samples
@@ -32,10 +32,10 @@ def create_telegram_client(session_name, api_id, api_hash):
     return TelegramClient(session_name, api_id, api_hash)
 
 
-async def update_download_message(message, percent, video_name, time_remaining_formatted):
+async def update_download_message(reference_message, percent, time_remaining_formatted):
     """Update the status message with the download progress and time remaining."""
-    await message.edit(
-        f"⬇️ Download '{video_name}': {percent:.2f}% complete.\nTime remaining: {time_remaining_formatted}")
+    await add_line_to_text(reference_message,
+                           f"⬇️ Download: {percent:.2f}% - Time remaining: {time_remaining_formatted}", line_for_info_data)
 
 
 def format_time(seconds):
@@ -47,58 +47,26 @@ def format_time(seconds):
     minutes, seconds = divmod(rem, 60)
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
-
-def save_progress(file_path, progress):
-    """Save the current download progress to a .progress file."""
-    with open(f"{file_path}.progress", 'w', encoding='utf-8') as f:
-        f.write(str(progress))
-
-
-def load_progress(file_path):
-    """Load and return the download progress from a .progress file."""
-    try:
-        with open(f"{file_path}.progress", 'r', encoding='utf-8') as f:
-            return int(f.read())
-    except ValueError:
-        # Handle the case where the content cannot be converted to int
-        return 0
-    except FileNotFoundError:
-        # Handle the case where the progress file doesn't exist
-        return 0
-
-
-async def download_with_retry(client, message, file_path, status_message, file_name, video_name, retry_attempts=5):
+async def download_with_retry(client, video, retry_attempts=5):
     """Download a file with retry attempts in case of failure."""
     configuration = load_configuration()
     attempt = 0
     last_update_time = time.time()
     last_current = 0
-    file_size = message.media.document.size
-    file_info_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'file_info.csv')
-    temp_file_path = f"{file_path}.temp"
-    progress_file_path = f"{file_path}.progress"
+    file_size = video.video_media.document.size
+    temp_file_path = f"{video.file_path}.temp"
     messages = get_message('')
     lock_file = configuration.lock_file
-
-    # Before starting, check if the progress/temp file exists; if not, remove the corresponding row from the CSV
-    if os.path.exists(temp_file_path) is False or os.path.exists(progress_file_path) is False:
-        remove_file_info(file_info_path, file_name)
-
-    # Write initial file info to the CSV
-    update_file_info(file_info_path, file_name, 'downloading', file_size)
+    progress = 0
 
     while attempt < retry_attempts:
         try:
-            progress = load_progress(file_path) if os.path.exists(progress_file_path) else 0
-
-            # If the temp file exists and is empty, delete both the temp and progress files and reset progress
-            if os.path.exists(temp_file_path) and os.path.getsize(temp_file_path) == 0:
-                os.remove(temp_file_path)
-                os.remove(progress_file_path)
-                progress = 0
+            if os.path.exists(temp_file_path):
+                progress = os.path.getsize(temp_file_path)
 
             # Download the file with progress tracking
-            with tqdm(total=file_size, initial=progress, desc=f"Downloading {message.id} - {file_name} - {video_name}",
+            with tqdm(total=file_size, initial=progress,
+                      desc=f"Downloading {video.video_id} - {video.file_name} - {video.video_name}",
                       unit='B', unit_scale=True, unit_divisor=1024) as pbar:
                 async def progress_callback(current, total):
                     nonlocal last_update_time
@@ -125,7 +93,7 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         if current_time - last_update_time >= 3:
                             acquire_lock(lock_file)
                             time_remaining_formatted = format_time(time_remaining)
-                            await update_download_message(status_message, percent_complete, video_name,
+                            await update_download_message(video.reference_message, percent_complete,
                                                           time_remaining_formatted)
                             last_update_time = current_time
                             last_current = current
@@ -135,11 +103,8 @@ async def download_with_retry(client, message, file_path, status_message, file_n
                         pbar.total = total
                         pbar.n = current
 
-                        # Save the current progress
-                        save_progress(file_path, current)
-
                 # Download the media to the temp file using iter_download
-                async with client.iter_download(message.media, offset=progress,
+                async with client.iter_download(video.video_media, offset=progress,
                                                 request_size=64 * 1024) as download_iter:
                     with open(temp_file_path, 'ab') as f:
                         async for chunk in download_iter:
@@ -154,41 +119,38 @@ async def download_with_retry(client, message, file_path, status_message, file_n
 
             # Check if the temp file is complete and then move it to the final path
             if abs(temp_file_size - file_size) <= tolerance:
-                os.rename(temp_file_path, file_path)
-                os.remove(progress_file_path)
-                print(f"Downloaded video to: {file_path}")
+                os.rename(temp_file_path, video.file_path)
+                print(f"Downloaded video to: {video.file_path}")
 
-                if os.path.exists(file_path):
-                    if not is_file_corrupted(file_path, file_info_path):
-                        await download_complete_action(file_path, file_name, video_name, status_message)
-                        update_file_info(file_info_path, file_name, 'completed', file_size)
+                if os.path.exists(video.file_path):
+                    if not is_file_corrupted(video.file_path, file_size):
+                        await download_complete_action(video)
                         return
                     else:
-                        await status_message.edit(messages['corrupted_file'].format(file_name))
-                        print(messages['corrupted_file'].format(file_name))
+                        await add_line_to_text(video.reference_message,
+                                               messages['corrupted_file'].format(video.file_name), line_for_info_data)
+                        print(messages['corrupted_file'].format(video.file_name))
                 return
             else:
-                await status_message.edit(messages['file_mismatch_error'].format(video_name))
+                await add_line_to_text(video.reference_message,
+                                       messages['file_mismatch_error'].format(video.video_name), line_for_info_data)
                 os.remove(temp_file_path)
-                os.remove(progress_file_path)
-                raise Exception(f"File {video_name} size mismatch - I will delete temp file and retry.")
+                raise Exception(f"File {video.video_name} size mismatch - I will delete temp file and retry.")
 
         except FloodWaitError as e:
             wait_time = e.seconds + 10  # Add a buffer time for safety
             print(f"Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
-            await status_message.edit(messages['rate_limit_exceeded_error'].format(wait_time))
+            await add_line_to_text(video.reference_message, messages['rate_limit_exceeded_error'].format(wait_time), line_for_info_data)
             await asyncio.sleep(wait_time)
             attempt += 1
 
         except (OSError, IOError) as e:
-            update_file_info(file_info_path, file_name, f'error: {str(e)}', file_size)
-            await status_message.edit(messages['file_system_error'].format(str(e)))
+            await add_line_to_text(video.reference_message, messages['file_system_error'].format(str(e)), line_for_info_data)
             break
 
         except Exception as e:
             # Update the CSV with error information and stop the process
-            update_file_info(file_info_path, file_name, f'error: {str(e)}', file_size)
-            await status_message.edit(f"‼️ Unexpected error: {str(e)}")
+            await add_line_to_text(video.reference_message, f"‼️ Unexpected error: {str(e)}", line_for_info_data)
             break
 
         finally:
@@ -197,5 +159,4 @@ async def download_with_retry(client, message, file_path, status_message, file_n
 
     else:
         print("All retry attempts failed.")
-        await status_message.edit(messages['all_attempts_failed'].format(video_name))
         release_lock(lock_file)
