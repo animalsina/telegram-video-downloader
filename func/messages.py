@@ -46,7 +46,7 @@ def get_message(key, language = None):
             'error_move_file': "❌ Error moving file: {}",
             'not_found_file': "❌ File Not Found: {}",
             'error_download': "❌ Error downloading video '{}': {}",
-            "download_video": "🔔 Downloading video '{}'...",
+            "download_video": "🔔 Downloading video in progress...",
             'permission_error': "Permission error: {}",
             'script_running': "Script already running.",
             'ready_to_move': "🔔 File ready to move: {}",
@@ -77,7 +77,7 @@ def get_message(key, language = None):
             'download_started': "⬇️ Scaricando: {}%",
             'corrupted_file': "‼️ Il file '{}' è corrotto. Verrà riscaricato...",
             'download_complete': (
-                "✅ Download completato e spostato: {}\nCompletato"
+                "✅ Download completato e spostato: {} - Completato"
             ),
             'error_move_file': "❌ Errore durante lo spostamento del file: {}",
             'not_found_file': "❌ File non trovato: {}",
@@ -101,7 +101,7 @@ def get_message(key, language = None):
                 "🔔 Il video è stato salvato e spostato su {}"
             ),
             'no_message_found': "‼️ Nessun messaggio trovato",
-            "download_video": "🔔 Scaricamento video '{}'...",
+            "download_video": "🔔 Scaricamento video in corso...",
             'cant_compress_file': "‼️ Impossibile comprimere il file {}",
             'start_compress_file': "🗜️ Inizio compressione del file {}",
             'complete_compress_file': "✅ Completamento compressione del file {}",

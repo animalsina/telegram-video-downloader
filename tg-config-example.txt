@@ -4,7 +4,6 @@ api_hash=
 phone=
 #completed_folder=./tg-video
 #completed_folder=./tg-video-completed
-check_file=./downloaded_files.txt
 session_name=session_name
 max_simultaneous_file_to_download=3
 enable_video_compression=0
