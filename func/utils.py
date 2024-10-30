@@ -3,6 +3,7 @@ Utility functions for file handling, including permission checks, file moving,
 logging, and corruption checking.
 """
 import asyncio
+import glob
 import mimetypes
 import os
 import csv
@@ -47,7 +48,7 @@ def is_video_file(file_name):
 def sanitize_filename(filename):
     """
     Remove or replace characters in the filename that are not allowed in file names
-    on most operating systems, such as <, >, :, \", /, \, |, ?, *, etc.
+    on most operating systems, such as <, >, :, \", /, \\, |, ?, *, etc.
     This function also removes any non-alphanumeric characters, except for dots,
     hyphens, and underscores.
     """
@@ -293,11 +294,21 @@ def remove_pickle_file(video):
 def pickle_file_exists(video):
     return os.path.exists(get_pickle_full_path(video))
 
+def pickle_file_exists_by_ref_msg_id(message_id_ref):
+    files = glob.glob(f"{get_pickle_path()}/{message_id_ref}_*")
+    return bool(files)
+
+def pickle_file_exists_by_video_id(video_id):
+    files = glob.glob(f"{get_pickle_path()}/*_{video_id}")
+    return bool(files)
+
 def get_pickle_name(video):
     import run
-    return f"{run.client.api_id}_{video.chat_id}_{video.id}.pkl"
+    return f"{video.message_id_reference}_{run.client.api_id}_{video.chat_id}_{video.id}.pkl"
 
 def get_pickle_full_path(video):
+    if os.path.isdir(get_pickle_path()) is False:
+        os.mkdir(get_pickle_path())
     return os.path.join(get_pickle_path(), get_pickle_name(video))
 
 def get_pickle_path():
@@ -305,7 +316,8 @@ def get_pickle_path():
     return os.path.join(run.root_dir, 'pickles')
 
 def complete_pickle_file(video):
-    save_pickle_data({'completed': True}, video, ['completed'])
+    import run
+    save_pickle_data(run.VideoData(**{'completed': True}), video, ['completed'])
 
 def load_config(file_path):
     """
@@ -378,26 +390,35 @@ def save_pickle_data(data, video, fields_to_compare=None):
     # Se il file esiste, carica i dati e controlla se ci sono differenze
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
-            existing_data = pickle.load(f)
+            try:
+                existing_data = pickle.load(f)
+            except EOFError:
+                print(f"Errore nel caricamento di {file_path}: il file è vuoto o corrotto.")
+                existing_data = None
 
-        # Confronta i dati esistenti con quelli nuovi; se uguali, termina la funzione
-        if fields_to_compare:
-            data_subset = {field: getattr(data, field, None) for field in fields_to_compare}
-            existing_data_subset = {field: getattr(existing_data, field, None) for field in fields_to_compare}
-
-            # Confronta solo i campi specificati
-            if data_subset == existing_data_subset:
-                print("Nessuna differenza nei campi selezionati, dati non salvati.")
-                return
+        # Se il file esiste ma è vuoto, crea un nuovo oggetto
+        if existing_data is None:
+            existing_data = data
         else:
-            # Confronto di tutto l'oggetto se non sono stati specificati campi
-            if data == existing_data:
-                print("Nessuna differenza trovata, dati non salvati.")
-                return
+            if fields_to_compare:
+                data_subset = {field: getattr(data, field, None) for field in fields_to_compare}
+                existing_data_subset = {field: getattr(existing_data, field, None) for field in fields_to_compare}
 
-            for field in vars(data).keys():
-                setattr(existing_data, field, getattr(data, field))
-            return
+                # Se i campi specificati sono identici, controlla anche per i campi non specificati
+                if data_subset == existing_data_subset:
+                    # Aggiorna i campi rimanenti anche se i campi specificati sono uguali
+                    for field in vars(data).keys():
+                        if field not in fields_to_compare:
+                            setattr(existing_data, field, getattr(data, field))
+                else:
+                    # Se ci sono differenze nei campi specificati, aggiorna
+                    for field in vars(data).keys():
+                        setattr(existing_data, field, getattr(data, field))
+            else:
+                # Confronto di tutto l'oggetto se non sono stati specificati campi
+                if data == existing_data:
+                    print("Nessuna differenza trovata, dati non salvati.")
+                    return
     else:
         # Se il file non esiste, usa i nuovi dati
         existing_data = data
