@@ -1,7 +1,6 @@
 """
 Module for interacting with Telegram API to download files with progress tracking and retry logic.
 """
-import re
 import time
 import os
 import asyncio
@@ -12,7 +11,7 @@ from telethon.errors import FloodWaitError
 from tqdm import tqdm
 
 from func.config import load_configuration
-from func.messages import get_message
+from func.messages import t
 from func.utils import release_lock, is_file_corrupted, acquire_lock, \
     download_complete_action, add_line_to_text, line_for_info_data, line_for_show_last_error
 
@@ -55,7 +54,6 @@ async def download_with_retry(client, video, retry_attempts=5):
     last_current = 0
     file_size = video.video_media.document.size
     temp_file_path = f"{video.file_path}.temp"
-    messages = get_message('')
     lock_file = configuration.lock_file
     progress = 0
 
@@ -132,24 +130,24 @@ async def download_with_retry(client, video, retry_attempts=5):
                         return
                     else:
                         await add_line_to_text(video.reference_message,
-                                               messages['corrupted_file'].format(video.file_name), line_for_show_last_error)
-                        print(messages['corrupted_file'].format(video.file_name))
+                                               t('corrupted_file', video.file_name), line_for_show_last_error)
+                        print(t('corrupted_file', video.file_name))
                 return
             else:
                 await add_line_to_text(video.reference_message,
-                                       messages['file_mismatch_error'].format(video.video_name), line_for_show_last_error)
+                                       t('file_mismatch_error', video.video_name), line_for_show_last_error)
                 os.remove(temp_file_path)
                 raise Exception(f"File {video.video_name} size mismatch - I will delete temp file and retry.")
 
         except FloodWaitError as e:
             wait_time = e.seconds + 10  # Add a buffer time for safety
             print(f"Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
-            await add_line_to_text(video.reference_message, messages['rate_limit_exceeded_error'].format(wait_time), line_for_show_last_error)
+            await add_line_to_text(video.reference_message, t('rate_limit_exceeded_error', wait_time), line_for_show_last_error)
             await asyncio.sleep(wait_time)
             attempt += 1
 
         except (OSError, IOError) as e:
-            await add_line_to_text(video.reference_message, messages['file_system_error'].format(str(e)), line_for_show_last_error)
+            await add_line_to_text(video.reference_message, t('file_system_error', str(e)), line_for_show_last_error)
             break
 
         except Exception as e:

@@ -1,7 +1,6 @@
 import os
 import sys
 
-from func.messages import get_message
 from func.utils import check_folder_permissions, load_config
 
 def load_configuration():
@@ -42,9 +41,6 @@ def load_configuration():
     disabled = config.get('disabled', 0) == "1"
     group_chats = config.get('group_chats', [])
 
-    # Imposta la lingua e carica i messaggi corrispondenti
-    messages = get_message('')
-
     # Verifica le cartelle di download
     check_folder_permissions(download_folder)
     check_folder_permissions(completed_folder)
@@ -63,7 +59,6 @@ def load_configuration():
         'compression_ratio': compression_ratio,
         'disabled': disabled,
         'group_chats': group_chats,
-        'messages': messages,
         'file_info_path': file_info_path
     })
 class Config:
