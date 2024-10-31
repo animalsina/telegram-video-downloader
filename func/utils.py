@@ -432,8 +432,8 @@ def save_pickle_data(data, video, fields_to_compare=None):
 
 
 def default_video_message(video):
-    video_text = "".join(remove_markdown(video.video_name.splitlines()))[:40]
-    file_name = "".join(remove_markdown(video.file_name.splitlines()))[:40]
+    video_text = remove_markdown("".join(video.video_name.splitlines()))[:40]
+    file_name = remove_markdown("".join(video.file_name.splitlines()))[:40]
     return (f'🎥 **{video_text}** - {file_name}\n'
             f'⚖️ {format_bytes(video.video_media.document.size)}\n'
             f'↕️ {video.video_attribute.w}x{video.video_attribute.h}\n'
