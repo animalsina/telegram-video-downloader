@@ -14,7 +14,7 @@ def get_system_language():
         return 'it'
     return 'en'
 
-def get_message(key, language = None):
+def get_message(language = None):
     """
     Retrieve a dictionary of localized messages based on the provided language.
 
@@ -30,7 +30,7 @@ def get_message(key, language = None):
     if language is None:
         language = get_system_language()
 
-    messages = {
+    lang_messages = {
         'en': {
             'start_connection': "Starting connection to the client...",
             'connection_success': "Connection successful.",
@@ -109,6 +109,25 @@ def get_message(key, language = None):
         }
     }
     # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese
-    if key:
-        return messages.get(language, messages['en']).get(key, "Message key not found")
-    return messages.get(language, messages['en'])
+    return lang_messages.get(language, lang_messages['en'])
+
+def t(key, *args):
+    messages = get_message()
+
+    if key not in messages:
+        return key
+
+    message = messages[key]
+
+    if args is None:
+        return message
+    else:
+        if len(args) == 1:
+            sanitized_value = str(args[0]).replace('{', '').replace('}', '')
+            message = message.replace('{}', sanitized_value)
+        else:
+            for i, value in enumerate(args):
+                sanitized_value = str(value).replace('{', '').replace('}', '')
+                message = message.replace(f'{{{i}}}', sanitized_value)
+
+        return message
