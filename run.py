@@ -263,6 +263,7 @@ async def save_video_data_action():
             "file_path": file_path,
             "pinned": video.pinned,
             "completed": False,
+            "video_attribute": None,
         }
 
         if video_attribute is not None:
@@ -276,19 +277,24 @@ async def save_video_data_action():
 
         is_forward_chat_protected = False
         message = None
+        video_data_object = None
+        if video_data['video_attribute'] is not None:
+            video_data_object = AttributeObject(**video_data['video_attribute'])
         try:
             if log_in_personal_chat is True:
-                message = await client.send_file(personal_chat_id, video_media, caption=default_video_message(ObjectData(**{
-                    "video_attribute": AttributeObject(**video_data['video_attribute']),
-                    "pinned": video.pinned,
-                    "video_media": video_media,
-                    "video_name": video_name_cleaned,
-                    "file_name": file_name
-                })), parse_mode='Markdown')
+                message = await client.send_file(
+                    personal_chat_id, video_media,
+                    caption=default_video_message(ObjectData(**{
+                        "video_attribute": video_data_object,
+                        "pinned": video.pinned,
+                        "video_media": video_media,
+                        "video_name": video_name_cleaned,
+                        "file_name": file_name
+                    })), parse_mode='Markdown')
         except telethon.errors.ChatForwardsRestrictedError:
             if log_in_personal_chat is True:
                 message = await client.send_message(personal_chat_id, default_video_message(ObjectData(**{
-                    "video_attribute": AttributeObject(**video_data['video_attribute']),
+                    "video_attribute": video_data_object,
                     "pinned": video.pinned,
                     "video_media": video_media,
                     "video_name": f'{video_name_cleaned} (**Forward Chat Protected**)',
@@ -307,10 +313,12 @@ async def save_video_data_action():
 
         # Salvataggio del dizionario in un unico file, con il nome basato su video_id
         save_video_data(video_data, ObjectData(**video_data),
-             ['id', 'video_id', 'video_text', 'video_name', 'file_name', 'file_path', 'chat_id',
-              'chat_name', 'video_attribute', 'pinned', 'message_id_reference', 'video_name_cleaned', 'is_forward_chat_protected'])
+                        ['id', 'video_id', 'video_text', 'video_name', 'file_name', 'file_path', 'chat_id',
+                         'chat_name', 'video_attribute', 'pinned', 'message_id_reference', 'video_name_cleaned',
+                         'is_forward_chat_protected'])
         if video_id and video.chat_name == personal_chat_id and log_in_personal_chat is True:
             await client.delete_messages(video.chat_name, [video_id])
+
 
 def load_all_video_data():
     # Percorso della cartella videos
