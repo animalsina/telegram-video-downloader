@@ -10,6 +10,7 @@ import telethon
 from telethon.tl.types import DocumentAttributeVideo
 from telethon.tl.types import DocumentAttributeFilename
 
+from classes.attribute_object import AttributeObject
 from func.config import load_configuration
 from func.messages import t
 from func.rules import load_rules, apply_rules
@@ -23,13 +24,13 @@ sys.path.append(os.path.join(os.path.dirname(__file__), 'classes'))
 from func.utils import sanitize_filename, acquire_lock, release_lock, is_file_corrupted, \
     check_lock, is_video_file, download_complete_action, add_line_to_text, save_video_data, line_for_info_data, \
     default_video_message, remove_video_data, line_for_show_last_error, \
-    video_data_file_exists_by_ref_msg_id, video_data_file_exists_by_video_id
+    video_data_file_exists_by_ref_msg_id, video_data_file_exists_by_video_id, remove_video_data_by_video_id
 from func.telegram_client import create_telegram_client, download_with_retry
 
 root_dir = os.path.dirname(os.path.abspath(__file__))
 
 personal_chat_id = 'me'
-log_in_personal_chat = False
+log_in_personal_chat = True
 
 configuration = load_configuration()
 sem = asyncio.Semaphore(configuration.max_simultaneous_file_to_download)
@@ -46,7 +47,7 @@ async def download_with_limit(video: ObjectData):
     # Inizializza il semaforo per gestire i download simultanei
     async with sem:
         # Send a status message before starting the download
-        await add_line_to_text(video.reference_message, t('download_video'), line_for_info_data)
+        await add_line_to_text(getattr(video, 'reference_message', None), t('download_video'), line_for_info_data)
 
         # Start downloading the file with retry logic
         await download_with_retry(client, video)
@@ -94,6 +95,10 @@ async def main():
 
         sorted_data = sorted(filtered_data, key=lambda item: (not item[1].pinned, item[1].video_id))
         for video_data_file_name, video in sorted_data or []:
+            if video.message_id_reference is None:
+                remove_video_data_by_video_id(video.video_id)
+                continue
+
             reference_message = await client.get_messages(personal_chat_id, ids=video.message_id_reference)
 
             if reference_message is None:
@@ -101,6 +106,8 @@ async def main():
                 continue
 
             video.chat_id = personal_chat_id
+            video.video_media = reference_message.media
+
             save_video_data({
                 'pinned': reference_message.pinned
             }, video, ['pinned'])
@@ -131,7 +138,7 @@ async def main():
                 continue
 
             # Queue the download task with the limit on simultaneous downloads
-            task = await download_with_limit(video)
+            task = asyncio.create_task(download_with_limit(video))
             tasks.append(task)
 
         # Execute all queued tasks concurrently
@@ -248,10 +255,8 @@ async def save_video_data_action():
             "id": video_id,
             "video_id": video_id,
             "video_text": video_text,
-            #"video_message_document_attributes": video_message_document_attributes,
             "video_name": video_name,
             "video_name_cleaned": video_name_cleaned,
-            #"video_attribute": video_attribute,
             "chat_name": video.chat_name,
             "chat_id": personal_chat_id,
             "file_name": file_name,
@@ -260,7 +265,13 @@ async def save_video_data_action():
             "completed": False,
         }
 
-        if video_data_file_exists_by_video_id(video_data['id']):
+        if video_attribute is not None:
+            video_data['video_attribute'] = {
+                "w": video_attribute.w,
+                "h": video_attribute.h
+            }
+
+        if video_data_file_exists_by_video_id(video_data['video_id']):
             continue
 
         is_forward_chat_protected = False
@@ -268,7 +279,7 @@ async def save_video_data_action():
         try:
             if log_in_personal_chat is True:
                 message = await client.send_file(personal_chat_id, video_media, caption=default_video_message(ObjectData(**{
-                    "video_attribute": video_attribute,
+                    "video_attribute": AttributeObject(**video_data['video_attribute']),
                     "pinned": video.pinned,
                     "video_media": video_media,
                     "video_name": video_name_cleaned,
@@ -277,7 +288,7 @@ async def save_video_data_action():
         except telethon.errors.ChatForwardsRestrictedError:
             if log_in_personal_chat is True:
                 message = await client.send_message(personal_chat_id, default_video_message(ObjectData(**{
-                    "video_attribute": video_attribute,
+                    "video_attribute": AttributeObject(**video_data['video_attribute']),
                     "pinned": video.pinned,
                     "video_media": video_media,
                     "video_name": f'{video_name_cleaned} (**Forward Chat Protected**)',
@@ -315,7 +326,11 @@ def load_all_video_data():
 
     # Scorre i file nella cartella videos_data
     for file_name in os.listdir(video_data_dir):
-        file_path = os.path.join(video_data_dir, file_name)
+        file_path = None
+        if file_name.endswith('.json'):
+            file_path = os.path.join(video_data_dir, file_name)
+        if file_path is None:
+            continue
 
         # Verifica che sia un file
         if os.path.isfile(file_path):
@@ -323,7 +338,10 @@ def load_all_video_data():
             with open(file_path, "rb") as f:
                 try:
                     data = json.load(f)
-                    all_data.append((file_name, ObjectData(**data)))
+                    object_data = ObjectData(**data)
+                    if object_data.video_attribute is not None:
+                        object_data.video_attribute = AttributeObject(**object_data.video_attribute)
+                    all_data.append((file_name, object_data))
                 except Exception as e:
                     print(f"Errore nel caricamento di {file_name}: {e}")
 

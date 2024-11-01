@@ -21,7 +21,6 @@ def load_configuration():
 
     # Percorsi relativi
     config_path = os.path.join(root_dir, config_file_name)
-    file_info_path = os.path.join(root_dir, 'file_info.csv')
 
     # Carica la configurazione
     config = load_config(config_path)
@@ -59,7 +58,6 @@ def load_configuration():
         'compression_ratio': compression_ratio,
         'disabled': disabled,
         'group_chats': group_chats,
-        'file_info_path': file_info_path
     })
 class Config:
     def __init__(self, config_dict):

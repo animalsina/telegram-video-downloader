@@ -7,7 +7,6 @@ import glob
 import json
 import mimetypes
 import os
-import csv
 import shutil
 import sys
 import re
@@ -18,6 +17,7 @@ from pathlib import Path
 
 from markdown_it import MarkdownIt
 
+from classes.attribute_object import AttributeObject
 from func.messages import t
 from func.rules import apply_rules
 from classes.object_data import ObjectData
@@ -227,12 +227,17 @@ def remove_video_data(video):
     if os.path.isfile(get_video_data_full_path(video)):
         os.remove(str(get_video_data_full_path(video)))
 
+def remove_video_data_by_video_id(video_id):
+    files = glob.glob(f"{get_video_data_path()}/*_{video_id}.json")
+    for file in files:
+        os.remove(str(file))
+
 def video_data_file_exists_by_ref_msg_id(message_id_ref):
-    files = glob.glob(f"{get_video_data_path()}/{message_id_ref}_*")
+    files = glob.glob(f"{get_video_data_path()}/{message_id_ref}_*.json")
     return bool(files)
 
 def video_data_file_exists_by_video_id(video_id):
-    files = glob.glob(f"{get_video_data_path()}/*_{video_id}")
+    files = glob.glob(f"{get_video_data_path()}/*_{video_id}.json")
     return bool(files)
 
 def get_video_data_name(video):
@@ -317,10 +322,21 @@ async def add_line_to_text(reference_message, new_line, line_number):
     if log_in_personal_chat is True:
         await reference_message.edit("\n".join(lines))
 
+def edit_in_line(full_string, new_line, line_number):
+    lines = full_string.splitlines()
+    while len(lines) < line_number - 1:
+        lines.append("")
+
+    if len(lines) >= line_number:
+        lines[line_number - 1] = new_line
+    else:
+        lines.append(new_line)
+    return "\n".join(lines)
 
 def save_video_data(data, video, fields_to_compare=None):
-    file_path = get_video_data_full_path(video)
-    data = ObjectData(**data)
+    file_path = get_video_data_full_path(video) # Recupero le informazioni di path del file associato
+    data_keys = list(data.keys()) # inizialmente estraggo le chiavi
+    data = ObjectData(**data) # lo trasformo solo successivamente in un oggetto, ma solo per acquisire tutti i valori
 
     # Se il file esiste, carica i dati e controlla se ci sono differenze
     if os.path.exists(file_path):
@@ -343,12 +359,13 @@ def save_video_data(data, video, fields_to_compare=None):
                 # Se i campi specificati sono identici, controlla anche per i campi non specificati
                 if data_subset == existing_data_subset:
                     # Aggiorna i campi rimanenti anche se i campi specificati sono uguali
-                    for field in vars(data).keys():
+                    for field in data_keys:
                         if field not in fields_to_compare:
-                            setattr(existing_data, field, getattr(data, field))
+                            if getattr(data, field) is not None:
+                                setattr(existing_data, field, getattr(data, field))
                 else:
                     # Se ci sono differenze nei campi specificati, aggiorna
-                    for field in vars(data).keys():
+                    for field in data_keys:
                         setattr(existing_data, field, getattr(data, field))
             else:
                 # Confronto di tutto l'oggetto se non sono stati specificati campi
@@ -365,19 +382,26 @@ def save_video_data(data, video, fields_to_compare=None):
     print("Dati salvati con successo.")
 
 def serialize(obj):
-    from run import ObjectData
-    if isinstance(obj, ObjectData):
-        return obj.__dict__
+    if isinstance(obj, ObjectData) or isinstance(obj, AttributeObject):
+        default_obj = type(obj)()
+        serialized_data = {}
+        for field, value in vars(default_obj).items():
+            serialized_data[field] = getattr(obj, field, value) or value
+        return serialized_data
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
 def default_video_message(video):
     video_text = remove_markdown("".join(video.video_name.splitlines()))[:40]
     file_name = remove_markdown("".join(video.file_name.splitlines()))[:40]
-    return (f'🎥 **{video_text}** - {file_name}\n'
-            f'⚖️ {format_bytes(video.video_media.document.size)}\n'
-            f'↕️ {video.video_attribute.w}x{video.video_attribute.h}\n'
-            f'📌 {video.pinned}')
+    string_response = ''
+    string_response = edit_in_line(string_response, f'🎥 **{video_text}** - {file_name}\n', 1)
+    string_response = edit_in_line(string_response, f'⚖️ {format_bytes(video.video_media.document.size)}\n', 2)
+    if hasattr(video, 'video_attribute') and video.video_attribute is not None:
+        string_response = edit_in_line(string_response, f'↕️ {video.video_attribute.w}x{video.video_attribute.h}\n', 3)
+    string_response = edit_in_line(string_response, f'📌 {video.pinned}', 4)
+
+    return string_response
 
 def remove_markdown(text):
     md = MarkdownIt()
