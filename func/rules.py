@@ -2,6 +2,8 @@ import re
 import glob
 import os
 
+from classes.config_object import ConfigObject
+
 rules = {'message': []}
 
 
@@ -13,7 +15,7 @@ def load_rules(root_directory):
     rule_files = os.path.join(root_directory, 'rules', '*.rule')
     for rule_file in glob.glob(rule_files):
         with open(rule_file, 'r') as f:
-            pattern = Config({
+            pattern = ConfigObject({
                 'message': None,
                 'folder': None
             })
@@ -41,6 +43,23 @@ def load_rules(root_directory):
             rules['message'].append({'pattern': pattern, 'translate': translate, 'completed_folder_mask': completed_folder_mask})
     return rules
 
+def safe_format(action: str, *args, **kwargs) -> str:
+    if not re.match(r'^[^{]*({[^{}]*}|{}|[^{]*)*[^{]*$', action):
+        raise ValueError("Unsafe action string.")
+
+    named_placeholders = re.findall(r'{([^{}]+)}', action)
+
+    for placeholder in named_placeholders:
+        if placeholder not in kwargs:
+            raise ValueError(f"Missing value for placeholder: {{{placeholder}}}")
+
+    for placeholder, value in kwargs.items():
+        action = action.replace(f'{{{placeholder}}}', str(value))
+
+    for i, arg in enumerate(args):
+        action = action.replace('{}', str(arg), 1)
+
+    return action
 
 def apply_rules(type_name, input_value):
     """
@@ -54,7 +73,7 @@ def apply_rules(type_name, input_value):
             action = rule['translate']
             match = re.match(pattern.message, input_value)
             if match:
-                return action.format(*match.groups())
+                return safe_format(action, *match.groups())
     elif type_name == 'completed_folder_mask':
         for rule in rules['message']:
             completed_folder_mask = rule.get('completed_folder_mask')
@@ -71,8 +90,3 @@ def apply_rules(type_name, input_value):
                         return completed_folder
         return None
     return input_value
-
-class Config:
-    def __init__(self, config_dict):
-        for key, value in config_dict.items():
-            setattr(self, key, value)

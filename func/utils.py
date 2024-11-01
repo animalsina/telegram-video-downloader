@@ -20,6 +20,7 @@ from markdown_it import MarkdownIt
 
 from func.messages import t
 from func.rules import apply_rules
+from classes.object_data import ObjectData
 
 line_for_info_data = 7
 line_for_show_last_error = 9
@@ -84,70 +85,6 @@ async def move_file(src: Path, dest: Path, cb=None) -> bool:
         if cb is not None:
             await cb(src, None, False)
         return False
-
-
-def remove_file_info(file_path, file_name):
-    """
-    Remove a specific file's information from a CSV log file.
-    The log file is read line by line, and any lines that do not match the
-    specified file_name are rewritten to the file.
-    """
-    lines = []
-
-    if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            lines = list(reader)
-
-    with open(file_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        for row in lines:
-            if row[0] != file_name:
-                writer.writerow(row)
-
-
-def update_file_info(file_path, file_name, status, file_size):
-    """
-    Update or add information about a file in a CSV log file.
-    If the file_name exists in the log, its status and size will be updated.
-    If the file_name does not exist, a new entry will be created.
-    """
-    lines = []
-    file_exists = False
-
-    if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            lines = list(reader)
-
-    with open(file_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        for row in lines:
-            if row[0] == file_name:
-                writer.writerow([file_name, file_size, status])
-                file_exists = True
-            else:
-                writer.writerow(row)
-
-        if not file_exists:
-            writer.writerow([file_name, file_size, status])
-
-
-def get_file_size_from_log(file_info_path, file_name):
-    """
-    Read the file size of a specific file from a CSV log file.
-    The log file is searched for an entry matching the file_name,
-    and the file size is returned if found. If the file is not found,
-    return None.
-    """
-    if os.path.exists(file_info_path):
-        with open(file_info_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if row[0] == file_name:
-                    return int(row[1])
-    return None
-
 
 def is_file_corrupted(file_path, total_file_size):
     """
@@ -290,9 +227,6 @@ def remove_video_data(video):
     if os.path.isfile(get_video_data_full_path(video)):
         os.remove(str(get_video_data_full_path(video)))
 
-def video_data_file_exists(video):
-    return os.path.exists(get_video_data_full_path(video))
-
 def video_data_file_exists_by_ref_msg_id(message_id_ref):
     files = glob.glob(f"{get_video_data_path()}/{message_id_ref}_*")
     return bool(files)
@@ -385,7 +319,6 @@ async def add_line_to_text(reference_message, new_line, line_number):
 
 
 def save_video_data(data, video, fields_to_compare=None):
-    from run import ObjectData
     file_path = get_video_data_full_path(video)
     data = ObjectData(**data)
 
