@@ -4,10 +4,9 @@ logging, and corruption checking.
 """
 import asyncio
 import glob
+import json
 import mimetypes
 import os
-import csv
-import pickle
 import shutil
 import sys
 import re
@@ -18,9 +17,10 @@ from pathlib import Path
 
 from markdown_it import MarkdownIt
 
-from func.command import CommandHandler
-from func.messages import get_message
+from classes.attribute_object import AttributeObject
+from func.messages import t
 from func.rules import apply_rules
+from classes.object_data import ObjectData
 
 line_for_info_data = 7
 line_for_show_last_error = 9
@@ -64,7 +64,6 @@ async def move_file(src: Path, dest: Path, cb=None) -> bool:
     If the move is successful, return True. If an error occurs during the move,
     print an error message and return False.
     """
-    msgs = get_message('')
     try:
         dest_file_name = dest.name
         dest_file_name_without_ext = dest.stem
@@ -77,79 +76,15 @@ async def move_file(src: Path, dest: Path, cb=None) -> bool:
         final_dest = dest_dir / dest_file_name
 
         shutil.move(str(src), str(final_dest))
-        print(msgs['video_saved_and_moved'].format(final_dest))
+        print(t('video_saved_and_moved', final_dest))
         if cb is not None:
             await cb(src, final_dest, True)
         return True
     except (shutil.Error, OSError):
-        print(msgs['error_move_file'].format(os.path.basename(src)))
+        print(t('error_move_file', os.path.basename(src)))
         if cb is not None:
             await cb(src, None, False)
         return False
-
-
-def remove_file_info(file_path, file_name):
-    """
-    Remove a specific file's information from a CSV log file.
-    The log file is read line by line, and any lines that do not match the
-    specified file_name are rewritten to the file.
-    """
-    lines = []
-
-    if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            lines = list(reader)
-
-    with open(file_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        for row in lines:
-            if row[0] != file_name:
-                writer.writerow(row)
-
-
-def update_file_info(file_path, file_name, status, file_size):
-    """
-    Update or add information about a file in a CSV log file.
-    If the file_name exists in the log, its status and size will be updated.
-    If the file_name does not exist, a new entry will be created.
-    """
-    lines = []
-    file_exists = False
-
-    if os.path.exists(file_path):
-        with open(file_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            lines = list(reader)
-
-    with open(file_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        for row in lines:
-            if row[0] == file_name:
-                writer.writerow([file_name, file_size, status])
-                file_exists = True
-            else:
-                writer.writerow(row)
-
-        if not file_exists:
-            writer.writerow([file_name, file_size, status])
-
-
-def get_file_size_from_log(file_info_path, file_name):
-    """
-    Read the file size of a specific file from a CSV log file.
-    The log file is searched for an entry matching the file_name,
-    and the file size is returned if found. If the file is not found,
-    return None.
-    """
-    if os.path.exists(file_info_path):
-        with open(file_info_path, 'r', encoding='utf-8') as f:
-            reader = csv.reader(f)
-            for row in reader:
-                if row[0] == file_name:
-                    return int(row[1])
-    return None
-
 
 def is_file_corrupted(file_path, total_file_size):
     """
@@ -169,7 +104,7 @@ def is_file_corrupted(file_path, total_file_size):
 
 def check_lock(lock_file):
     if os.path.exists(lock_file):
-        print(get_message('script_running'))
+        print(t('script_running'))
         sys.exit()
 
 
@@ -234,7 +169,6 @@ async def download_complete_action(video):
     config = load_configuration()
     acquire_lock(config.lock_file)
 
-    messages = config.messages
     mime_type, _ = mimetypes.guess_type(video.file_path)
     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
     completed_folder_mask = apply_rules('completed_folder_mask', video.video_name_cleaned)
@@ -249,12 +183,12 @@ async def download_complete_action(video):
     file_path_dest = Path(str(completed_file_path))
 
     async def compression_message(time_info):
-        await add_line_to_text(video.reference_message, str(get_message('trace_compress_action')).format(time_info),
+        await add_line_to_text(video.reference_message, t('trace_compress_action', time_info),
                                line_for_info_data)
 
     if config.enable_video_compression:
-        print(messages['start_compress_file'].format(file_path_source))
-        await add_line_to_text(video.reference_message, messages['start_compress_file'].format(file_path_source),
+        print(t('start_compress_file', file_path_source))
+        await add_line_to_text(video.reference_message, t('start_compress_file', file_path_source),
                                line_for_info_data)
         file_path_c = Path(str(video.file_path))
         converted_file_path = file_path_c.with_name(
@@ -263,63 +197,64 @@ async def download_complete_action(video):
                                      compression_message):
             file_path_source.unlink()
             file_path_source = converted_file_path
-            print(messages['complete_compress_file'].format(file_path_source))
-            await add_line_to_text(video.reference_message, messages['complete_compress_file'].format(file_path_source),
+            print(t('complete_compress_file', file_path_source))
+            await add_line_to_text(video.reference_message, t('complete_compress_file', file_path_source),
                                    line_for_info_data)
         else:
-            print(messages['cant_compress_file'].format(file_path_source))
-            await add_line_to_text(video.reference_message, messages['cant_compress_file'].format(file_path_source),
+            print(t('cant_compress_file', file_path_source))
+            await add_line_to_text(video.reference_message, t('cant_compress_file', file_path_source),
                                    line_for_show_last_error)
             raise
 
-    await add_line_to_text(video.reference_message, messages['ready_to_move'].format(video.video_name_cleaned),
+    await add_line_to_text(video.reference_message, t('ready_to_move', video.video_name_cleaned),
                            line_for_info_data)
 
-    print(messages['ready_to_move'].format(video.video_name_cleaned))
+    print(t('ready_to_move', video.video_name_cleaned))
 
     async def cb_move_file(src, target, result):
         if result:
-            complete_pickle_file(video)
-            await add_line_to_text(video.reference_message, messages['download_complete'].format(video.video_name_cleaned),
+            complete_data_file(video)
+            await add_line_to_text(video.reference_message, t('download_complete', video.video_name_cleaned),
                                    line_for_info_data)
         else:
-            await add_line_to_text(video.reference_message, messages['error_move_file'].format(video.video_name_cleaned),
+            await add_line_to_text(video.reference_message, t('error_move_file', video.video_name_cleaned),
                                    line_for_show_last_error)
 
     await move_file(file_path_source, file_path_dest, cb_move_file)
 
 
-def remove_pickle_file(video):
-    if os.path.isfile(get_pickle_full_path(video)):
-        os.remove(str(get_pickle_full_path(video)))
+def remove_video_data(video):
+    if os.path.isfile(get_video_data_full_path(video)):
+        os.remove(str(get_video_data_full_path(video)))
 
-def pickle_file_exists(video):
-    return os.path.exists(get_pickle_full_path(video))
+def remove_video_data_by_video_id(video_id):
+    files = glob.glob(f"{get_video_data_path()}/*_{video_id}.json")
+    for file in files:
+        os.remove(str(file))
 
-def pickle_file_exists_by_ref_msg_id(message_id_ref):
-    files = glob.glob(f"{get_pickle_path()}/{message_id_ref}_*")
+def video_data_file_exists_by_ref_msg_id(message_id_ref):
+    files = glob.glob(f"{get_video_data_path()}/{message_id_ref}_*.json")
     return bool(files)
 
-def pickle_file_exists_by_video_id(video_id):
-    files = glob.glob(f"{get_pickle_path()}/*_{video_id}")
+def video_data_file_exists_by_video_id(video_id):
+    files = glob.glob(f"{get_video_data_path()}/*_{video_id}.json")
     return bool(files)
 
-def get_pickle_name(video):
+def get_video_data_name(video):
     import run
-    return f"{video.message_id_reference}_{run.client.api_id}_{video.chat_id}_{video.id}.pkl"
+    return f"{video.message_id_reference}_{run.client.api_id}_{video.chat_id}_{video.id}.json"
 
-def get_pickle_full_path(video):
-    if os.path.isdir(get_pickle_path()) is False:
-        os.mkdir(get_pickle_path())
-    return os.path.join(get_pickle_path(), get_pickle_name(video))
+def get_video_data_full_path(video):
+    if os.path.isdir(get_video_data_path()) is False:
+        os.mkdir(get_video_data_path())
+    return os.path.join(get_video_data_path(), get_video_data_name(video))
 
-def get_pickle_path():
+def get_video_data_path():
     import run
-    return os.path.join(run.root_dir, 'pickles')
+    return os.path.join(run.root_dir, 'videos_data')
 
-def complete_pickle_file(video):
-    import run
-    save_pickle_data(run.VideoData(**{'completed': True}), video, ['completed'])
+def complete_data_file(video):
+    save_video_data({'completed': True}, video, ['completed'])
 
 def load_config(file_path):
     """
@@ -369,6 +304,7 @@ def load_config(file_path):
 
 
 async def add_line_to_text(reference_message, new_line, line_number):
+    from run import log_in_personal_chat
     # Divide il testo in righe
     lines = reference_message.text.splitlines()
 
@@ -383,17 +319,30 @@ async def add_line_to_text(reference_message, new_line, line_number):
         lines.append(new_line)
 
     # Unisce di nuovo le righe in una singola stringa
-    await reference_message.edit("\n".join(lines))
+    if log_in_personal_chat is True:
+        await reference_message.edit("\n".join(lines))
 
+def edit_in_line(full_string, new_line, line_number):
+    lines = full_string.splitlines()
+    while len(lines) < line_number - 1:
+        lines.append("")
 
-def save_pickle_data(data, video, fields_to_compare=None):
-    file_path = get_pickle_full_path(video)
+    if len(lines) >= line_number:
+        lines[line_number - 1] = new_line
+    else:
+        lines.append(new_line)
+    return "\n".join(lines)
+
+def save_video_data(data, video, fields_to_compare=None):
+    file_path = get_video_data_full_path(video) # Recupero le informazioni di path del file associato
+    data_keys = list(data.keys()) # inizialmente estraggo le chiavi
+    data = ObjectData(**data) # lo trasformo solo successivamente in un oggetto, ma solo per acquisire tutti i valori
 
     # Se il file esiste, carica i dati e controlla se ci sono differenze
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
             try:
-                existing_data = pickle.load(f)
+                existing_data = json.load(f)
             except EOFError:
                 print(f"Errore nel caricamento di {file_path}: il file è vuoto o corrotto.")
                 existing_data = None
@@ -402,6 +351,7 @@ def save_pickle_data(data, video, fields_to_compare=None):
         if existing_data is None:
             existing_data = data
         else:
+            existing_data = ObjectData(**existing_data)
             if fields_to_compare:
                 data_subset = {field: getattr(data, field, None) for field in fields_to_compare}
                 existing_data_subset = {field: getattr(existing_data, field, None) for field in fields_to_compare}
@@ -409,12 +359,13 @@ def save_pickle_data(data, video, fields_to_compare=None):
                 # Se i campi specificati sono identici, controlla anche per i campi non specificati
                 if data_subset == existing_data_subset:
                     # Aggiorna i campi rimanenti anche se i campi specificati sono uguali
-                    for field in vars(data).keys():
+                    for field in data_keys:
                         if field not in fields_to_compare:
-                            setattr(existing_data, field, getattr(data, field))
+                            if getattr(data, field) is not None:
+                                setattr(existing_data, field, getattr(data, field))
                 else:
                     # Se ci sono differenze nei campi specificati, aggiorna
-                    for field in vars(data).keys():
+                    for field in data_keys:
                         setattr(existing_data, field, getattr(data, field))
             else:
                 # Confronto di tutto l'oggetto se non sono stati specificati campi
@@ -427,17 +378,30 @@ def save_pickle_data(data, video, fields_to_compare=None):
 
     # Salva solo se ci sono differenze
     with open(file_path, "wb") as f:
-        pickle.dump(existing_data, f)
+        f.write(json.dumps(existing_data, default=serialize).encode('utf-8'))
     print("Dati salvati con successo.")
+
+def serialize(obj):
+    if isinstance(obj, ObjectData) or isinstance(obj, AttributeObject):
+        default_obj = type(obj)()
+        serialized_data = {}
+        for field, value in vars(default_obj).items():
+            serialized_data[field] = getattr(obj, field, value) or value
+        return serialized_data
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
 def default_video_message(video):
     video_text = remove_markdown("".join(video.video_name.splitlines()))[:40]
     file_name = remove_markdown("".join(video.file_name.splitlines()))[:40]
-    return (f'🎥 **{video_text}** - {file_name}\n'
-            f'⚖️ {format_bytes(video.video_media.document.size)}\n'
-            f'↕️ {video.video_attribute.w}x{video.video_attribute.h}\n'
-            f'📌 {video.pinned}')
+    string_response = ''
+    string_response = edit_in_line(string_response, f'🎥 **{video_text}** - {file_name}\n', 1)
+    string_response = edit_in_line(string_response, f'⚖️ {format_bytes(video.video_media.document.size)}\n', 2)
+    if hasattr(video, 'video_attribute') and video.video_attribute is not None:
+        string_response = edit_in_line(string_response, f'↕️ {video.video_attribute.w}x{video.video_attribute.h}\n', 3)
+    string_response = edit_in_line(string_response, f'📌 {video.pinned}', 4)
+
+    return string_response
 
 def remove_markdown(text):
     md = MarkdownIt()

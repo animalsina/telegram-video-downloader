@@ -12,13 +12,6 @@ class CommandHandler:
         command_with_prefix = f'{COMMAND_PREFIX}{command}'
         self.commands[command_with_prefix] = {'callback': callback, 'args': args}
 
-    def detect_command(self, text):
-        """Controlla se il testo contiene un comando e restituisce True se c'è un match."""
-        for command in self.commands.keys():
-            if re.match(rf"^{re.escape(command)}\s*(.*)$", text):
-                return True
-        return False
-
     def list_commands(self):
         """Restituisce l'elenco dei comandi disponibili."""
         return list(self.commands.keys())
