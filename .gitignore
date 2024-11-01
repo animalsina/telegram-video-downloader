@@ -174,5 +174,5 @@ tg-video-completed
 pipe
 rules/*.rule
 !rules/hello-world.rule
-videos_data/
+videos_data/*
 .stop
