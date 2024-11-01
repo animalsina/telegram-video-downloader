@@ -40,26 +40,20 @@ def load_rules(root_directory):
                     match = re.search(r'="(.*?)"', line)
                     if match:
                         completed_folder_mask = match.group(1)
-            rules['message'].append({'pattern': pattern, 'translate': translate, 'completed_folder_mask': completed_folder_mask})
+            rules['message'].append(
+                {'pattern': pattern, 'translate': translate, 'completed_folder_mask': completed_folder_mask})
     return rules
 
-def safe_format(action: str, *args, **kwargs) -> str:
+
+def safe_format(action: str, *args) -> str:
+    """
+    Format Safe
+    """
     if not re.match(r'^[^{]*({[^{}]*}|{}|[^{]*)*[^{]*$', action):
         raise ValueError("Unsafe action string.")
 
-    named_placeholders = re.findall(r'{([^{}]+)}', action)
+    return action.format(*args)
 
-    for placeholder in named_placeholders:
-        if placeholder not in kwargs:
-            raise ValueError(f"Missing value for placeholder: {{{placeholder}}}")
-
-    for placeholder, value in kwargs.items():
-        action = action.replace(f'{{{placeholder}}}', str(value))
-
-    for i, arg in enumerate(args):
-        action = action.replace('{}', str(arg), 1)
-
-    return action
 
 def apply_rules(type_name, input_value):
     """
