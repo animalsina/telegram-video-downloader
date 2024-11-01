@@ -97,8 +97,6 @@ async def main():
             if reference_message is None:
                 remove_video_data(video)
                 continue
-            elif reference_message.media:
-                video.video_media = reference_message.media
 
             video.chat_id = personal_chat_id
             save_video_data({
@@ -131,7 +129,7 @@ async def main():
                 continue
 
             # Queue the download task with the limit on simultaneous downloads
-            task = download_with_limit(video)
+            task = await download_with_limit(video)
             tasks.append(task)
 
         # Execute all queued tasks concurrently
@@ -333,7 +331,7 @@ def load_all_video_data():
             with open(file_path, "rb") as f:
                 try:
                     data = json.load(f)
-                    all_data.append((file_name, data))
+                    all_data.append((file_name, ObjectData(**data)))
                 except Exception as e:
                     print(f"Errore nel caricamento di {file_name}: {e}")
 
