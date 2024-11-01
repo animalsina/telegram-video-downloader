@@ -103,12 +103,11 @@ async def main():
 
             reference_message = await client.get_messages(personal_chat_id, ids=video.message_id_reference)
 
-            video.video_media = reference_message.media
-
             if reference_message is None:
                 remove_video_data(video)
                 continue
 
+            video.video_media = reference_message.media
 
             save_video_data({
                 'pinned': reference_message.pinned
