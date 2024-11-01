@@ -13,9 +13,11 @@ from telethon.tl.types import DocumentAttributeFilename
 from func.config import load_configuration
 from func.messages import t
 from func.rules import load_rules, apply_rules
+from classes.object_data import ObjectData
 
-# Add the 'func' directory to the system path to import custom modules
+# Add the 'func' and 'class' directory to the system path to import custom modules
 sys.path.append(os.path.join(os.path.dirname(__file__), 'func'))
+sys.path.append(os.path.join(os.path.dirname(__file__), 'classes'))
 
 # Import the necessary functions from custom modules
 from func.utils import sanitize_filename, acquire_lock, release_lock, is_file_corrupted, \
@@ -38,7 +40,7 @@ replies_msg = []
 tasks = []
 
 
-async def download_with_limit(video):
+async def download_with_limit(video: ObjectData):
     """Download a file with concurrency limit."""
 
     # Inizializza il semaforo per gestire i download simultanei
@@ -50,16 +52,16 @@ async def download_with_limit(video):
         await download_with_retry(client, video)
 
 
-async def delete_service_messages():
-    """Delete service messages from Telegram that match certain icons."""
-    for message in all_messages:
-        if message.text and any(icon in message.text for icon in ["⬇️", "‼️", "🔔"]):
-            try:
-                if log_in_personal_chat is True:
-                    await client.delete_messages(personal_chat_id, [message.id])
-                print(f"Deleted message with id: {message.id}")
-            except Exception as delete_error:
-                print(f"Failed to delete message with id: {message.id} - {delete_error}")
+# async def delete_service_messages():
+#     """Delete service messages from Telegram that match certain icons."""
+#     for message in all_messages:
+#         if message.text and any(icon in message.text for icon in ["⬇️", "‼️", "🔔"]):
+#             try:
+#                 if log_in_personal_chat is True:
+#                     await client.delete_messages(personal_chat_id, [message.id])
+#                 print(f"Deleted message with id: {message.id}")
+#             except Exception as delete_error:
+#                 print(f"Failed to delete message with id: {message.id} - {delete_error}")
 
 
 async def main():
@@ -298,16 +300,6 @@ async def save_video_data_action():
               'chat_name', 'video_attribute', 'pinned', 'message_id_reference', 'video_name_cleaned', 'is_forward_chat_protected'])
         if video_id and video.chat_name == personal_chat_id and log_in_personal_chat is True:
             await client.delete_messages(video.chat_name, [video_id])
-
-
-class ObjectData:
-    def __init__(self, **kwargs):
-        for key, value in kwargs.items():
-            setattr(self, key, value)
-
-    def __repr__(self):
-        return f"<ObjectData {vars(self)}>"
-
 
 def load_all_video_data():
     # Percorso della cartella videos

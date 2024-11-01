@@ -4,7 +4,7 @@ import sys
 
 from telethon import events
 
-from func.command import CommandHandler, COMMAND_PREFIX
+from classes.command_handler import CommandHandler, COMMAND_PREFIX
 from func.config import load_configuration
 from func.telegram_client import create_telegram_client
 from func.utils import save_video_data
@@ -53,8 +53,8 @@ async def monitor_chat():
     await client.start(configuration.phone)
     user_id = await get_user_id()
 
-    @client.on(events.NewMessage(chats=user_id))
-    async def message_handler(event):
+    #@client.on(events.NewMessage(chats=user_id)) # noqa: F811
+    async def message_handler(event):  # pylint: disable=unused-function
         message = event.message
         text = message.message
         if text.startswith(COMMAND_PREFIX):
@@ -66,6 +66,8 @@ async def monitor_chat():
             else:
                 if log_in_personal_chat is True:
                     await message.delete()
+
+    client.add_event_handler(message_handler, events.NewMessage(chats=user_id))
 
     print(f"In ascolto dei comandi nella chat '{personal_chat_id}'...")
     while True:
