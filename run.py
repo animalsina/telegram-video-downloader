@@ -354,7 +354,8 @@ def load_all_video_data():
                     data = json.load(f)
                     object_data = ObjectData(**data)
                     if object_data.video_attribute is not None:
-                        object_data.video_attribute = AttributeObject(**object_data.video_attribute)
+                        object_data_attribute = getattr(object_data, 'video_attribute')
+                        object_data.video_attribute = AttributeObject(**object_data_attribute)
                     all_data.append((file_name, object_data))
                 except Exception as e:
                     print(f"Errore nel caricamento di {file_name}: {e}")
