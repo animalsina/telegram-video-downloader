@@ -149,6 +149,9 @@ async def main():
 
 
 async def save_video_data_action():
+    """
+    Action for save videos in JSON files with all useful info
+    """
     videos = []
 
     for message in all_messages:
@@ -184,9 +187,9 @@ async def save_video_data_action():
 
         # Check for a reply message and set like video_name
         if not video_name and len(replies_msg) > 0:
-            for replyMsg in replies_msg:
-                if replyMsg.reply_to_msg_id == video_id:
-                    message_title = sanitize_filename(replyMsg.text.split('\n')[0].strip())
+            for reply_msg in replies_msg:
+                if reply_msg.reply_to_msg_id == video_id:
+                    message_title = sanitize_filename(reply_msg.text.split('\n')[0].strip())
                     # If once of the emoji is added into the message, then it will be ignored
                     if message_title and not any(
                             icon in message_title for icon in ["⬇️", "‼️", "🔔", "❌", "✅", "🗜️"]):
@@ -277,9 +280,11 @@ async def save_video_data_action():
 
         is_forward_chat_protected = False
         message = None
-        video_data_object = None
-        if video_data['video_attribute'] is not None:
-            video_data_object = AttributeObject(**video_data['video_attribute'])
+        video_attribute = video_data.get('video_attribute')
+        if isinstance(video_attribute, dict):
+            video_data_object = AttributeObject(**video_attribute)
+        else:
+            video_data_object = None
         try:
             if log_in_personal_chat is True:
                 message = await client.send_file(
