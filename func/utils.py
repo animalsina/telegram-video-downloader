@@ -68,6 +68,9 @@ async def move_file(src: Path, dest: Path, cb=None) -> bool:
         dest_file_name = dest.name
         dest_file_name_without_ext = dest.stem
 
+        if dest_file_name.endswith('.mpv'):
+            dest_file_name = os.path.splitext(dest_file_name)[0] + '.mp4'
+
         base_dest_dir = dest.parent
 
         dest_dir = base_dest_dir / dest_file_name_without_ext
