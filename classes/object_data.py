@@ -10,6 +10,7 @@ class ObjectData:
         self.video_name_cleaned = None
         self.video_attribute: Optional[dict] = None
         self.id = None
+        self.chat_id = None
         self.completed = False
         self.message_id_reference = None
         self.reference_message: object
