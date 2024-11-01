@@ -402,6 +402,7 @@ def save_video_data(data, video, fields_to_compare=None):
         if existing_data is None:
             existing_data = data
         else:
+            existing_data = ObjectData(**existing_data)
             if fields_to_compare:
                 data_subset = {field: getattr(data, field, None) for field in fields_to_compare}
                 existing_data_subset = {field: getattr(existing_data, field, None) for field in fields_to_compare}

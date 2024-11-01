@@ -47,7 +47,12 @@ def format_time(seconds):
 
 async def download_with_retry(client, video, retry_attempts=5):
     """Download a file with retry attempts in case of failure."""
-    from run import root_dir
+    from run import root_dir, personal_chat_id
+
+    # Here checks for video data, because if video is stored during the iteration, it will expire
+    video_message_data = await client.get_messages(personal_chat_id, ids=video.message_id_reference)
+    video.video_media = video_message_data.media
+
     configuration = load_configuration()
     attempt = 0
     last_update_time = time.time()
