@@ -95,18 +95,20 @@ async def main():
 
         sorted_data = sorted(filtered_data, key=lambda item: (not item[1].pinned, item[1].video_id))
         for video_data_file_name, video in sorted_data or []:
+            video.chat_id = personal_chat_id
+
             if video.message_id_reference is None:
                 remove_video_data_by_video_id(video.video_id)
                 continue
 
             reference_message = await client.get_messages(personal_chat_id, ids=video.message_id_reference)
 
+            video.video_media = reference_message.media
+
             if reference_message is None:
                 remove_video_data(video)
                 continue
 
-            video.chat_id = personal_chat_id
-            video.video_media = reference_message.media
 
             save_video_data({
                 'pinned': reference_message.pinned
