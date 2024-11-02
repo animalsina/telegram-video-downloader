@@ -5,6 +5,7 @@ from classes.attribute_object import AttributeObject
 
 class ObjectData:
     def __init__(self, **kwargs):
+        self.is_forward_chat_protected = None
         self.video_id = None
         self.video_name = None
         self.video_name_cleaned = None
