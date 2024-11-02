@@ -110,7 +110,7 @@ async def main():
             if video.is_forward_chat_protected is False:
                 video.video_media = reference_message.media
             else:
-                video_data = await client.get_messages(personal_chat_id, ids=video.video_id)
+                video_data = await client.get_messages(video.chat_name, ids=video.video_id)
                 video.video_media = video_data.media
 
 
