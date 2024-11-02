@@ -107,7 +107,7 @@ async def main():
                 remove_video_data(video)
                 continue
 
-            if video.is_forward_chat_protected is False:
+            if video.is_forward_chat_protected is not True:
                 video.video_media = reference_message.media
             else:
                 video_data = await client.get_messages(video.chat_name, ids=video.video_id)
