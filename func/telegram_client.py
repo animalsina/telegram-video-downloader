@@ -51,7 +51,11 @@ async def download_with_retry(client, video, retry_attempts=5):
 
     # Here checks for video data, because if video is stored during the iteration, it will expire
     video_message_data = await client.get_messages(personal_chat_id, ids=video.message_id_reference)
-    video.video_media = video_message_data.media
+    if video.is_forward_chat_protected is not True:
+        video.video_media = video_message_data.media
+    else:
+        video_data = await client.get_messages(video.chat_name, ids=video.video_id)
+        video.video_media = video_data.media
 
     configuration = load_configuration()
     attempt = 0
