@@ -107,7 +107,12 @@ async def main():
                 remove_video_data(video)
                 continue
 
-            video.video_media = reference_message.media
+            if video.is_forward_chat_protected is False:
+                video.video_media = reference_message.media
+            else:
+                video_data = await client.get_messages(personal_chat_id, ids=video.video_id)
+                video.video_media = video_data.media
+
 
             save_video_data({
                 'pinned': reference_message.pinned
