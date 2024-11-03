@@ -17,7 +17,10 @@ def load_rules(root_directory):
         with open(rule_file, 'r') as f:
             pattern = ConfigObject({
                 'message': None,
-                'folder': None
+                'folder': None,
+                'chat_id': None,
+                'chat_title': None,
+                'chat_name': None,
             })
             translate = None
             completed_folder_mask = None
@@ -27,19 +30,31 @@ def load_rules(root_directory):
                 if line.startswith("on:message:pattern"):
                     match = re.search(r'="(.*?)"', line)
                     if match:
-                        pattern.message = match.group(1)
+                        pattern.message = match.group(1) # Save the message pattern
+                if line.startswith("set:chat:id"):
+                    match = re.search(r'="(.*?)"', line)
+                    if match:
+                        pattern.chat_id = match.group(1)  # Save the chat_id
+                if line.startswith("set:chat:title"):
+                    match = re.search(r'="(.*?)"', line)
+                    if match:
+                        pattern.chat_title = match.group(1)  # Save the chat_title
+                if line.startswith("set:chat:name"):
+                    match = re.search(r'="(.*?)"', line)
+                    if match:
+                        pattern.chat_name = match.group(1)  # Save the chat_name
                 if pattern.message and line.startswith("action:message:translate"):
                     match = re.search(r'="(.*?)"', line)
                     if match:
-                        translate = match.group(1)
+                        translate = match.group(1) # Save the message translation
                 if line.startswith("on:folder:pattern"):
                     match = re.search(r'="(.*?)"', line)
                     if match:
-                        pattern.folder = match.group(1)
+                        pattern.folder = match.group(1) # Save the folder pattern
                 if pattern.folder and line.startswith("action:folder:completed"):
                     match = re.search(r'="(.*?)"', line)
                     if match:
-                        completed_folder_mask = match.group(1)
+                        completed_folder_mask = match.group(1) # Save the folder translation
             rules['message'].append(
                 {'pattern': pattern, 'translate': translate, 'completed_folder_mask': completed_folder_mask})
     return rules
@@ -55,7 +70,7 @@ def safe_format(action: str, *args) -> str:
     return action.format(*args)
 
 
-def apply_rules(type_name, input_value):
+def apply_rules(type_name, input_value, chat = None):
     """
     Apply rules to input and returns edited output.
     """
@@ -64,6 +79,18 @@ def apply_rules(type_name, input_value):
     if type_name == 'translate':
         for rule in rules['message']:
             pattern = rule['pattern']
+            rule_chat_id = pattern.chat_id or None
+            rule_chat_title = pattern.chat_title or None
+            rule_chat_name = pattern.chat_name or None
+            chat_id = chat.chat_id or None
+            chat_title = chat.chat.title or None
+            chat_name = chat.chat.username or None
+            if rule_chat_id is not None and rule_chat_id != chat_id:
+                continue
+            if rule_chat_name is not None and rule_chat_name != chat_name:
+                continue
+            if rule_chat_title is not None and rule_chat_title != chat_title:
+                continue
             action = rule['translate']
             match = re.match(pattern.message, input_value)
             if match:
