@@ -13,7 +13,7 @@ from tqdm import tqdm
 from func.config import load_configuration
 from func.messages import t
 from func.utils import release_lock, is_file_corrupted, acquire_lock, \
-    download_complete_action, add_line_to_text, line_for_info_data, line_for_show_last_error
+    download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA, LINE_FOR_SHOW_LAST_ERROR
 
 # Buffer to store speed data samples
 speed_samples = collections.deque(maxlen=20)  # Keep only the last 100 samples
@@ -33,7 +33,7 @@ def create_telegram_client(session_name, api_id, api_hash):
 async def update_download_message(reference_message, percent, time_remaining_formatted):
     """Update the status message with the download progress and time remaining."""
     await add_line_to_text(reference_message,
-                           f"⬇️ Download: {percent:.2f}% - {time_remaining_formatted}", line_for_info_data)
+                           f"⬇️ Download: {percent:.2f}% - {time_remaining_formatted}", LINE_FOR_INFO_DATA)
 
 
 def format_time(seconds):
@@ -47,10 +47,10 @@ def format_time(seconds):
 
 async def download_with_retry(client, video, retry_attempts=5):
     """Download a file with retry attempts in case of failure."""
-    from run import root_dir, personal_chat_id
+    from run import root_dir, PERSONAL_CHAT_ID
 
     # Here checks for video data, because if video is stored during the iteration, it will expire
-    video_message_data = await client.get_messages(personal_chat_id, ids=video.message_id_reference)
+    video_message_data = await client.get_messages(PERSONAL_CHAT_ID, ids=video.message_id_reference)
     if video.is_forward_chat_protected is not True:
         video.video_media = video_message_data.media
     else:
@@ -139,28 +139,28 @@ async def download_with_retry(client, video, retry_attempts=5):
                         return
                     else:
                         await add_line_to_text(video.reference_message,
-                                               t('corrupted_file', video.file_name), line_for_show_last_error)
+                                               t('corrupted_file', video.file_name), LINE_FOR_SHOW_LAST_ERROR)
                         print(t('corrupted_file', video.file_name))
                 return
             else:
                 await add_line_to_text(video.reference_message,
-                                       t('file_mismatch_error', video.video_name), line_for_show_last_error)
+                                       t('file_mismatch_error', video.video_name), LINE_FOR_SHOW_LAST_ERROR)
                 os.remove(temp_file_path)
                 raise Exception(f"File {video.video_name} size mismatch - I will delete temp file and retry.")
 
         except FloodWaitError as e:
             wait_time = e.seconds + 10  # Add a buffer time for safety
             print(f"Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
-            await add_line_to_text(video.reference_message, t('rate_limit_exceeded_error', wait_time), line_for_show_last_error)
+            await add_line_to_text(video.reference_message, t('rate_limit_exceeded_error', wait_time), LINE_FOR_SHOW_LAST_ERROR)
             await asyncio.sleep(wait_time)
             attempt += 1
 
         except (OSError, IOError) as e:
-            await add_line_to_text(video.reference_message, t('file_system_error', str(e)), line_for_show_last_error)
+            await add_line_to_text(video.reference_message, t('file_system_error', str(e)), LINE_FOR_SHOW_LAST_ERROR)
             break
 
         except Exception as e:
-            await add_line_to_text(video.reference_message, f"‼️ Unexpected error: {str(e)}", line_for_show_last_error)
+            await add_line_to_text(video.reference_message, f"‼️ Unexpected error: {str(e)}", LINE_FOR_SHOW_LAST_ERROR)
             break
 
         finally:

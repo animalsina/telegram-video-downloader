@@ -18,12 +18,11 @@ from pathlib import Path
 from markdown_it import MarkdownIt
 
 from classes.attribute_object import AttributeObject
+from classes.string_builder import StringBuilder, LINE_FOR_INFO_DATA, LINE_FOR_SHOW_LAST_ERROR, TYPE_ACQUIRED, \
+    LINE_FOR_FILE_DIMENSION, LINE_FOR_PINNED_VIDEO, LINE_FOR_VIDEO_NAME, LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE
 from func.messages import t
 from func.rules import apply_rules
 from classes.object_data import ObjectData
-
-line_for_info_data = 7
-line_for_show_last_error = 9
 
 VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mpv']
 
@@ -187,12 +186,12 @@ async def download_complete_action(video):
 
     async def compression_message(time_info):
         await add_line_to_text(video.reference_message, t('trace_compress_action', time_info),
-                               line_for_info_data)
+                               LINE_FOR_INFO_DATA)
 
     if config.enable_video_compression:
         print(t('start_compress_file', file_path_source))
-        await add_line_to_text(video.reference_message, t('start_compress_file', file_path_source),
-                               line_for_info_data)
+
+        await add_line_to_text(video.reference_message, t('start_compress_file', file_path_source), LINE_FOR_INFO_DATA)
         file_path_c = Path(str(video.file_path))
         converted_file_path = file_path_c.with_name(
             file_path_c.stem + "_converted" + file_path_c.suffix)
@@ -202,15 +201,15 @@ async def download_complete_action(video):
             file_path_source = converted_file_path
             print(t('complete_compress_file', file_path_source))
             await add_line_to_text(video.reference_message, t('complete_compress_file', file_path_source),
-                                   line_for_info_data)
+                                   LINE_FOR_INFO_DATA)
         else:
             print(t('cant_compress_file', file_path_source))
             await add_line_to_text(video.reference_message, t('cant_compress_file', file_path_source),
-                                   line_for_show_last_error)
+                                   LINE_FOR_SHOW_LAST_ERROR)
             raise
 
     await add_line_to_text(video.reference_message, t('ready_to_move', video.video_name_cleaned),
-                           line_for_info_data)
+                           LINE_FOR_INFO_DATA)
 
     print(t('ready_to_move', video.video_name_cleaned))
 
@@ -218,10 +217,10 @@ async def download_complete_action(video):
         if result:
             complete_data_file(video)
             await add_line_to_text(video.reference_message, t('download_complete', video.video_name_cleaned),
-                                   line_for_info_data)
+                                   LINE_FOR_INFO_DATA)
         else:
             await add_line_to_text(video.reference_message, t('error_move_file', video.video_name_cleaned),
-                                   line_for_show_last_error)
+                                   LINE_FOR_SHOW_LAST_ERROR)
 
     await move_file(file_path_source, file_path_dest, cb_move_file)
 
@@ -307,34 +306,23 @@ def load_config(file_path):
 
 
 async def add_line_to_text(reference_message, new_line, line_number):
-    from run import log_in_personal_chat
+    from run import LOG_IN_PERSONAL_CHAT
     # Divide il testo in righe
-    lines = reference_message.text.splitlines()
-
-    # Se ci sono meno righe di quelle richieste, aggiunge righe vuote fino alla riga specificata
-    while len(lines) < line_number - 1:
-        lines.append("")
-
-    # Aggiunge o sostituisce la riga specificata
-    if len(lines) >= line_number:
-        lines[line_number - 1] = new_line
-    else:
-        lines.append(new_line)
+    builder = StringBuilder(reference_message.text)
+    builder.edit_in_line(new_line, line_number)
 
     # Unisce di nuovo le righe in una singola stringa
-    if log_in_personal_chat is True:
-        await reference_message.edit("\n".join(lines))
+    if LOG_IN_PERSONAL_CHAT is True:
+        await reference_message.edit(builder.string)
 
-def edit_in_line(full_string, new_line, line_number):
-    lines = full_string.splitlines()
-    while len(lines) < line_number - 1:
-        lines.append("")
+async def get_telegram_messages_by_ids(chat_name, message_ids):
+    from func.config import load_configuration
+    from func.telegram_client import create_telegram_client
+    config = load_configuration()
+    client = create_telegram_client(config.session_name, config.api_id, config.api_hash)
 
-    if len(lines) >= line_number:
-        lines[line_number - 1] = new_line
-    else:
-        lines.append(new_line)
-    return "\n".join(lines)
+    async with client:
+        return await client.get_messages(chat_name, ids=message_ids)
 
 def save_video_data(data, video, fields_to_compare=None):
     file_path = get_video_data_full_path(video) # Recupero le informazioni di path del file associato
@@ -393,23 +381,27 @@ def serialize(obj):
         return serialized_data
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
-
 def default_video_message(video):
     video_text = remove_markdown("".join(video.video_name.splitlines()))[:40]
     file_name = remove_markdown("".join(video.file_name.splitlines()))[:40]
-    string_response = ''
-    string_response = edit_in_line(string_response, f'🎥 **{video_text}** - {file_name}\n', 1)
-    string_response = edit_in_line(string_response, f'⚖️ {format_bytes(video.video_media.document.size)}\n', 2)
-    if hasattr(video, 'video_attribute') and video.video_attribute is not None:
-        string_response = edit_in_line(string_response, f'↕️ {video.video_attribute.w}x{video.video_attribute.h}\n', 3)
-    string_response = edit_in_line(string_response, f'📌 {video.pinned}', 4)
 
-    return string_response
+    builder = StringBuilder()
+    builder.edit_in_line( f'🎥 **{video_text}**', LINE_FOR_VIDEO_NAME)
+    builder.edit_in_line( f'🗃 {file_name}', LINE_FOR_FILE_NAME)
+    builder.edit_in_line( f'⚖️ {format_bytes(video.video_media.document.size)}', LINE_FOR_FILE_SIZE)
+    builder.define_label(TYPE_ACQUIRED)
+    if hasattr(video, 'video_attribute') and video.video_attribute is not None:
+        builder.edit_in_line(f'↕️ {video.video_attribute.w}x{video.video_attribute.h}', LINE_FOR_FILE_DIMENSION)
+    builder.edit_in_line(f'📌 {video.pinned}', LINE_FOR_PINNED_VIDEO)
+
+    return builder.string
 
 def remove_markdown(text):
-    md = MarkdownIt()
-    tokens = md.parse(text)
-    return " ".join(token.content for token in tokens if token.type == "inline")
+    string_manipulated = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+    string_manipulated = re.sub(r'([*_~`]+)', '', string_manipulated)
+    string_manipulated = re.sub(r'#+ ', '', string_manipulated)
+    string_manipulated = re.sub(r'^[\*\-\+] ', '', string_manipulated, flags=re.MULTILINE)
+    return string_manipulated
 
 
 def format_bytes(size):

@@ -61,5 +61,12 @@ def load_configuration():
     })
 class Config:
     def __init__(self, config_dict):
+        self.max_simultaneous_file_to_download = None
+        self.session_name = None
+        self.api_id = None
+        self.api_hash = None
+        self.phone = None
+        self.group_chats = []
+        self.download_folder = None
         for key, value in config_dict.items():
             setattr(self, key, value)
