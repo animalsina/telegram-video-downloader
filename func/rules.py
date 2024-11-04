@@ -85,10 +85,11 @@ def apply_rules(type_name, input_value, chat = None):
             chat_id = None
             chat_title = None
             chat_name = None
-            if chat.chat is not None:
+            if chat is not None:
                 chat_id = chat.chat_id
-                chat_title = chat.chat.title
-                chat_name = chat.chat.username
+                if chat.chat is not None:
+                    chat_title = chat.chat.title
+                    chat_name = chat.chat.username
             if rule_chat_id is not None and rule_chat_id != chat_id:
                 continue
             if rule_chat_name is not None and rule_chat_name != chat_name:
