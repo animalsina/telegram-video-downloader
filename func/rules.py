@@ -82,10 +82,11 @@ def apply_rules(type_name, input_value, chat = None):
             rule_chat_id = pattern.chat_id or None
             rule_chat_title = pattern.chat_title or None
             rule_chat_name = pattern.chat_name or None
-            chat_id = chat.chat_id or None
+            chat_id = None
             chat_title = None
             chat_name = None
             if chat.chat is not None:
+                chat_id = chat.chat_id
                 chat_title = chat.chat.title
                 chat_name = chat.chat.username
             if rule_chat_id is not None and rule_chat_id != chat_id:
