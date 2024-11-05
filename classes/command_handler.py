@@ -1,9 +1,15 @@
+"""
+CommandHandler
+"""
 import inspect
 import re
 
 COMMAND_PREFIX = "."  # prefisso dei comandi
 
 class CommandHandler:
+    """
+    CommandHandler
+    """
     def __init__(self):
         self.commands = {}
 
