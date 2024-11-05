@@ -67,6 +67,8 @@ class Config:
         self.api_hash = None
         self.phone = None
         self.group_chats = []
+        self.lock_file = None
+        self.disabled = None
         self.download_folder = None
         for key, value in config_dict.items():
             setattr(self, key, value)

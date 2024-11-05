@@ -9,7 +9,7 @@ def get_system_language():
     If the system language starts with 'it' (indicating Italian), return 'it'.
     Otherwise, default to English ('en').
     """
-    lang, _ = locale.getdefaultlocale()
+    lang, _ = locale.getlocale()
     if lang.startswith('it'):
         return 'it'
     return 'en'
@@ -52,7 +52,9 @@ def get_message(language = None):
             'ready_to_move': "🔔 File ready to move: {}",
             'already_downloaded': "File already downloaded: {}",
             'file_mismatch_error': "‼️ File {} size mismatch - I will delete temp file and retry.",
-            'empty_reference_specify_name': "‼️ This video does not have a name. Please specify one by replying to the video with the correct file name.",
+            'empty_reference_specify_name':
+                ("‼️ This video does not have a name. Please specify one by"
+                 " replying to the video with the correct file name."),
             'rate_limit_exceeded_error': (
                 "‼️ Rate limit exceeded. Waiting for {} seconds before retrying..."
             ),
@@ -86,7 +88,9 @@ def get_message(language = None):
             'script_running': "Script già in esecuzione.",
             'ready_to_move': "🔔 File pronto per essere spostato: {}",
             'already_downloaded': "File già scaricato: {}",
-            'empty_reference_specify_name': "‼️ Questo video non ha un nome. Specificane uno rispondendo a questo video con il nome del file corretto.",
+            'empty_reference_specify_name':
+                "‼️ Questo video non ha un nome. Specificane uno rispondendo"
+                " a questo video con il nome del file corretto.",
             'file_mismatch_error': (
                 "‼️ Grandezza del file {} non corrisponde - Sarà cancellato e riscaricato."
             ),
@@ -112,6 +116,10 @@ def get_message(language = None):
     return lang_messages.get(language, lang_messages['en'])
 
 def t(key, *args):
+    """
+    Retrieve a message based on its key and arguments.
+    If the message is not found, return the key as a string.
+    """
     messages = get_message()
 
     if key not in messages:
@@ -121,13 +129,13 @@ def t(key, *args):
 
     if args is None:
         return message
-    else:
-        if len(args) == 1:
-            sanitized_value = str(args[0]).replace('{', '').replace('}', '')
-            message = message.replace('{}', sanitized_value)
-        else:
-            for i, value in enumerate(args):
-                sanitized_value = str(value).replace('{', '').replace('}', '')
-                message = message.replace(f'{{{i}}}', sanitized_value)
 
-        return message
+    if len(args) == 1:
+        sanitized_value = str(args[0]).replace('{', '').replace('}', '')
+        message = message.replace('{}', sanitized_value)
+    else:
+        for i, value in enumerate(args):
+            sanitized_value = str(value).replace('{', '').replace('}', '')
+            message = message.replace(f'{{{i}}}', sanitized_value)
+
+    return message

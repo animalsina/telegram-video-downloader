@@ -11,20 +11,24 @@ import shutil
 import sys
 import re
 
-import ffmpeg
-
 from pathlib import Path
 
-from markdown_it import MarkdownIt
+import ffmpeg
 
 from classes.attribute_object import AttributeObject
-from classes.string_builder import StringBuilder, LINE_FOR_INFO_DATA, LINE_FOR_SHOW_LAST_ERROR, TYPE_ACQUIRED, \
-    LINE_FOR_FILE_DIMENSION, LINE_FOR_PINNED_VIDEO, LINE_FOR_VIDEO_NAME, LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE
+from classes.string_builder import (StringBuilder, LINE_FOR_INFO_DATA,
+                                    LINE_FOR_SHOW_LAST_ERROR, TYPE_ACQUIRED,
+                                    LINE_FOR_FILE_DIMENSION, LINE_FOR_PINNED_VIDEO,
+                                    LINE_FOR_VIDEO_NAME,
+                                    LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE)
 from func.messages import t
 from func.rules import apply_rules
 from classes.object_data import ObjectData
 
-VIDEO_EXTENSIONS = ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mpv']
+VIDEO_EXTENSIONS = (
+    ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mpv']
+)
+
 
 def check_folder_permissions(folder_path):
     """
@@ -57,6 +61,7 @@ def sanitize_filename(filename):
     sanitized_name = re.sub(r'[^\w\s.-]', '', sanitized_name)
     return sanitized_name.strip()
 
+
 async def move_file(src: Path, dest: Path, cb=None) -> bool:
     """
     Move a file from the source path to the destination path.
@@ -88,6 +93,7 @@ async def move_file(src: Path, dest: Path, cb=None) -> bool:
             await cb(src, None, False)
         return False
 
+
 def is_file_corrupted(file_path, total_file_size):
     """
     Check if a file is corrupted by comparing its actual size with the size
@@ -105,6 +111,9 @@ def is_file_corrupted(file_path, total_file_size):
 
 
 def check_lock(lock_file):
+    """
+    Check if a lock file exists. If it does, print a message and exit the script.
+    """
     if os.path.exists(lock_file):
         print(t('script_running'))
         sys.exit()
@@ -115,7 +124,7 @@ def acquire_lock(lock_file):
     Acquire a lock to prevent multiple instances of the script from running simultaneously.
     If the lock file already exists, print a message and exit the script.
     """
-    with open(lock_file, 'w'):
+    with open(lock_file, 'w', encoding='utf-8'):
         pass
 
 
@@ -129,6 +138,11 @@ def release_lock(lock_file):
 
 
 async def compress_video_h265(input_file, output_file, crf=28, callback=None) -> bool:
+    """
+    Convert a video file from h264 to h265 using ffmpeg.
+    If the conversion is successful, return True. If an error occurs during the conversion,
+    print an error message and return False.
+    """
     if os.path.exists(output_file):
         os.remove(output_file)
         print(f"Existing old file converted removed: {output_file}")
@@ -136,7 +150,8 @@ async def compress_video_h265(input_file, output_file, crf=28, callback=None) ->
         process = (
             ffmpeg
             .input(str(input_file))
-            .output(str(output_file), vcodec='libx265', crf=crf, preset='slow', tune='zerolatency', progress='pipe')
+            .output(str(output_file), vcodec='libx265', crf=crf,
+                    preset='slow', tune='zerolatency', progress='pipe')
             .run_async(pipe_stdout=True, pipe_stderr=True)
         )
         while True:
@@ -161,12 +176,15 @@ async def compress_video_h265(input_file, output_file, crf=28, callback=None) ->
 
         print(f"Compression H.265 completed! File save {output_file}")
         return True
-    except Exception as e:
-        print(f"Error during the compression: {str(e)}")
+    except Exception as exception: # pylint: disable=broad-exception-caught
+        print(f"Error during the compression: {str(exception)}")
         return False
 
 
 async def download_complete_action(video):
+    """
+    Download complete action.
+    """
     from func.config import load_configuration
     config = load_configuration()
     acquire_lock(config.lock_file)
@@ -191,7 +209,8 @@ async def download_complete_action(video):
     if config.enable_video_compression:
         print(t('start_compress_file', file_path_source))
 
-        await add_line_to_text(video.reference_message, t('start_compress_file', file_path_source), LINE_FOR_INFO_DATA)
+        await add_line_to_text(video.reference_message, t('start_compress_file', file_path_source),
+                               LINE_FOR_INFO_DATA)
         file_path_c = Path(str(video.file_path))
         converted_file_path = file_path_c.with_name(
             file_path_c.stem + "_converted" + file_path_c.suffix)
@@ -206,7 +225,7 @@ async def download_complete_action(video):
             print(t('cant_compress_file', file_path_source))
             await add_line_to_text(video.reference_message, t('cant_compress_file', file_path_source),
                                    LINE_FOR_SHOW_LAST_ERROR)
-            raise
+            raise Exception(t('cant_compress_file', file_path_source)) # pylint: disable=broad-exception-raised
 
     await add_line_to_text(video.reference_message, t('ready_to_move', video.video_name_cleaned),
                            LINE_FOR_INFO_DATA)
@@ -225,40 +244,72 @@ async def download_complete_action(video):
     await move_file(file_path_source, file_path_dest, cb_move_file)
 
 
-def remove_video_data(video):
+def remove_video_data(video: ObjectData):
+    """
+    Remove the video data file based on the video object.
+    """
     if os.path.isfile(get_video_data_full_path(video)):
         os.remove(str(get_video_data_full_path(video)))
 
-def remove_video_data_by_video_id(video_id):
+
+def remove_video_data_by_video_id(video_id: str):
+    """
+    Remove the video data file based on the video id.
+    """
     files = glob.glob(f"{get_video_data_path()}/*_{video_id}.json")
     for file in files:
         os.remove(str(file))
 
-def video_data_file_exists_by_ref_msg_id(message_id_ref):
+
+def video_data_file_exists_by_ref_msg_id(message_id_ref: str):
+    """
+    Check if the video data file exists based on the message id reference.
+    """
     files = glob.glob(f"{get_video_data_path()}/{message_id_ref}_*.json")
     return bool(files)
 
-def video_data_file_exists_by_video_id(video_id):
+
+def video_data_file_exists_by_video_id(video_id: str):
+    """
+    Check if the video data file exists based on the video id.
+    """
     files = glob.glob(f"{get_video_data_path()}/*_{video_id}.json")
     return bool(files)
 
-def get_video_data_name(video):
-    import run
-    return f"{video.message_id_reference}_{run.client.api_id}_{video.chat_id}_{video.id}.json"
 
-def get_video_data_full_path(video):
+def get_video_data_name(video: ObjectData):
+    """
+    Returns the name of the video data file based on the video object.
+    """
+    from main import client
+    return f"{video.message_id_reference}_{client.api_id}_{video.chat_id}_{video.id}.json"
+
+
+def get_video_data_full_path(video: ObjectData):
+    """
+    Returns the full path of the video data file based on the video object.
+    """
     if os.path.isdir(get_video_data_path()) is False:
         os.mkdir(get_video_data_path())
     return os.path.join(get_video_data_path(), get_video_data_name(video))
 
-def get_video_data_path():
-    import run
-    return os.path.join(run.root_dir, 'videos_data')
 
-def complete_data_file(video):
+def get_video_data_path():
+    """
+    Returns the path of the video data folder.
+    """
+    from run import root_dir
+    return os.path.join(root_dir, 'videos_data')
+
+
+def complete_data_file(video: ObjectData):
+    """
+    Complete the video data file.
+    """
     save_video_data({'completed': True}, video, ['completed'])
 
-def load_config(file_path):
+
+def load_config(file_path: str):
     """
     Loads the configuration from the specified path.
     This function reads the configuration file line by line, processes section headers
@@ -305,7 +356,10 @@ def load_config(file_path):
     return config_data
 
 
-async def add_line_to_text(reference_message, new_line, line_number):
+async def add_line_to_text(reference_message, new_line: str, line_number: int):
+    """
+    Add a new line to the text of the reference message.
+    """
     from run import LOG_IN_PERSONAL_CHAT
     # Divide il testo in righe
     builder = StringBuilder(reference_message.text)
@@ -315,21 +369,16 @@ async def add_line_to_text(reference_message, new_line, line_number):
     if LOG_IN_PERSONAL_CHAT is True:
         await reference_message.edit(builder.string)
 
-async def get_telegram_messages_by_ids(chat_name, message_ids):
-    from func.config import load_configuration
-    from func.telegram_client import create_telegram_client
-    config = load_configuration()
-    client = create_telegram_client(config.session_name, config.api_id, config.api_hash)
 
-    async with client:
-        return await client.get_messages(chat_name, ids=message_ids)
+def save_video_data(data: dict, video: ObjectData, fields_to_compare=None):
+    """
+    Save the video data in a JSON file.
+    If the file already exists, compare the data with the existing data and only save the differences.
+    """
+    file_path = get_video_data_full_path(video)
+    data_keys = list(data.keys())
+    data = ObjectData(**data)
 
-def save_video_data(data, video, fields_to_compare=None):
-    file_path = get_video_data_full_path(video) # Recupero le informazioni di path del file associato
-    data_keys = list(data.keys()) # inizialmente estraggo le chiavi
-    data = ObjectData(**data) # lo trasformo solo successivamente in un oggetto, ma solo per acquisire tutti i valori
-
-    # Se il file esiste, carica i dati e controlla se ci sono differenze
     if os.path.exists(file_path):
         with open(file_path, "rb") as f:
             try:
@@ -338,14 +387,14 @@ def save_video_data(data, video, fields_to_compare=None):
                 print(f"Errore nel caricamento di {file_path}: il file è vuoto o corrotto.")
                 existing_data = None
 
-        # Se il file esiste ma è vuoto, crea un nuovo oggetto
         if existing_data is None:
             existing_data = data
         else:
             existing_data = ObjectData(**existing_data)
             if fields_to_compare:
                 data_subset = {field: getattr(data, field, None) for field in fields_to_compare}
-                existing_data_subset = {field: getattr(existing_data, field, None) for field in fields_to_compare}
+                existing_data_subset = ({field: getattr(existing_data, field, None)
+                                         for field in fields_to_compare})
 
                 # Se i campi specificati sono identici, controlla anche per i campi non specificati
                 if data_subset == existing_data_subset:
@@ -372,8 +421,18 @@ def save_video_data(data, video, fields_to_compare=None):
         f.write(json.dumps(existing_data, default=serialize).encode('utf-8'))
     print("Dati salvati con successo.")
 
-def serialize(obj):
-    if isinstance(obj, ObjectData) or isinstance(obj, AttributeObject):
+
+def serialize(obj: ObjectData):
+    """
+    Serialize an object to JSON.
+
+    Args:
+        obj (ObjectData): The object to serialize.
+
+    Returns:
+        dict: The serialized object.
+    """
+    if isinstance(obj, (ObjectData, AttributeObject)):
         default_obj = type(obj)()
         serialized_data = {}
         for field, value in vars(default_obj).items():
@@ -381,30 +440,55 @@ def serialize(obj):
         return serialized_data
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
-def default_video_message(video):
+
+def default_video_message(video: ObjectData):
+    """
+    Generate the default message for a video.
+
+    Args:
+        video (ObjectData): The video data object.
+
+    Returns:
+        str: The default message for the video.
+    """
     video_text = remove_markdown("".join(video.video_name.splitlines()))[:40]
     file_name = remove_markdown("".join(video.file_name.splitlines()))[:40]
 
     builder = StringBuilder()
-    builder.edit_in_line( f'🎥 **{video_text}**', LINE_FOR_VIDEO_NAME)
-    builder.edit_in_line( f'🗃 {file_name}', LINE_FOR_FILE_NAME)
-    builder.edit_in_line( f'⚖️ {format_bytes(video.video_media.document.size)}', LINE_FOR_FILE_SIZE)
+    builder.edit_in_line(f'🎥 **{video_text}**', LINE_FOR_VIDEO_NAME)
+    builder.edit_in_line(f'🗃 {file_name}', LINE_FOR_FILE_NAME)
+    video_media = getattr(video, 'video_media', None)
+    if video_media is not None:
+        builder.edit_in_line(f'⚖️ {format_bytes(video_media.document.size)}', LINE_FOR_FILE_SIZE)
     builder.define_label(TYPE_ACQUIRED)
-    if hasattr(video, 'video_attribute') and video.video_attribute is not None:
-        builder.edit_in_line(f'↕️ {video.video_attribute.w}x{video.video_attribute.h}', LINE_FOR_FILE_DIMENSION)
+    video_attribute = getattr(video, 'video_attribute', None)
+    if video_attribute is not None and hasattr(video_attribute, 'w') and hasattr(video_attribute, 'h'):
+        builder.edit_in_line(
+            f'↕️ {video_attribute.w}x{video_attribute.h}',
+            LINE_FOR_FILE_DIMENSION)
     builder.edit_in_line(f'📌 {video.pinned}', LINE_FOR_PINNED_VIDEO)
 
     return builder.string
 
-def remove_markdown(text):
-    string_manipulated = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+
+def remove_markdown(text: str):
+    """
+    Remove Markdown formatting from a string.
+
+    Args:
+    text (str): The string to remove Markdown formatting from.
+
+    Returns:
+    str: The string with Markdown formatting removed.
+    """
+    string_manipulated = re.sub(r'\[([^]]+)]\([^)]+\)', r'\1', text)
     string_manipulated = re.sub(r'([*_~`]+)', '', string_manipulated)
     string_manipulated = re.sub(r'#+ ', '', string_manipulated)
-    string_manipulated = re.sub(r'^[\*\-\+] ', '', string_manipulated, flags=re.MULTILINE)
+    string_manipulated = re.sub(r'^[*\-+] ', '', string_manipulated, flags=re.MULTILINE)
     return string_manipulated
 
 
-def format_bytes(size):
+def format_bytes(size: int):
     """
     Convert byte size to a human-readable format.
 
@@ -425,4 +509,3 @@ def format_bytes(size):
 
     # Restituisci la dimensione formattata
     return f"{size:.2f} {units[i]}"
-
