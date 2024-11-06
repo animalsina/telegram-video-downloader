@@ -14,7 +14,7 @@ def get_system_language():
         return 'it'
     return 'en'
 
-def get_message(language = None):
+def get_message(language: str | None = None):
     """
     Retrieve a dictionary of localized messages based on the provided language.
 
@@ -115,7 +115,7 @@ def get_message(language = None):
     # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese
     return lang_messages.get(language, lang_messages['en'])
 
-def t(key, *args):
+def t(key: str, *args):
     """
     Retrieve a message based on its key and arguments.
     If the message is not found, return the key as a string.

@@ -12,8 +12,10 @@ import sys
 import re
 
 from pathlib import Path
+from typing import AnyStr
 
 import ffmpeg
+from telethon.tl.patched import Message
 
 from classes.attribute_object import AttributeObject
 from classes.string_builder import (StringBuilder, LINE_FOR_INFO_DATA,
@@ -30,7 +32,7 @@ VIDEO_EXTENSIONS = (
 )
 
 
-def check_folder_permissions(folder_path):
+def check_folder_permissions(folder_path: str):
     """
     Ensure that the specified folder exists and has the appropriate write permissions.
     If the folder does not exist, it will be created. If it exists but is not a directory,
@@ -44,13 +46,13 @@ def check_folder_permissions(folder_path):
         raise PermissionError(f"Permission denied: {folder_path}")
 
 
-def is_video_file(file_name):
+def is_video_file(file_name: str) -> bool:
     """Check if the file has a video extension."""
     _, ext = os.path.splitext(file_name)
     return ext.lower() in VIDEO_EXTENSIONS
 
 
-def sanitize_filename(filename):
+def sanitize_filename(filename: str) -> str:
     """
     Remove or replace characters in the filename that are not allowed in file names
     on most operating systems, such as <, >, :, \", /, \\, |, ?, *, etc.
@@ -94,7 +96,7 @@ async def move_file(src: Path, dest: Path, cb=None) -> bool:
         return False
 
 
-def is_file_corrupted(file_path, total_file_size):
+def is_file_corrupted(file_path: str, total_file_size: int) -> bool:
     """
     Check if a file is corrupted by comparing its actual size with the size
     recorded in the log file. If the actual size is smaller than the recorded size,
@@ -110,7 +112,7 @@ def is_file_corrupted(file_path, total_file_size):
     return False
 
 
-def check_lock(lock_file):
+def check_lock(lock_file: str):
     """
     Check if a lock file exists. If it does, print a message and exit the script.
     """
@@ -119,7 +121,7 @@ def check_lock(lock_file):
         sys.exit()
 
 
-def acquire_lock(lock_file):
+def acquire_lock(lock_file: str):
     """
     Acquire a lock to prevent multiple instances of the script from running simultaneously.
     If the lock file already exists, print a message and exit the script.
@@ -128,7 +130,7 @@ def acquire_lock(lock_file):
         pass
 
 
-def release_lock(lock_file):
+def release_lock(lock_file: str):
     """
     Release the lock by deleting the lock file.
     This allows other instances of the script to run.
@@ -137,7 +139,7 @@ def release_lock(lock_file):
         os.remove(lock_file)
 
 
-async def compress_video_h265(input_file, output_file, crf=28, callback=None) -> bool:
+async def compress_video_h265(input_file: Path, output_file: Path, crf=28, callback: callable(AnyStr | None) = None) -> bool:
     """
     Convert a video file from h264 to h265 using ffmpeg.
     If the conversion is successful, return True. If an error occurs during the conversion,
@@ -176,12 +178,12 @@ async def compress_video_h265(input_file, output_file, crf=28, callback=None) ->
 
         print(f"Compression H.265 completed! File save {output_file}")
         return True
-    except Exception as exception: # pylint: disable=broad-exception-caught
+    except Exception as exception:  # pylint: disable=broad-exception-caught
         print(f"Error during the compression: {str(exception)}")
         return False
 
 
-async def download_complete_action(video):
+async def download_complete_action(video: ObjectData) -> None:
     """
     Download complete action.
     """
@@ -225,7 +227,7 @@ async def download_complete_action(video):
             print(t('cant_compress_file', file_path_source))
             await add_line_to_text(video.reference_message, t('cant_compress_file', file_path_source),
                                    LINE_FOR_SHOW_LAST_ERROR)
-            raise Exception(t('cant_compress_file', file_path_source)) # pylint: disable=broad-exception-raised
+            raise Exception(t('cant_compress_file', file_path_source))  # pylint: disable=broad-exception-raised
 
     await add_line_to_text(video.reference_message, t('ready_to_move', video.video_name_cleaned),
                            LINE_FOR_INFO_DATA)
@@ -261,7 +263,7 @@ def remove_video_data_by_video_id(video_id: str):
         os.remove(str(file))
 
 
-def video_data_file_exists_by_ref_msg_id(message_id_ref: str):
+def video_data_file_exists_by_ref_msg_id(message_id_ref: int):
     """
     Check if the video data file exists based on the message id reference.
     """
@@ -294,7 +296,7 @@ def get_video_data_full_path(video: ObjectData):
     return os.path.join(get_video_data_path(), get_video_data_name(video))
 
 
-def get_video_data_path():
+def get_video_data_path() -> str:
     """
     Returns the path of the video data folder.
     """
@@ -302,7 +304,7 @@ def get_video_data_path():
     return os.path.join(root_dir, 'videos_data')
 
 
-def complete_data_file(video: ObjectData):
+def complete_data_file(video: ObjectData) -> None:
     """
     Complete the video data file.
     """
@@ -356,7 +358,7 @@ def load_config(file_path: str):
     return config_data
 
 
-async def add_line_to_text(reference_message, new_line: str, line_number: int):
+async def add_line_to_text(reference_message: Message, new_line: str, line_number: int) -> None:
     """
     Add a new line to the text of the reference message.
     """
@@ -366,7 +368,7 @@ async def add_line_to_text(reference_message, new_line: str, line_number: int):
     builder.edit_in_line(new_line, line_number)
 
     # Unisce di nuovo le righe in una singola stringa
-    if LOG_IN_PERSONAL_CHAT is True:
+    if LOG_IN_PERSONAL_CHAT is True and reference_message is not None:
         await reference_message.edit(builder.string)
 
 

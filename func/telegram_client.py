@@ -8,9 +8,10 @@ import collections
 
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
+from telethon.tl.patched import Message
 from tqdm import tqdm
 
-from func.config import load_configuration
+from classes.object_data import ObjectData
 from func.messages import t
 from func.utils import release_lock, is_file_corrupted, acquire_lock, \
     download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA, LINE_FOR_SHOW_LAST_ERROR
@@ -18,26 +19,27 @@ from func.utils import release_lock, is_file_corrupted, acquire_lock, \
 # Buffer to store speed data samples
 speed_samples = collections.deque(maxlen=20)  # Keep only the last 100 samples
 
-def calculate_download_speed(current, time_elapsed, last_current):
+
+def calculate_download_speed(current: int, time_elapsed: float, last_current: int):
     """Calculate download speed."""
     if time_elapsed <= 0:
         return 0
     return (current - last_current) / time_elapsed
 
 
-def create_telegram_client(session_name, api_id, api_hash):
+def create_telegram_client(session_name: str, api_id: int, api_hash: str):
     """Create and return a new TelegramClient."""
     return TelegramClient(session_name, api_id, api_hash)
 
 
-async def update_download_message(reference_message, percent, time_remaining_formatted):
+async def update_download_message(reference_message: Message, percent: float, time_remaining_formatted: str):
     """Update the status message with the download progress and time remaining."""
     await add_line_to_text(reference_message,
                            f"⬇️ Download: {percent:.2f}% - {time_remaining_formatted}",
                            LINE_FOR_INFO_DATA)
 
 
-def format_time(seconds):
+def format_time(seconds: float) -> str:
     """Format time in seconds to a human-readable string like hh:mm:ss."""
     if seconds <= 0 or seconds == float('inf'):
         return "Calculating..."
@@ -47,47 +49,46 @@ def format_time(seconds):
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
 
-async def progress_tracking(
-        progress, file_size, video, last_update_time, temp_file_path, last_current
-):
+async def progress_tracking(client: TelegramClient,
+                            progress: int, file_size: int, video: ObjectData,
+                            last_update_time: float, temp_file_path: str, last_current: int
+                            ):
     """
     Track the download progress and update the status message.
     """
     from run import root_dir
-    from main import client, configuration
-
-    configuration = load_configuration()
+    from main import configuration
 
     with tqdm(total=file_size, initial=progress,
               desc=f"Downloading {video.video_id} - {video.file_name} -"
                    f" {video.video_name_cleaned}",
               unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-        async def progress_callback(current, total):
+        async def progress_callback(current: int, total: int):
             nonlocal last_current
             nonlocal last_update_time
 
             if os.path.exists(os.path.join(root_dir, '.stop')):
                 os.remove(os.path.join(root_dir, '.stop'))
-                raise Exception('Stop forzato del download') # pylint: disable=broad-exception-raised
+                raise Exception('Stop forzato del download')  # pylint: disable=broad-exception-raised
 
             if total is not None:
-                percent_complete = (current / total) * 100
-                current_time = time.time()
+                percent_complete: float = (current / total) * 100
+                current_time: float = time.time()
 
                 # Calculate time elapsed
-                time_elapsed = current_time - last_update_time
+                time_elapsed: float = current_time - last_update_time
 
                 # Calculate download speed
-                download_speed = calculate_download_speed(current, time_elapsed, last_current)
+                download_speed: float | int = calculate_download_speed(current, time_elapsed, last_current)
 
                 # Add the current speed to the speed sample buffer
                 speed_samples.append(download_speed)
 
                 # Calculate average speed for a more accurate estimate
-                average_speed = (sum(speed_samples) / len(speed_samples)
-                                 if speed_samples else 0)
-                time_remaining = ((total - current) / average_speed
-                                  if average_speed > 0 else float('inf'))
+                average_speed: float = (sum(speed_samples) / len(speed_samples)
+                                        if speed_samples else 0)
+                time_remaining: float = ((total - current) / average_speed
+                                         if average_speed > 0 else float('inf'))
 
                 # Update the status message every 3 seconds
                 if current_time - last_update_time >= 3:
@@ -112,7 +113,8 @@ async def progress_tracking(
                     f.write(chunk)
                     await progress_callback(f.tell(), file_size)
 
-async def download_with_retry(client, video, retry_attempts=5):
+
+async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 5):
     """Download a file with retry attempts in case of failure."""
     from run import PERSONAL_CHAT_ID
     from main import configuration
@@ -139,7 +141,7 @@ async def download_with_retry(client, video, retry_attempts=5):
 
             # Download the file with progress tracking
             await progress_tracking(
-                progress, file_size, video, last_update_time, temp_file_path, last_current
+                client, progress, file_size, video, last_update_time, temp_file_path, last_current
             )
 
             # Wait 3 seconds before to get temp file size

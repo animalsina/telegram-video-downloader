@@ -25,13 +25,13 @@ class StringBuilder:
         if initial_text:
             self.add_text(initial_text)  # Aggiungi il testo iniziale se fornito
 
-    def add_text(self, text):
+    def add_text(self, text: str):
         """
         Add text to the end of the string.
         """
         self.lines = text.splitlines() + self.lines
 
-    def edit_in_line(self, new_line, line_number):
+    def edit_in_line(self, new_line: str, line_number: int):
         """
         Edit a line in the string.
         """
@@ -41,7 +41,7 @@ class StringBuilder:
         # Modifica la linea specificata
         self.lines[line_number - 1] = new_line
 
-    def define_label(self, label_type):
+    def define_label(self, label_type: str):
         """
         Define the label type.
         """
@@ -53,13 +53,13 @@ class StringBuilder:
         """
         return self.get_line(LINE_FOR_LABEL)
 
-    def is_label(self, label_type):
+    def is_label(self, label_type: str):
         """
         Check if the label type matches.
         """
         return self.get_label() == label_type
 
-    def get_line(self, line_number):
+    def get_line(self, line_number: int):
         """
         Get a line from the string.
         """
