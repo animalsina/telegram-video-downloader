@@ -9,10 +9,12 @@ import os
 import sys
 import traceback
 from pathlib import Path
+from typing import List
 
 # Moduli di terze parti
 import telethon
 from telethon import events
+from telethon.tl.types import Message
 
 # Moduli locali
 from classes.object_data import ObjectData
@@ -20,7 +22,7 @@ from func.config import load_configuration
 from func.messages import t
 from func.rules import load_rules
 from func.telegram_client import create_telegram_client, download_with_retry
-from classes.string_builder import LINE_FOR_VIDEO_NAME, LINE_FOR_INFO_DATA, StringBuilder
+from classes.string_builder import LINE_FOR_VIDEO_NAME, LINE_FOR_INFO_DATA, StringBuilder, LINE_FOR_SHOW_LAST_ERROR
 from classes.attribute_object import AttributeObject
 
 configuration = load_configuration()
@@ -28,7 +30,7 @@ configuration = load_configuration()
 client = create_telegram_client(
     configuration.session_name, configuration.api_id, configuration.api_hash
 )
-all_messages = []
+all_messages: List[Message] = []
 replies_msg = []
 tasks = []
 sem = asyncio.Semaphore(configuration.max_simultaneous_file_to_download)
@@ -88,16 +90,28 @@ async def download_with_limit(video: ObjectData):
     from func.utils import add_line_to_text
 
     # Inizializza il semaforo per gestire i download simultanei
-    async with sem:
-        # Send a status message before starting the download
-        await add_line_to_text(
-            getattr(video, "reference_message", None),
-            t("download_video"),
-            LINE_FOR_INFO_DATA,
-        )
+    try:
+        async with sem:
+            if client.is_connected() is not True:
+                await client.start(configuration.phone)
+            # Send a status message before starting the download
+            try:
+                await add_line_to_text(
+                    getattr(video, "reference_message", None),
+                    t("download_video"),
+                    LINE_FOR_INFO_DATA,
+                )
 
-        # Start downloading the file with retry logic
-        await download_with_retry(client, video)
+                # Start downloading the file with retry logic
+                await download_with_retry(client, video)
+            except Exception as e:
+                print(f"Error downloading {video.file_name}: {e}")
+                await add_line_to_text(getattr(video, "reference_message", None), f"Error: {e}", LINE_FOR_SHOW_LAST_ERROR)
+    except Exception as e:
+        print(f"Error downloading {video.file_name}: {e}")
+    finally:
+        # Eventualmente liberare altre risorse
+        pass
 
 async def client_data():
     """
@@ -110,7 +124,7 @@ async def client_data():
 
     for chat in configuration.group_chats:
         print(t("retrieving_messages", chat))
-        async for message in client.iter_messages(chat, limit=1000):
+        async for message in client.iter_messages(chat, limit=1000): #type: Message
             message.chat_name = chat
             if message.reply_to_msg_id:
                 replies_msg.append(message)
@@ -241,11 +255,11 @@ async def main():
 
         # Name of a file, File object content
         for video_data in videos_data or []:  # type: [str, ObjectData]
-            tasks.append(get_video_task(video_data))
+            tasks.append(await get_video_task(video_data))
 
         # Execute all queued tasks concurrently
         await asyncio.gather(*tasks)
-        release_lock(lock_file)
+
     except KeyboardInterrupt:
         print("Script interrupted manually.")
         release_lock(lock_file)

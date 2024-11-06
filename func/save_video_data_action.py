@@ -2,36 +2,41 @@
 Module for save video info in JSON files with all useful info
 """
 import os
+from typing import List
+
 from telethon.errors import ChatForwardsRestrictedError
+from telethon.tl.patched import Message
 from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo
 
 from classes.object_data import ObjectData
+from func.rules import apply_rules
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
                         video_data_file_exists_by_ref_msg_id, is_video_file, save_video_data)
 from run import LOG_IN_PERSONAL_CHAT, PERSONAL_CHAT_ID
 
 
-async def save_video_data_action():
+async def save_video_data_action() -> None:
     """
     Action for save videos in JSON files with all useful info
     """
-    videos = await collect_videos()
+    videos: List[(Message & {'chat_name': str})] = await collect_videos()
 
     videos.reverse()
     videos.sort(key=lambda msg: not msg.pinned)
 
     print("Save video info in files")
     for video in videos:
-        video_data = await process_video(video)
+        chat_name = video.chat_name
+        video_data = await process_video(video, chat_name)
         if video_data:
             save_video_data(video_data, ObjectData(**video_data), get_video_data_keys())
 
 
-async def collect_videos():
+async def collect_videos() -> List[Message]:
     """ Collect video messages from all messages. """
     from func.main import all_messages
-    videos = []
+    videos: List[Message] = []
     for message in all_messages:
         if message.document and not video_data_file_exists_by_ref_msg_id(message.id):
             if any(isinstance(attr, DocumentAttributeVideo) for attr
@@ -52,14 +57,16 @@ def get_file_name_from_message(message):
     return None
 
 
-async def process_video(video):
+async def process_video(video: Message, chat_name: str):
     """ Process each video message and return the video data dictionary. """
-    video_data = initialize_video_data(video)
+    video_data = initialize_video_data(video, chat_name)
 
     video_name = await get_video_name(video)
     if video_name is None:
         return None
 
+    video_data['original_video_name'] = video_name
+    video_name = apply_rules('translate', video_name, video)
     video_data["video_name"] = video_name
     video_data["file_name"] = await get_file_name(video, video_name)
 
@@ -69,7 +76,7 @@ async def process_video(video):
 
     set_additional_video_data(video_data, video)
 
-    if video_data_file_exists_by_video_id(video_data["video_id"]):
+    if video_data_file_exists_by_video_id(str(video_data["video_id"])):
         return None
 
     message = await send_video_to_chat(video_data, video)
@@ -78,13 +85,13 @@ async def process_video(video):
     return video_data
 
 
-def initialize_video_data(video):
+def initialize_video_data(video: Message, chat_name: str):
     """ Initialize a dictionary to hold video data. """
     return {
         "id": video.id,
         "video_id": video.id,
         "video_text": video.text,
-        "chat_name": video.chat_name,
+        "chat_name": chat_name,
         "chat_id": PERSONAL_CHAT_ID,
         "pinned": video.pinned,
         "completed": False,
@@ -107,7 +114,7 @@ async def get_video_name(video):
     return remove_markdown(video_name) if video_name else None
 
 
-async def get_video_name_from_replies(video):
+async def get_video_name_from_replies(video: Message):
     """ Extract video name from reply messages. """
     from func.main import replies_msg
     for reply_msg in replies_msg:
@@ -139,7 +146,7 @@ async def get_file_name(video, video_name):
     for attr in video_message_document_attributes:
         if isinstance(attr, DocumentAttributeFilename):
             file_name = sanitize_filename(attr.file_name)
-        #if isinstance(attr, DocumentAttributeVideo):
+        # if isinstance(attr, DocumentAttributeVideo):
         #    video_attribute = attr
 
     if video_name is None and file_name is not None:

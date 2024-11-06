@@ -6,13 +6,19 @@ Apply rules to messages and files.
 import re
 import glob
 import os
+from collections.abc import Iterator
+from typing import AnyStr, List, Union
+
+from telethon.tl.custom import Forward
+from telethon.tl.patched import Message
+from telethon.tl.types import MessageMediaDocument, Channel
 
 from classes.config_object import ConfigObject
 
-rules = {'message': []}
+rules: dict = {'message': []}
 
 
-def load_rules(root_directory):
+def load_rules(root_directory: str):
     """
     Load both rules from .rule files in the specified directory.
     """
@@ -24,7 +30,7 @@ def load_rules(root_directory):
 
     return rules
 
-def set_rules(lines):
+def set_rules(lines: Iterator[str]) -> None:
     """
     Set rules.
     """
@@ -62,7 +68,7 @@ def set_rules(lines):
 
     rules['message'].append(update_data)
 
-def detect_command(string, command, cb):
+def detect_command(string: str, command: str, cb: callable(str)) -> None:
     """
     Detect commands.
     """
@@ -71,7 +77,7 @@ def detect_command(string, command, cb):
         if match:
             cb(match.group(1))  # Save the folder pattern
 
-def safe_format(action: str, *args) -> str:
+def safe_format(action: str, *args: tuple[AnyStr]) -> str:
     """
     Format Safe
     """
@@ -81,7 +87,7 @@ def safe_format(action: str, *args) -> str:
     return action.format(*args)
 
 
-def apply_rules(type_name, input_value, chat = None):
+def apply_rules(type_name: str, input_value: str, chat: Union[Message, MessageMediaDocument] = None) -> str | None:
     """
     Apply rules to input and returns edited output.
     """
@@ -93,7 +99,7 @@ def apply_rules(type_name, input_value, chat = None):
         return completed_task(input_value)
     return input_value
 
-def completed_task(input_value):
+def completed_task(input_value: str):
     """
     Apply rules to input and returns edited output.
     """
@@ -112,30 +118,30 @@ def completed_task(input_value):
                     return completed_folder
     return None
 
-def translate_string(input_value, chat = None):
+def translate_string(input_value: str, chat: Union[Message, MessageMediaDocument] = None) -> str:
     """
     Apply rules to input and returns edited output.
     """
     for rule in rules['message']:
-        pattern = rule['pattern']
+        pattern = rule.pattern
         rule_chat_id = pattern.chat_id or None
         rule_chat_title = pattern.chat_title or None
         rule_chat_name = pattern.chat_name or None
         chat_id = None
         chat_title = None
         chat_name = None
-        if chat is not None:
+        if chat is not None and isinstance(chat, (Message, MessageMediaDocument)):
             chat_id = chat.chat_id
-            if chat.chat is not None:
-                chat_title = chat.chat.title
-                chat_name = chat.chat.username
+            if chat.chat is not None and isinstance(chat.forward, Forward):
+                chat_title = chat.forward.chat.title
+                chat_name = chat.forward.chat.username
         if rule_chat_id is not None and rule_chat_id != chat_id:
             continue
         if rule_chat_name is not None and rule_chat_name != chat_name:
             continue
         if rule_chat_title is not None and rule_chat_title != chat_title:
             continue
-        action = rule['translate']
+        action = rule.translate
         match = re.match(pattern.message, input_value)
         if match:
             return safe_format(action, *match.groups())
