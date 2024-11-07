@@ -1,3 +1,7 @@
+"""
+Config module for run the program
+
+"""
 import os
 import sys
 
@@ -59,7 +63,11 @@ def load_configuration():
         'disabled': disabled,
         'group_chats': group_chats,
     })
+
 class Config:
+    """
+    Config
+    """
     def __init__(self, config_dict):
         self.max_simultaneous_file_to_download = None
         self.session_name = None

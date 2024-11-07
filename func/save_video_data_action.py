@@ -2,11 +2,11 @@
 Module for save video info in JSON files with all useful info
 """
 import os
-from typing import List
+from typing import List, Union
 
 from telethon.errors import ChatForwardsRestrictedError
 from telethon.tl.patched import Message
-from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo
+from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo, MessageMediaDocument
 
 from classes.object_data import ObjectData
 from func.rules import apply_rules
@@ -20,7 +20,7 @@ async def save_video_data_action() -> None:
     """
     Action for save videos in JSON files with all useful info
     """
-    videos: List[(Message & {'chat_name': str})] = await collect_videos()
+    videos: List[Union[MessageMediaDocument, Message, {'chat_name': str}]] = await collect_videos()
 
     videos.reverse()
     videos.sort(key=lambda msg: not msg.pinned)
@@ -29,18 +29,20 @@ async def save_video_data_action() -> None:
     for video in videos:
         chat_name = video.chat_name
         video_data = await process_video(video, chat_name)
-        if video_data:
-            save_video_data(video_data, ObjectData(**video_data), get_video_data_keys())
+        if video_data and save_video_data(video_data, ObjectData(**video_data), get_video_data_keys()) and video.chat_name == chat_name:
+            print(f"Video saved: {video_data['original_video_name']}")
+            await video.delete()
 
 
-async def collect_videos() -> List[Message]:
+async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
     """ Collect video messages from all messages. """
     from func.main import all_messages
-    videos: List[Message] = []
+    videos: List[Union[MessageMediaDocument, Message]] = []
     for message in all_messages:
-        if message.document and not video_data_file_exists_by_ref_msg_id(message.id):
+        document = getattr(message, 'document')
+        if hasattr(document, 'attributes') and not video_data_file_exists_by_ref_msg_id(message.id):
             if any(isinstance(attr, DocumentAttributeVideo) for attr
-                   in message.document.attributes):
+                   in document.attributes):
                 videos.append(message)
             else:
                 file_name = get_file_name_from_message(message)

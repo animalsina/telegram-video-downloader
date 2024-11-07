@@ -372,7 +372,7 @@ async def add_line_to_text(reference_message: Message, new_line: str, line_numbe
         await reference_message.edit(builder.string)
 
 
-def save_video_data(data: dict, video: ObjectData, fields_to_compare=None):
+def save_video_data(data: dict, video: ObjectData, fields_to_compare=None) -> bool:
     """
     Save the video data in a JSON file.
     If the file already exists, compare the data with the existing data and only save the differences.
@@ -413,10 +413,11 @@ def save_video_data(data: dict, video: ObjectData, fields_to_compare=None):
                 # Confronto di tutto l'oggetto se non sono stati specificati campi
                 if data == existing_data:
                     print("Nessuna differenza trovata, dati non salvati.")
-                    return
+                    return False
     else:
         # Se il file non esiste, usa i nuovi dati
         existing_data = data
+        return True
 
     # Salva solo se ci sono differenze
     with open(file_path, "wb") as f:
