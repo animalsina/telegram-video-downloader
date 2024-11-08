@@ -10,6 +10,14 @@ LINE_FOR_LABEL = 6
 LINE_FOR_INFO_DATA = 7
 LINE_FOR_SHOW_LAST_ERROR = 9
 
+ICON_FOR_LINE_ID = {
+    "1": "🎥",
+    "2": "🗃",
+    "3": "⚖️",
+    "4": "↕️",
+    "5": "📌"
+}
+
 TYPE_ACQUIRED = '🟢'
 TYPE_DELETED = '❌'
 TYPE_COMPLETED = '✅'
@@ -31,15 +39,21 @@ class StringBuilder:
         """
         self.lines = text.splitlines() + self.lines
 
-    def edit_in_line(self, new_line: str, line_number: int):
+    def edit_in_line(self, new_line: str, line_number: int, with_default_icon = False):
         """
         Edit a line in the string.
         """
         while len(self.lines) < line_number:
             self.lines.append("")
 
-        # Modifica la linea specificata
-        self.lines[line_number - 1] = new_line
+        icon = ICON_FOR_LINE_ID.get(str(line_number), None)
+
+        if with_default_icon and icon:
+            # Modifica la linea specificata
+            self.lines[line_number - 1] = f"{icon} {new_line}"
+        else:
+            # Modifica la linea specificata
+            self.lines[line_number - 1] = new_line
 
     def define_label(self, label_type: str):
         """

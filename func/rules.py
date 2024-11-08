@@ -7,6 +7,7 @@ import re
 import glob
 import os
 from collections.abc import Iterator
+from pathlib import Path
 from typing import AnyStr, List, Union
 
 from telethon.tl.custom import Forward
@@ -18,7 +19,7 @@ from classes.config_object import ConfigObject
 rules: dict = {'message': []}
 
 
-def load_rules(root_directory: str):
+def load_rules(root_directory: Path):
     """
     Load both rules from .rule files in the specified directory.
     """
@@ -133,14 +134,14 @@ def translate_string(input_value: str, chat: Union[Message, MessageMediaDocument
         if chat is not None and isinstance(chat, (Message, MessageMediaDocument)):
             chat_id = chat.chat_id
             forward = chat.forward
+            sender = chat.forward.sender if hasattr(forward, 'sender') else None
             if chat.is_channel is True and isinstance(forward, Forward) and forward is not None:
                 if forward.chat is not None:
                     chat_title = chat.forward.chat.title
                     chat_name = chat.forward.chat.username
-            if chat.is_private is True and forward.sender.bot is True:
-                sender_data = forward.sender
-                chat_title = sender_data.first_name
-                chat_name = sender_data.username
+            if chat.is_private is True and sender is not None and sender.bot is True:
+                chat_title = sender.first_name
+                chat_name = sender.username
         if rule_chat_id is not None and rule_chat_id != chat_id:
             continue
         if rule_chat_name is not None and rule_chat_name != chat_name:
