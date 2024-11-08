@@ -9,6 +9,7 @@ from telethon.tl.patched import Message
 from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo, MessageMediaDocument
 
 from classes.object_data import ObjectData
+from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED
 from func.rules import apply_rules
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
@@ -59,6 +60,11 @@ async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
     videos: List[Union[MessageMediaDocument, Message]] = []
     for message in all_messages:
         document = getattr(message, 'document')
+        text = getattr(message, 'text')
+        from classes.string_builder import TYPE_ACQUIRED
+        contains_link = any(link in text for link in [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED])
+        if text and contains_link is not True: # Ignore already acquired videos
+            continue
         if hasattr(document, 'attributes') and not video_data_file_exists_by_ref_msg_id(message.id):
             if any(isinstance(attr, DocumentAttributeVideo) for attr
                    in document.attributes):

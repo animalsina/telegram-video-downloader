@@ -8,11 +8,11 @@ import glob
 import os
 from collections.abc import Iterator
 from pathlib import Path
-from typing import AnyStr, List, Union
+from typing import AnyStr, Union
 
 from telethon.tl.custom import Forward
 from telethon.tl.patched import Message
-from telethon.tl.types import MessageMediaDocument, Channel
+from telethon.tl.types import MessageMediaDocument
 
 from classes.config_object import ConfigObject
 
@@ -88,7 +88,8 @@ def safe_format(action: str, *args: tuple[AnyStr]) -> str:
     return action.format(*args)
 
 
-def apply_rules(type_name: str, input_value: str, chat: Union[Message, MessageMediaDocument] = None) -> str | None:
+def apply_rules(type_name: str, input_value: str,
+                chat: Union[Message, MessageMediaDocument] = None) -> str | None:
     """
     Apply rules to input and returns edited output.
     """
