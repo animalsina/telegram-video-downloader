@@ -358,14 +358,14 @@ def load_config(file_path: str):
     return config_data
 
 
-async def add_line_to_text(reference_message: Message, new_line: str, line_number: int) -> None:
+async def add_line_to_text(reference_message: Message, new_line: str, line_number: int, with_default_icon: bool = False) -> None:
     """
     Add a new line to the text of the reference message.
     """
     from run import LOG_IN_PERSONAL_CHAT
     # Divide il testo in righe
     builder = StringBuilder(reference_message.text)
-    builder.edit_in_line(new_line, line_number)
+    builder.edit_in_line(new_line, line_number, with_default_icon)
 
     # Unisce di nuovo le righe in una singola stringa
     if LOG_IN_PERSONAL_CHAT is True and reference_message is not None:
@@ -417,12 +417,11 @@ def save_video_data(data: dict, video: ObjectData, fields_to_compare=None) -> bo
     else:
         # Se il file non esiste, usa i nuovi dati
         existing_data = data
-        return True
-
     # Salva solo se ci sono differenze
     with open(file_path, "wb") as f:
         f.write(json.dumps(existing_data, default=serialize).encode('utf-8'))
     print("Dati salvati con successo.")
+    return True
 
 
 def serialize(obj: ObjectData):
@@ -467,8 +466,8 @@ def default_video_message(video: ObjectData):
     video_attribute = getattr(video, 'video_attribute', None)
     if video_attribute is not None and hasattr(video_attribute, 'w') and hasattr(video_attribute, 'h'):
         builder.edit_in_line(
-            f'↕️ {video_attribute.w}x{video_attribute.h}',
-            LINE_FOR_FILE_DIMENSION)
+            f'{video_attribute.w}x{video_attribute.h}',
+            LINE_FOR_FILE_DIMENSION, True)
     builder.edit_in_line(f'📌 {video.pinned}', LINE_FOR_PINNED_VIDEO)
 
     return builder.string

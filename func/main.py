@@ -6,24 +6,28 @@ Main module for run the program
 import asyncio
 import json
 import os
-import sys
 import traceback
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 # Moduli di terze parti
 import telethon
 from telethon import events
+from telethon.events import NewMessage
 from telethon.tl.types import Message
+from telethon.tl.types import MessageReplyHeader
 
 # Moduli locali
 from classes.object_data import ObjectData
+from command_watcher import CHECK_INTERVAL
 from func.config import load_configuration
 from func.messages import t
 from func.rules import load_rules
+from func.save_video_data_action import acquire_video
 from func.telegram_client import create_telegram_client, download_with_retry
 from classes.string_builder import LINE_FOR_VIDEO_NAME, LINE_FOR_INFO_DATA, StringBuilder, LINE_FOR_SHOW_LAST_ERROR
 from classes.attribute_object import AttributeObject
+from func.utils import add_line_to_text, save_video_data
 
 configuration = load_configuration()
 
@@ -35,6 +39,7 @@ replies_msg = []
 tasks = []
 sem = asyncio.Semaphore(configuration.max_simultaneous_file_to_download)
 
+CHECK_INTERVAL = 3
 
 def load_all_video_data() -> list:
     """
@@ -124,7 +129,7 @@ async def client_data():
 
     for chat in configuration.group_chats:
         print(t("retrieving_messages", chat))
-        async for message in client.iter_messages(chat, limit=1000): #type: Message
+        async for message in client.iter_messages(chat, limit=1000): #type: Union[Message, MessageReplyHeader]
             message.chat_name = chat
             if message.reply_to_msg_id:
                 replies_msg.append(message)
@@ -209,21 +214,15 @@ async def get_video_task(video_data):
         return False
 
     # Queue the download task with the limit on simultaneous downloads
-    return asyncio.create_task(download_with_limit(video))
+    return asyncio.create_task(await download_with_limit(video))
 
 async def main():
     """Main function to manage the Telegram client and download files."""
     from func.save_video_data_action import save_video_data_action
     from run import root_dir, PERSONAL_CHAT_ID
-    from func.utils import check_lock, acquire_lock, release_lock
+    from func.utils import release_lock
     load_rules(Path(root_dir))
-    lock_file = configuration.lock_file
-    if configuration.disabled:
-        print("Disabled")
-        sys.exit(0)
-
-    check_lock(lock_file)
-    acquire_lock(lock_file)
+    cancel_event = asyncio.Event()
 
     try:
         await client_data()
@@ -238,6 +237,9 @@ async def main():
         )
 
         videos_data = sorted_data
+        quit_program = False
+        start_download = False
+        pending = []
 
         async def tg_message_handler(event):
             """
@@ -249,27 +251,76 @@ async def main():
             video_name = builder.get_line(LINE_FOR_VIDEO_NAME)
             print(video_name)
 
+        async def tg_new_message_handler(event: NewMessage.Event):
+            """NewMessage Handler"""
+            nonlocal quit_program, start_download
+            message = event.message
+            setattr(message, 'chat_name', PERSONAL_CHAT_ID)
+            text = message.text
+            if text == 'quit':
+                quit_program = True
+                await message.edit(t('program_quit'))
+            if text == 'download:on':
+                start_download = True
+                await message.edit(t('download_enabled'))
+            if text == 'download:off':
+                start_download = True
+                await message.edit(t('download_disabled'))
+            if text == 'download:stop':
+                start_download = False
+                cancel_event.set()
+                await message.edit(t('download_stopped'))
+            if text.startswith('rename:'):
+                new_name = text.replace('rename:', '')
+                if message.reply_to is not None:
+                    reply_message = await client.get_messages(PERSONAL_CHAT_ID, ids=message.reply_to.reply_to_msg_id)
+                    _, video_object = get_video_object_by_message_id_reference(reply_message.id)
+                    await add_line_to_text(reply_message, new_name, LINE_FOR_VIDEO_NAME, True)
+                    save_video_data({'video_name': new_name}, video_object, ['video_name'])
+                    video_object.video_name = new_name
+                    await message.delete()
+
+            await acquire_video(message)
+            return
+
         client.add_event_handler(
             tg_message_handler, events.MessageEdited(chats=PERSONAL_CHAT_ID)
         )
 
-        # Name of a file, File object content
-        for video_data in videos_data or []:  # type: [str, ObjectData]
-            tasks.append(await get_video_task(video_data))
+        client.add_event_handler(
+            tg_new_message_handler, events.NewMessage(chats=PERSONAL_CHAT_ID)
+        )
 
-        # Execute all queued tasks concurrently
-        await asyncio.gather(*tasks)
+        def get_video_object_by_message_id_reference(message_id_reference: str):
+            for video in videos_data:
+                if message_id_reference == video[1].message_id_reference:
+                    return video
+            return None
+
+        await client.send_message(PERSONAL_CHAT_ID, t('program_start'))
+        while True:
+            if quit_program is True:
+                break
+            if start_download is True:
+                # Name of a file, File object content
+                for video_data in videos_data or []:  # type: [str, ObjectData]
+                    tasks.append(await get_video_task(video_data))
+
+                # Execute all queued tasks concurrently
+                done, pending = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED)
+                #await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.sleep(CHECK_INTERVAL)
 
     except KeyboardInterrupt:
         print("Script interrupted manually.")
-        release_lock(lock_file)
+        release_lock(configuration.lock_file)
 
     except Exception as error:  # pylint: disable=broad-except
         print(f"An error occurred: {error}")
         traceback.print_exc()
-        release_lock(lock_file)
+        release_lock(configuration.lock_file)
 
     finally:
         await client.disconnect()
         print("Disconnected from Telegram.")
-        release_lock(lock_file)
+        release_lock(configuration.lock_file)

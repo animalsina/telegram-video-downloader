@@ -18,5 +18,23 @@ LOG_IN_PERSONAL_CHAT = True
 root_dir = os.path.dirname(os.path.abspath(__file__))
 
 if __name__ == "__main__":
+    from func.utils import check_lock, acquire_lock, release_lock
+    from func.config import load_configuration
+
+    configuration = load_configuration()
+
+    if configuration.disabled:
+        print("Disabled")
+        sys.exit(0)
+
+    lock_file = configuration.lock_file
+
+    check_lock(lock_file)
+    acquire_lock(lock_file)
+
     main = importlib.import_module('func.main')
-    asyncio.run(main.main())
+    try:
+        asyncio.run(main.main())
+    except Exception as e:
+        release_lock(lock_file)
+

@@ -27,11 +27,30 @@ async def save_video_data_action() -> None:
 
     print("Save video info in files")
     for video in videos:
-        chat_name = video.chat_name
-        video_data = await process_video(video, chat_name)
-        if video_data and save_video_data(video_data, ObjectData(**video_data), get_video_data_keys()) and video.chat_name == chat_name:
-            print(f"Video saved: {video_data['original_video_name']}")
-            await video.delete()
+        await acquire_video(video)
+
+
+async def acquire_video(message: Union[MessageMediaDocument, Message]):
+    """Acquire Video"""
+    document = getattr(message, 'document')
+    video: Union[MessageMediaDocument, Message, {'chat_name': str}] | None = None
+    if hasattr(document, 'attributes') and not video_data_file_exists_by_ref_msg_id(message.id):
+        if any(isinstance(attr, DocumentAttributeVideo) for attr
+               in document.attributes):
+            video = message
+        else:
+            file_name = get_file_name_from_message(message)
+            if file_name and is_video_file(file_name):
+                video = message
+
+    if video is None:
+        return None
+
+    chat_name = getattr(video, 'chat_name') if hasattr(video, 'chat_name') else None
+    video_data = await process_video(video, chat_name)
+    if video_data and save_video_data(video_data, ObjectData(**video_data), get_video_data_keys()):
+        print(f"Video saved: {video_data['original_video_name']}")
+        await video.delete()
 
 
 async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
