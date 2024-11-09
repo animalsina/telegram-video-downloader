@@ -13,7 +13,7 @@ from tqdm import tqdm
 
 from classes.object_data import ObjectData
 from func.messages import t
-from func.utils import release_lock, is_file_corrupted, acquire_lock, \
+from func.utils import is_file_corrupted, \
     download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA, LINE_FOR_SHOW_LAST_ERROR
 
 # Buffer to store speed data samples
@@ -27,7 +27,7 @@ def calculate_download_speed(current: int, time_elapsed: float, last_current: in
     return (current - last_current) / time_elapsed
 
 
-async def edit_service_message(message: Message, text, time_to_expire=30):
+async def edit_service_message(message: Message, text, time_to_expire=10):
     """
     Edit service message, self-destruct after {time_to_expire} seconds
     :param message:
@@ -44,7 +44,7 @@ async def edit_service_message(message: Message, text, time_to_expire=30):
     await message.edit(text)
 
 
-async def send_service_message(chat_id, text, time_to_expire=30):
+async def send_service_message(chat_id, text, time_to_expire=10):
     """
     Service message, self-destruct after {time_to_expire} seconds
     :param chat_id:
@@ -84,7 +84,6 @@ def format_time(seconds: float) -> str:
     hours, rem = divmod(seconds, 3600)
     minutes, seconds = divmod(rem, 60)
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
-
 
 async def progress_tracking(
         client: TelegramClient,
@@ -128,7 +127,6 @@ async def progress_tracking(
 
                 # Update the status message every 3 seconds
                 if current_time - last_update_time >= 3:
-                    acquire_lock(configuration.lock_file)
                     time_remaining_formatted = format_time(time_remaining)
                     await update_download_message(video.reference_message,
                                                   percent_complete,
@@ -156,11 +154,21 @@ async def progress_tracking(
                     f.write(chunk)
                     await progress_callback(f.tell(), file_size)
 
+async def get_user_id():
+    """
+    Get user id
+    """
+    from func.config import load_configuration
+    from func.main import client
+    if client.is_connected() is False:
+        configuration = load_configuration()
+        client.start(configuration.phone)
+    me = await client.get_me()
+    return me.id
 
 async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 5):
     """Download a file with retry attempts in case of failure."""
     from run import PERSONAL_CHAT_ID
-    from main import configuration
 
     # Here checks for video data, because if video is stored during the iteration, it will expire
     video_message_data = await client.get_messages(PERSONAL_CHAT_ID, ids=video.message_id_reference)

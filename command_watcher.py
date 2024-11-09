@@ -57,14 +57,6 @@ command_handler.add_command("list", list_commands)
 command_handler.add_command("stop", stop_download)
 command_handler.add_command("rename", rename_video_data_file)
 
-async def get_user_id():
-    """
-    Get user id
-    """
-    me = await client.get_me()
-    print("ID Utente:", me.id)
-    return me.id
-
 async def monitor_chat():
     """
     Monitor chat

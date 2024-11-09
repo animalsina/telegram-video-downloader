@@ -36,12 +36,10 @@ def load_configuration():
     download_folder = config.get('download_folder', os.path.join(root_dir, 'tg-video'))
     completed_folder = config.get('completed_folder', os.path.join(root_dir, 'tg-video-completed'))
 
-    lock_file = os.path.join(root_dir, 'script.lock')
     session_name = os.path.join(root_dir, config.get('session_name', 'session_name'))
     max_simultaneous_file_to_download = int(config.get('max_simultaneous_file_to_download', 2))
     enable_video_compression = config.get('enable_video_compression', 0) == "1"
     compression_ratio = max(0, min(int(config.get('compression_ratio', 28)), 51))
-    disabled = config.get('disabled', 0) == "1"
     group_chats = config.get('group_chats', [])
 
     # Verifica le cartelle di download
@@ -55,12 +53,10 @@ def load_configuration():
         'phone': phone,
         'download_folder': download_folder,
         'completed_folder': completed_folder,
-        'lock_file': lock_file,
         'session_name': session_name,
         'max_simultaneous_file_to_download': max_simultaneous_file_to_download,
         'enable_video_compression': enable_video_compression,
         'compression_ratio': compression_ratio,
-        'disabled': disabled,
         'group_chats': group_chats,
     })
 
@@ -75,8 +71,6 @@ class Config:
         self.api_hash = None
         self.phone = None
         self.group_chats = []
-        self.lock_file = None
-        self.disabled = None
         self.download_folder = None
         for key, value in config_dict.items():
             setattr(self, key, value)
