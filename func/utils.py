@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import AnyStr
 
 import ffmpeg
+from telethon.errors import MessageNotModifiedError
 from telethon.tl.patched import Message
 
 from classes.attribute_object import AttributeObject
@@ -22,9 +23,9 @@ from classes.string_builder import (StringBuilder, LINE_FOR_INFO_DATA,
                                     LINE_FOR_SHOW_LAST_ERROR, TYPE_ACQUIRED,
                                     LINE_FOR_FILE_DIMENSION, LINE_FOR_PINNED_VIDEO,
                                     LINE_FOR_VIDEO_NAME,
-                                    LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE)
+                                    LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE, TYPE_ERROR)
 from func.messages import t
-from func.rules import apply_rules
+from func.rules import apply_rules, reload_rules
 from classes.object_data import ObjectData
 
 VIDEO_EXTENSIONS = (
@@ -63,6 +64,17 @@ def sanitize_filename(filename: str) -> str:
     sanitized_name = re.sub(r'[^\w\s.-]', '', sanitized_name)
     return sanitized_name.strip()
 
+def sanitize_video_name(video_name: str) -> str:
+    """
+    Remove or replace characters in the filename that are not allowed in file names
+    on most operating systems, such as <, >, :, \", /, \\, |, ?, *, etc.
+    This function also removes any non-alphanumeric characters, except for dots,
+    hyphens, and underscores.
+    """
+    sanitized_name = re.sub(r'[^\w\s.-]', '', video_name)
+    sanitized_name = re.sub(r'\s+', ' ', sanitized_name)
+    return sanitized_name.strip()
+
 
 async def move_file(src: Path, dest: Path, cb=None) -> bool:
     """
@@ -87,10 +99,17 @@ async def move_file(src: Path, dest: Path, cb=None) -> bool:
         shutil.move(str(src), str(final_dest))
         print(t('video_saved_and_moved', final_dest))
         if cb is not None:
-            await cb(src, final_dest, True)
+            try:
+                await cb(src, final_dest, True)
+            except (PermissionError, FileNotFoundError):
+                reload_rules()
+                if cb is not None:
+                    await cb(src, None, False)
+                return False
         return True
-    except (shutil.Error, OSError):
+    except (shutil.Error, OSError, FileNotFoundError):
         print(t('error_move_file', os.path.basename(src)))
+        reload_rules()
         if cb is not None:
             await cb(src, None, False)
         return False
@@ -239,9 +258,11 @@ async def download_complete_action(video: ObjectData) -> None:
             complete_data_file(video)
             await add_line_to_text(video.reference_message, t('download_complete', video.video_name_cleaned),
                                    LINE_FOR_INFO_DATA)
+            await define_label(video.reference_message, TYPE_ACQUIRED)
         else:
             await add_line_to_text(video.reference_message, t('error_move_file', video.video_name_cleaned),
                                    LINE_FOR_SHOW_LAST_ERROR)
+            await define_label(video.reference_message, TYPE_ERROR)
 
     await move_file(file_path_source, file_path_dest, cb_move_file)
 
@@ -369,7 +390,28 @@ async def add_line_to_text(reference_message: Message, new_line: str, line_numbe
 
     # Unisce di nuovo le righe in una singola stringa
     if LOG_IN_PERSONAL_CHAT is True and reference_message is not None:
-        await reference_message.edit(builder.string)
+        try:
+            await reference_message.edit(builder.string)
+        except (MessageNotModifiedError, PermissionError) as er:
+            print(er.message)
+            pass
+
+async def define_label(reference_message: Message, label) -> None:
+    """
+    Add a new line to the text of the reference message.
+    """
+    from run import LOG_IN_PERSONAL_CHAT
+    # Divide il testo in righe
+    builder = StringBuilder(reference_message.text)
+    builder.define_label(label)
+
+    # Unisce di nuovo le righe in una singola stringa
+    if LOG_IN_PERSONAL_CHAT is True and reference_message is not None:
+        try:
+            await reference_message.edit(builder.string)
+        except (MessageNotModifiedError, PermissionError) as er:
+            print(er.message)
+            pass
 
 
 def save_video_data(data: dict, video: ObjectData, fields_to_compare=None) -> bool:

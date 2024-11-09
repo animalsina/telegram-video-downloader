@@ -7,6 +7,8 @@ import asyncio
 import json
 import os
 import traceback
+from asyncio import CancelledError
+from inspect import iscoroutine
 from pathlib import Path
 from typing import List, Union
 
@@ -19,15 +21,14 @@ from telethon.tl.types import MessageReplyHeader
 
 # Moduli locali
 from classes.object_data import ObjectData
-from command_watcher import CHECK_INTERVAL
 from func.config import load_configuration
 from func.messages import t
 from func.rules import load_rules
 from func.save_video_data_action import acquire_video
-from func.telegram_client import create_telegram_client, download_with_retry
+from func.telegram_client import create_telegram_client, download_with_retry, send_service_message, edit_service_message
 from classes.string_builder import LINE_FOR_VIDEO_NAME, LINE_FOR_INFO_DATA, StringBuilder, LINE_FOR_SHOW_LAST_ERROR
 from classes.attribute_object import AttributeObject
-from func.utils import add_line_to_text, save_video_data
+from func.utils import add_line_to_text, save_video_data, sanitize_video_name
 
 configuration = load_configuration()
 
@@ -38,8 +39,13 @@ all_messages: List[Message] = []
 replies_msg = []
 tasks = []
 sem = asyncio.Semaphore(configuration.max_simultaneous_file_to_download)
+interrupt = False
 
 CHECK_INTERVAL = 3
+
+quit_program = False
+start_download = True
+
 
 def load_all_video_data() -> list:
     """
@@ -97,8 +103,6 @@ async def download_with_limit(video: ObjectData):
     # Inizializza il semaforo per gestire i download simultanei
     try:
         async with sem:
-            if client.is_connected() is not True:
-                await client.start(configuration.phone)
             # Send a status message before starting the download
             try:
                 await add_line_to_text(
@@ -111,12 +115,16 @@ async def download_with_limit(video: ObjectData):
                 await download_with_retry(client, video)
             except Exception as e:
                 print(f"Error downloading {video.file_name}: {e}")
-                await add_line_to_text(getattr(video, "reference_message", None), f"Error: {e}", LINE_FOR_SHOW_LAST_ERROR)
+                await add_line_to_text(getattr(video, "reference_message", None), f"Error: {e}",
+                                       LINE_FOR_SHOW_LAST_ERROR)
+                pass
     except Exception as e:
         print(f"Error downloading {video.file_name}: {e}")
+        pass
     finally:
         # Eventualmente liberare altre risorse
         pass
+
 
 async def client_data():
     """
@@ -129,7 +137,7 @@ async def client_data():
 
     for chat in configuration.group_chats:
         print(t("retrieving_messages", chat))
-        async for message in client.iter_messages(chat, limit=1000): #type: Union[Message, MessageReplyHeader]
+        async for message in client.iter_messages(chat, limit=1000):  # type: Union[Message, MessageReplyHeader]
             message.chat_name = chat
             if message.reply_to_msg_id:
                 replies_msg.append(message)
@@ -143,6 +151,7 @@ async def client_data():
 
     # Delete previously created service messages
     # await delete_service_messages()
+
 
 async def get_video_task(video_data):
     """
@@ -202,7 +211,7 @@ async def get_video_task(video_data):
         if not is_file_corrupted(
                 video.file_path, document.size
         ):
-            await download_complete_action(video)
+            return await download_complete_action(video)
         else:
             await add_line_to_text(
                 reference_message,
@@ -213,8 +222,11 @@ async def get_video_task(video_data):
             os.remove(video.file_path)
         return False
 
+    download_data = await download_with_limit(video)
+
     # Queue the download task with the limit on simultaneous downloads
-    return asyncio.create_task(await download_with_limit(video))
+    return asyncio.create_task() if iscoroutine(download_data) else None
+
 
 async def main():
     """Main function to manage the Telegram client and download files."""
@@ -222,7 +234,6 @@ async def main():
     from run import root_dir, PERSONAL_CHAT_ID
     from func.utils import release_lock
     load_rules(Path(root_dir))
-    cancel_event = asyncio.Event()
 
     try:
         await client_data()
@@ -237,8 +248,6 @@ async def main():
         )
 
         videos_data = sorted_data
-        quit_program = False
-        start_download = False
         pending = []
 
         async def tg_message_handler(event):
@@ -253,32 +262,40 @@ async def main():
 
         async def tg_new_message_handler(event: NewMessage.Event):
             """NewMessage Handler"""
-            nonlocal quit_program, start_download
+            global quit_program, start_download, interrupt
             message = event.message
             setattr(message, 'chat_name', PERSONAL_CHAT_ID)
             text = message.text
             if text == 'quit':
                 quit_program = True
-                await message.edit(t('program_quit'))
-            if text == 'download:on':
+                await edit_service_message(message, t('program_quit'))
+                return
+            if text == 'download:on' or text == 'download:start':
                 start_download = True
-                await message.edit(t('download_enabled'))
+                interrupt = False
+                await edit_service_message(message, t('download_enabled'))
+                return
             if text == 'download:off':
-                start_download = True
-                await message.edit(t('download_disabled'))
+                start_download = False
+                await edit_service_message(message, t('download_disabled'))
+                return
             if text == 'download:stop':
                 start_download = False
-                cancel_event.set()
-                await message.edit(t('download_stopped'))
+                interrupt = True
+                await edit_service_message(message, t('download_stopped'))
+                return
             if text.startswith('rename:'):
                 new_name = text.replace('rename:', '')
+                video_name_cleaned = sanitize_video_name(new_name)
                 if message.reply_to is not None:
                     reply_message = await client.get_messages(PERSONAL_CHAT_ID, ids=message.reply_to.reply_to_msg_id)
                     _, video_object = get_video_object_by_message_id_reference(reply_message.id)
                     await add_line_to_text(reply_message, new_name, LINE_FOR_VIDEO_NAME, True)
-                    save_video_data({'video_name': new_name}, video_object, ['video_name'])
+                    save_video_data({'video_name': new_name, 'video_name_cleaned': video_name_cleaned}, video_object,
+                                    ['video_name'])
                     video_object.video_name = new_name
                     await message.delete()
+                return
 
             await acquire_video(message)
             return
@@ -297,18 +314,24 @@ async def main():
                     return video
             return None
 
-        await client.send_message(PERSONAL_CHAT_ID, t('program_start'))
+        await send_service_message(PERSONAL_CHAT_ID, t('program_start'))
         while True:
             if quit_program is True:
                 break
             if start_download is True:
                 # Name of a file, File object content
                 for video_data in videos_data or []:  # type: [str, ObjectData]
-                    tasks.append(await get_video_task(video_data))
+                    task = await get_video_task(video_data)
+                    if iscoroutine(task):
+                        tasks.append(task)
 
                 # Execute all queued tasks concurrently
-                done, pending = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED)
-                #await asyncio.gather(*tasks, return_exceptions=True)
+                try:
+                    if len(tasks) > 0:
+                        done, pending = await asyncio.wait(tasks, return_when=asyncio.ALL_COMPLETED)
+                except CancelledError as ce:
+                    print(t('cancel_download'))
+                # await asyncio.gather(*tasks, return_exceptions=True)
             await asyncio.sleep(CHECK_INTERVAL)
 
     except KeyboardInterrupt:

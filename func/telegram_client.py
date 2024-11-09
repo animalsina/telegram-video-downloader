@@ -27,6 +27,43 @@ def calculate_download_speed(current: int, time_elapsed: float, last_current: in
     return (current - last_current) / time_elapsed
 
 
+async def edit_service_message(message: Message, text, time_to_expire=30):
+    """
+    Edit service message, self-destruct after {time_to_expire} seconds
+    :param message:
+    :param text:
+    :param time_to_expire:
+    :return:
+    """
+
+    async def delete():
+        await asyncio.sleep(time_to_expire)
+        return await message.delete()
+
+    asyncio.create_task(delete())
+    await message.edit(text)
+
+
+async def send_service_message(chat_id, text, time_to_expire=30):
+    """
+    Service message, self-destruct after {time_to_expire} seconds
+    :param chat_id:
+    :param text:
+    :param time_to_expire:
+    :return:
+    """
+    from func.main import client, configuration
+    if client.is_connected() is False:
+        client.start(configuration.phone)
+    message = await client.send_message(chat_id, text)
+
+    async def delete():
+        await asyncio.sleep(time_to_expire)
+        return await message.delete()
+
+    asyncio.create_task(delete())
+
+
 def create_telegram_client(session_name: str, api_id: int, api_hash: str):
     """Create and return a new TelegramClient."""
     return TelegramClient(session_name, api_id, api_hash)
@@ -49,16 +86,19 @@ def format_time(seconds: float) -> str:
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
 
-async def progress_tracking(client: TelegramClient,
-                            progress: int, file_size: int, video: ObjectData,
-                            last_update_time: float, temp_file_path: str, last_current: int
-                            ):
+async def progress_tracking(
+        client: TelegramClient,
+        progress: int, file_size: int, video: ObjectData,
+        last_update_time: float, temp_file_path: str, last_current: int
+):
     """
     Track the download progress and update the status message.
     """
-    from run import root_dir
     from main import configuration
 
+    await add_line_to_text(video.reference_message, '', LINE_FOR_SHOW_LAST_ERROR)
+
+    # Initialize the progress bar
     with tqdm(total=file_size, initial=progress,
               desc=f"Downloading {video.video_id} - {video.file_name} -"
                    f" {video.video_name_cleaned}",
@@ -66,10 +106,6 @@ async def progress_tracking(client: TelegramClient,
         async def progress_callback(current: int, total: int):
             nonlocal last_current
             nonlocal last_update_time
-
-            if os.path.exists(os.path.join(root_dir, '.stop')):
-                os.remove(os.path.join(root_dir, '.stop'))
-                raise Exception('Stop forzato del download')  # pylint: disable=broad-exception-raised
 
             if total is not None:
                 percent_complete: float = (current / total) * 100
@@ -108,8 +144,15 @@ async def progress_tracking(client: TelegramClient,
         # Download the media to the temp file using iter_download
         async with client.iter_download(video.video_media, offset=progress,
                                         request_size=64 * 1024) as download_iter:
+            from func.main import interrupt
+            if interrupt is True:
+                return
+
             with open(temp_file_path, 'ab') as f:
                 async for chunk in download_iter:
+                    from func.main import interrupt
+                    if interrupt is True:
+                        return
                     f.write(chunk)
                     await progress_callback(f.tell(), file_size)
 
@@ -134,6 +177,10 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
     file_size = video.video_media.document.size
     temp_file_path = f"{video.file_path}.temp"
 
+    def is_interrupted():
+        from func.main import interrupt
+        return interrupt
+
     while attempt < retry_attempts:
         try:
             if os.path.exists(temp_file_path):
@@ -146,6 +193,15 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
 
             # Wait 3 seconds before to get temp file size
             await asyncio.sleep(3)
+
+            if is_interrupted() is True:
+                print(t('download_stopped'))
+                message = await client.get_messages(PERSONAL_CHAT_ID, ids=video.message_id_reference)
+                await add_line_to_text(message,
+                                       t('download_stopped', video.file_name),
+                                       LINE_FOR_INFO_DATA, True)
+                break
+
             temp_file_size = os.path.getsize(temp_file_path)
 
             tolerance = 0  # Tolerance in bytes, adjust as needed
@@ -192,11 +248,3 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
             await add_line_to_text(video.reference_message, f"‼️ Unexpected error: {str(error)}",
                                    LINE_FOR_SHOW_LAST_ERROR)
             break
-
-        finally:
-            # Release the file lock after each attempt
-            release_lock(configuration.lock_file)
-
-    else:
-        print("All retry attempts failed.")
-        release_lock(configuration.lock_file)

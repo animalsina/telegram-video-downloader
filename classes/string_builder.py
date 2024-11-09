@@ -15,12 +15,16 @@ ICON_FOR_LINE_ID = {
     "2": "🗃",
     "3": "⚖️",
     "4": "↕️",
-    "5": "📌"
+    "5": "📌",
+    "7": "⬇️",
+    "8": "‼️",
 }
 
 TYPE_ACQUIRED = '🟢'
 TYPE_DELETED = '❌'
 TYPE_COMPLETED = '✅'
+TYPE_ERROR = '‼️'
+TYPE_COMPRESSED = '📦'
 
 
 class StringBuilder:
