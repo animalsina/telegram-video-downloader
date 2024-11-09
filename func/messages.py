@@ -41,7 +41,7 @@ def get_message(language: str | None = None):
             'download_started': "⬇️ Downloading: {}%",
             'corrupted_file': "‼️ The file '{}' is corrupted. Re-downloading...",
             'download_complete': (
-                "✅ Download completed and moved: {} - Completed"
+                "Download completed and moved: {} - Completed"
             ),
             'error_move_file': "❌ Error moving file: {}",
             'not_found_file': "❌ File Not Found: {}",
@@ -85,7 +85,7 @@ def get_message(language: str | None = None):
             'download_started': "⬇️ Scaricando: {}%",
             'corrupted_file': "‼️ Il file '{}' è corrotto. Verrà riscaricato...",
             'download_complete': (
-                "✅ Download completato e spostato: {} - Completato"
+                "Download completato e spostato: {} - Completato"
             ),
             'error_move_file': "❌ Errore durante lo spostamento del file: {}",
             'not_found_file': "❌ File non trovato: {}",

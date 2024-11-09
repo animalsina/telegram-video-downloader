@@ -9,7 +9,7 @@ from telethon.tl.patched import Message
 from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo, MessageMediaDocument
 
 from classes.object_data import ObjectData
-from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED, TYPE_ACQUIRED
+from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED, TYPE_ACQUIRED, TYPE_COMPRESSED
 from func.rules import apply_rules
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
@@ -47,7 +47,7 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]):
     if video is None:
         return None
 
-    contains_link = any(link in message.text for link in [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED])
+    contains_link = any(link in message.text for link in [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED, TYPE_COMPRESSED])
     if message.text and contains_link is True:  # Ignore already acquired videos
         return None
 
@@ -69,7 +69,7 @@ async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
         document = getattr(message, 'document')
         text = getattr(message, 'text', '')
         from classes.string_builder import TYPE_ACQUIRED
-        contains_link = any(link in text for link in [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED])
+        contains_link = any(link in text for link in [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED, TYPE_COMPRESSED])
         if text and contains_link is True: # Ignore already acquired videos
             continue
         if hasattr(document, 'attributes') and not video_data_file_exists_by_ref_msg_id(message.id):
@@ -243,7 +243,6 @@ async def handle_forward_chat_protected(video_data, video):
                 }
             )),
         )
-
 
 def get_video_data_keys():
     """ Get the keys to save in video data. """
