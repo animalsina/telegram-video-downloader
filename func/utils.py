@@ -130,34 +130,6 @@ def is_file_corrupted(file_path: str, total_file_size: int) -> bool:
         return True
     return False
 
-
-def check_lock(lock_file: str):
-    """
-    Check if a lock file exists. If it does, print a message and exit the script.
-    """
-    if os.path.exists(lock_file):
-        print(t('script_running'))
-        sys.exit()
-
-
-def acquire_lock(lock_file: str):
-    """
-    Acquire a lock to prevent multiple instances of the script from running simultaneously.
-    If the lock file already exists, print a message and exit the script.
-    """
-    with open(lock_file, 'w', encoding='utf-8'):
-        pass
-
-
-def release_lock(lock_file: str):
-    """
-    Release the lock by deleting the lock file.
-    This allows other instances of the script to run.
-    """
-    if os.path.exists(lock_file):
-        os.remove(lock_file)
-
-
 async def compress_video_h265(input_file: Path, output_file: Path, crf=28, callback: callable(AnyStr | None) = None) -> bool:
     """
     Convert a video file from h264 to h265 using ffmpeg.
@@ -208,7 +180,6 @@ async def download_complete_action(video: ObjectData) -> None:
     """
     from func.config import load_configuration
     config = load_configuration()
-    acquire_lock(config.lock_file)
 
     mime_type, _ = mimetypes.guess_type(video.file_path)
     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
@@ -497,6 +468,9 @@ def default_video_message(video: ObjectData):
     """
     video_text = remove_markdown("".join(video.video_name.splitlines()))[:40]
     file_name = remove_markdown("".join(video.file_name.splitlines()))[:40]
+
+    if video.is_forward_chat_protected is True:
+        video_text = f"{video_text} (**Forward Chat Protected**)"
 
     builder = StringBuilder()
     builder.edit_in_line(f'🎥 **{video_text}**', LINE_FOR_VIDEO_NAME)

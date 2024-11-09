@@ -48,14 +48,15 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]):
         return None
 
     contains_link = any(link in message.text for link in [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED])
-    if message.text and contains_link is not True:  # Ignore already acquired videos
+    if message.text and contains_link is True:  # Ignore already acquired videos
         return None
 
     chat_name = getattr(video, 'chat_name') if hasattr(video, 'chat_name') else None
     video_data = await process_video(video, chat_name)
     if video_data and save_video_data(video_data, ObjectData(**video_data), get_video_data_keys()):
         print(f"Video saved: {video_data['original_video_name']}")
-        await video.delete()
+        if video_data["is_forward_chat_protected"] is not True:
+            await video.delete()
 
 
 async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
@@ -69,7 +70,7 @@ async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
         text = getattr(message, 'text', '')
         from classes.string_builder import TYPE_ACQUIRED
         contains_link = any(link in text for link in [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED])
-        if text and contains_link is not True: # Ignore already acquired videos
+        if text and contains_link is True: # Ignore already acquired videos
             continue
         if hasattr(document, 'attributes') and not video_data_file_exists_by_ref_msg_id(message.id):
             if any(isinstance(attr, DocumentAttributeVideo) for attr
@@ -90,8 +91,11 @@ def get_file_name_from_message(message):
     return None
 
 
-async def process_video(video: Message, chat_name: str):
-    """ Process each video message and return the video data dictionary. """
+async def process_video(video: Union[Message, MessageMediaDocument], chat_name: str):
+    """
+    Process a video message and return the video data dictionary.
+    Will recreate the video message and save the video data to a JSON file.
+    """
     video_data = initialize_video_data(video, chat_name)
 
     video_name = await get_video_name(video)
@@ -113,20 +117,23 @@ async def process_video(video: Message, chat_name: str):
     if video_data_file_exists_by_video_id(str(video_data["video_id"])):
         return None
 
+    if hasattr(video, 'noforwards') and video.noforwards is True:
+        video_data["is_forward_chat_protected"] = True
+
     message = await send_video_to_chat(video_data, video)
     video_data["message_id_reference"] = message.id if message else video.id
 
     return video_data
 
 
-def initialize_video_data(video: Message, chat_name: str):
+def initialize_video_data(video: Union[Message, MessageMediaDocument], chat_name: str):
     """ Initialize a dictionary to hold video data. """
     return {
         "id": video.id,
         "video_id": video.id,
         "video_text": video.text,
         "chat_name": chat_name,
-        "chat_id": PERSONAL_CHAT_ID,
+        "chat_id": video.chat.id,
         "pinned": video.pinned,
         "completed": False,
         "video_attribute": None,
@@ -228,11 +235,11 @@ async def handle_forward_chat_protected(video_data, video):
             PERSONAL_CHAT_ID,
             default_video_message(ObjectData(
                 **{
-                    "video_name":
-                        f"{video_data['video_name_cleaned']} (**Forward Chat Protected**)",
+                    "video_name": video_data['video_name_cleaned'],
                     "file_name": video_data["file_name"],
                     "video_attribute": video_data.get("video_attribute"),
                     "pinned": video.pinned,
+                    "is_forward_chat_protected": video_data['is_forward_chat_protected']
                 }
             )),
         )
