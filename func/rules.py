@@ -48,6 +48,8 @@ def set_rules(lines: Iterator[str], rule_file: str) -> None:
     """
     Set rules.
     """
+    global rules
+
     pattern = ConfigObject({
         'message': None,
         'folder': None,
@@ -119,6 +121,8 @@ def completed_task(input_value: str):
     """
     Apply rules to input and returns edited output.
     """
+    global rules
+
     for rule in rules['message']:
         completed_folder_mask = getattr(rule, 'completed_folder_mask')
         if completed_folder_mask is not None:
@@ -139,6 +143,8 @@ def translate_string(input_value: str, chat: Union[Message, MessageMediaDocument
     """
     Apply rules to input and returns edited output.
     """
+    global rules
+
     for rule in rules['message']:
         pattern = rule.pattern
         rule_chat_id = pattern.chat_id or None
