@@ -74,6 +74,7 @@ def get_message(language: str | None = None):
             'download_disabled': "Download disabled",
             'program_quit': "Program quit",
             'cancel_download': "Download canceled",
+            'rules_reloaded': "Rules reloaded",
         },
         'it': {
             'start_connection': "Inizio connessione al client...",
@@ -122,6 +123,7 @@ def get_message(language: str | None = None):
             'download_disabled': "Download disabilitato",
             'program_quit': "Programma terminato",
             'cancel_download': "Download annullato",
+            'rules_reloaded': "Regole ricaricate"
         }
     }
     # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese

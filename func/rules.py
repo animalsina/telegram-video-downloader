@@ -23,15 +23,28 @@ def load_rules(root_directory: Path):
     """
     Load both rules from .rule files in the specified directory.
     """
+    from utils import safe_getattr
+    global rules
 
+    rules = {'message': []}
     rule_files = os.path.join(root_directory, 'rules', '*.rule')
     for rule_file in glob.glob(rule_files):
         with open(rule_file, 'r', encoding='utf-8') as f:
-            set_rules(f)
+            set_rules(f, rule_file)
+
+    rules['message'] = sorted(
+        rules['message'],
+        key=lambda rule: (
+            safe_getattr(rule.pattern, 'chat_id'),
+            safe_getattr(rule.pattern, 'chat_name'),
+            safe_getattr(rule.pattern, 'chat_title')
+        ),
+        reverse=True
+    )
 
     return rules
 
-def set_rules(lines: Iterator[str]) -> None:
+def set_rules(lines: Iterator[str], rule_file: str) -> None:
     """
     Set rules.
     """
@@ -45,7 +58,8 @@ def set_rules(lines: Iterator[str]) -> None:
     update_data = ConfigObject({
         'pattern': pattern,
         'translate': None,
-        'completed_folder_mask': None
+        'completed_folder_mask': None,
+        'file_name': rule_file
     })
 
     for line in lines:
@@ -137,7 +151,7 @@ def translate_string(input_value: str, chat: Union[Message, MessageMediaDocument
             chat_id = chat.chat_id
             forward = chat.forward
             sender = forward.sender if hasattr(forward, 'sender') else None
-            if chat.is_channel is True and isinstance(forward, Forward) and forward is not None:
+            if forward.is_channel is True and isinstance(forward, Forward) and forward is not None:
                 if forward.chat is not None:
                     chat_title = chat.forward.chat.title
                     chat_name = chat.forward.chat.username
