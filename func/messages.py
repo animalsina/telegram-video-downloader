@@ -69,7 +69,10 @@ def get_message(language: str | None = None):
             'complete_compress_file': "✅ Complete compression of the file {}",
             'trace_compress_action': "🗜️ estimated missing time to complete the compression: {}",
             'download_stopped': "Download stopped",
-            'program_start': "Program is ready!"
+            'program_start': "Program is ready!",
+            'download_enabled': "Download enabled",
+            'download_disabled': "Download disabled",
+            'program_quit': "Program quit",
         },
         'it': {
             'start_connection': "Inizio connessione al client...",
@@ -113,7 +116,10 @@ def get_message(language: str | None = None):
             'complete_compress_file': "✅ Completamento compressione del file {}",
             'trace_compress_action': "🗜️ tempo mancante stimato per compressione: {}",
             'download_stopped': "Download fermato",
-            'program_start': "Programma pronto!"
+            'program_start': "Programma pronto!",
+            'download_enabled': "Download abilitato",
+            'download_disabled': "Download disabilitato",
+            'program_quit': "Programma terminato",
         }
     }
     # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese
