@@ -13,7 +13,7 @@ from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED
 from func.rules import apply_rules
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
-                        video_data_file_exists_by_ref_msg_id, is_video_file, save_video_data)
+                        video_data_file_exists_by_ref_msg_id, is_video_file, save_video_data, sanitize_video_name)
 from run import LOG_IN_PERSONAL_CHAT, PERSONAL_CHAT_ID
 
 
@@ -59,8 +59,10 @@ async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
     from func.main import all_messages
     videos: List[Union[MessageMediaDocument, Message]] = []
     for message in all_messages:
+        if isinstance(message, Message) is not True:
+            continue
         document = getattr(message, 'document')
-        text = getattr(message, 'text')
+        text = getattr(message, 'text', '')
         from classes.string_builder import TYPE_ACQUIRED
         contains_link = any(link in text for link in [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED])
         if text and contains_link is not True: # Ignore already acquired videos
@@ -95,6 +97,7 @@ async def process_video(video: Message, chat_name: str):
     video_data['original_video_name'] = video_name
     video_name = apply_rules('translate', video_name, video)
     video_data["video_name"] = video_name
+    video_data["video_name_cleaned"] =  sanitize_video_name(video_name)
     video_data["file_name"] = await get_file_name(video, video_name)
 
     if video_data["file_name"] is None:

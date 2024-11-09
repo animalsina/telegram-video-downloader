@@ -106,10 +106,11 @@ def completed_task(input_value: str):
     Apply rules to input and returns edited output.
     """
     for rule in rules['message']:
-        completed_folder_mask = rule.get('completed_folder_mask')
+        completed_folder_mask = getattr(rule, 'completed_folder_mask')
         if completed_folder_mask is not None:
-            pattern = rule['pattern']
-            match = re.match(pattern.folder, input_value)
+            pattern = getattr(rule, 'pattern')
+            pattern_folder = getattr(pattern, 'folder') or ''
+            match = re.match(pattern_folder, input_value)
             completed_folder = None
             if match is not None:
                 for i, valore in enumerate(match.groups()):
@@ -135,14 +136,14 @@ def translate_string(input_value: str, chat: Union[Message, MessageMediaDocument
         if chat is not None and isinstance(chat, (Message, MessageMediaDocument)):
             chat_id = chat.chat_id
             forward = chat.forward
-            sender = chat.forward.sender if hasattr(forward, 'sender') else None
+            sender = forward.sender if hasattr(forward, 'sender') else None
             if chat.is_channel is True and isinstance(forward, Forward) and forward is not None:
                 if forward.chat is not None:
                     chat_title = chat.forward.chat.title
                     chat_name = chat.forward.chat.username
-            if chat.is_private is True and sender is not None and sender.bot is True:
-                chat_title = sender.first_name
-                chat_name = sender.username
+            if chat.is_private is True and sender is not None and hasattr(sender, 'bot') and sender.bot is True:
+                chat_title = sender.first_name or ''
+                chat_name = sender.username or ''
         if rule_chat_id is not None and rule_chat_id != chat_id:
             continue
         if rule_chat_name is not None and rule_chat_name != chat_name:
@@ -154,3 +155,11 @@ def translate_string(input_value: str, chat: Union[Message, MessageMediaDocument
         if match:
             return safe_format(action, *match.groups())
     return input_value
+
+def reload_rules():
+    """
+    Reload rules
+    :return:
+    """
+    from run import root_dir
+    load_rules(root_dir)
