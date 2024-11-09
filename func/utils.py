@@ -229,7 +229,7 @@ async def download_complete_action(video: ObjectData) -> None:
             await add_line_to_text(video.message_id_reference, t('download_complete', str(target)[:44]),
                                    LINE_FOR_INFO_DATA)
             await define_label(video.message_id_reference, TYPE_COMPLETED)
-            if video.is_forward_chat_protected is False:
+            if video.is_forward_chat_protected is not True:
                 remove_video_data(video)
         else:
             await add_line_to_text(video.message_id_reference, t('error_move_file', str(target)[:44]),
