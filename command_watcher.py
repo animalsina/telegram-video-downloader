@@ -1,3 +1,6 @@
+"""
+Command watcher module for run the program
+"""
 import asyncio
 import os
 import sys
@@ -25,19 +28,29 @@ PERSONAL_CHAT_ID = 'me'
 LOG_IN_PERSONAL_CHAT = False
 
 async def list_commands():
+    """
+    List commands
+    """
     commands = command_handler.list_commands()
     text = f'Lista comandi: {", ".join(commands)}'
     if LOG_IN_PERSONAL_CHAT is True:
         await client.send_message(PERSONAL_CHAT_ID, text)
 
 async def stop_download():
+    """
+    Stop download
+    """
     file_path = os.path.join(root_dir, '.stop')
     if not os.path.exists(file_path):
-        open(file_path, 'a').close()
+        with open(file_path, 'a', encoding='utf-8'):
+            pass
 
 # TODO: completare questa funzione aggiungendo i dati dal file video data associato.
 #   passa come argomento il target.
 async def rename_video_data_file(target):
+    """
+    Rename video data file
+    """
     save_video_data({}, target)
 
 command_handler.add_command("list", list_commands)
@@ -45,16 +58,22 @@ command_handler.add_command("stop", stop_download)
 command_handler.add_command("rename", rename_video_data_file)
 
 async def get_user_id():
+    """
+    Get user id
+    """
     me = await client.get_me()
     print("ID Utente:", me.id)
     return me.id
 
 async def monitor_chat():
+    """
+    Monitor chat
+    """
     await client.start(configuration.phone)
     user_id = await get_user_id()
 
     #@client.on(events.NewMessage(chats=user_id)) # noqa: F811
-    async def message_handler(event):  # pylint: disable=unused-function
+    async def message_handler(event):
         message = event.message
         text = message.message
         if text.startswith(COMMAND_PREFIX):

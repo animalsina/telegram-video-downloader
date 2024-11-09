@@ -1,4 +1,11 @@
+"""
+Module for managing object attributes.
+"""
+
 class AttributeObject:
+    """
+    Class for storing attributes of an object.
+    """
     def __init__(self, **kwargs):
         self.w: int
         self.h: int

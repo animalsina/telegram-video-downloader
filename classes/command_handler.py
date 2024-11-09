@@ -1,13 +1,20 @@
+"""
+CommandHandler
+"""
 import inspect
 import re
+from typing import Any
 
 COMMAND_PREFIX = "."  # prefisso dei comandi
 
 class CommandHandler:
+    """
+    CommandHandler
+    """
     def __init__(self):
         self.commands = {}
 
-    def add_command(self, command, callback, args=None):
+    def add_command(self, command: str, callback: callable(Any), args=None):
         """Aggiungi un comando all'elenco dei comandi."""
         command_with_prefix = f'{COMMAND_PREFIX}{command}'
         self.commands[command_with_prefix] = {'callback': callback, 'args': args}
@@ -16,7 +23,7 @@ class CommandHandler:
         """Restituisce l'elenco dei comandi disponibili."""
         return list(self.commands.keys())
 
-    async def detect_and_execute(self, text, extra_args=None):
+    async def detect_and_execute(self, text: str, extra_args=None):
         """Esegue il comando se presente nel testo."""
         for command, details in self.commands.items():
             match = re.match(rf"^{re.escape(command)}\s*(.*)$", text)
