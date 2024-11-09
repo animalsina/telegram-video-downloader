@@ -243,6 +243,8 @@ def remove_video_data(video: ObjectData):
     """
     Remove the video data file based on the video object.
     """
+    if video is None:
+        return
     if os.path.isfile(get_video_data_full_path(video)):
         os.remove(str(get_video_data_full_path(video)))
 
