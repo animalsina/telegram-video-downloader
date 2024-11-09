@@ -69,9 +69,9 @@ def create_telegram_client(session_name: str, api_id: int, api_hash: str):
     return TelegramClient(session_name, api_id, api_hash)
 
 
-async def update_download_message(reference_message: Message, percent: float, time_remaining_formatted: str):
+async def update_download_message(message_id: str, percent: float, time_remaining_formatted: str):
     """Update the status message with the download progress and time remaining."""
-    await add_line_to_text(reference_message,
+    await add_line_to_text(message_id,
                            f"⬇️ Download: {percent:.2f}% - {time_remaining_formatted}",
                            LINE_FOR_INFO_DATA)
 
@@ -95,7 +95,7 @@ async def progress_tracking(
     """
     from main import configuration
 
-    await add_line_to_text(video.reference_message, '', LINE_FOR_SHOW_LAST_ERROR)
+    await add_line_to_text(video.message_id_reference, '', LINE_FOR_SHOW_LAST_ERROR)
 
     # Initialize the progress bar
     with tqdm(total=file_size, initial=progress,
@@ -128,7 +128,7 @@ async def progress_tracking(
                 # Update the status message every 3 seconds
                 if current_time - last_update_time >= 3:
                     time_remaining_formatted = format_time(time_remaining)
-                    await update_download_message(video.reference_message,
+                    await update_download_message(video.message_id_reference,
                                                   percent_complete,
                                                   time_remaining_formatted)
                     last_update_time = current_time
@@ -186,6 +186,10 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
     temp_file_path = f"{video.file_path}.temp"
 
     def is_interrupted():
+        """
+        Check if the download is interrupted
+        :return:
+        """
         from func.main import interrupt
         return interrupt
 
@@ -204,8 +208,7 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
 
             if is_interrupted() is True:
                 print(t('download_stopped'))
-                message = await client.get_messages(PERSONAL_CHAT_ID, ids=video.message_id_reference)
-                await add_line_to_text(message,
+                await add_line_to_text(video.message_id_reference,
                                        t('download_stopped', video.file_name),
                                        LINE_FOR_INFO_DATA, True)
                 break
@@ -223,12 +226,12 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
                     if not is_file_corrupted(video.file_path, file_size):
                         await download_complete_action(video)
                         return
-                    await add_line_to_text(video.reference_message,
+                    await add_line_to_text(video.message_id_reference,
                                            t('corrupted_file', video.file_name),
                                            LINE_FOR_SHOW_LAST_ERROR)
                     print(t('corrupted_file', video.file_name))
                 return
-            await add_line_to_text(video.reference_message,
+            await add_line_to_text(video.message_id_reference,
                                    t('file_mismatch_error', video.video_name),
                                    LINE_FOR_SHOW_LAST_ERROR)
             os.remove(temp_file_path)
@@ -239,7 +242,7 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
         except FloodWaitError as e:
             wait_time = e.seconds + 10  # Add a buffer time for safety
             print(f"Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
-            await add_line_to_text(video.reference_message,
+            await add_line_to_text(video.message_id_reference,
                                    t('rate_limit_exceeded_error', wait_time),
                                    LINE_FOR_SHOW_LAST_ERROR)
             await asyncio.sleep(wait_time)
@@ -247,12 +250,12 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
 
         except (OSError, IOError) as e:
             print(f"File system error: {str(e)}")
-            await add_line_to_text(video.reference_message, t('file_system_error', str(e)),
+            await add_line_to_text(video.message_id_reference, t('file_system_error', str(e)),
                                    LINE_FOR_SHOW_LAST_ERROR)
             break
 
         except Exception as error:  # pylint: disable=broad-exception-caught
             print(f"Unexpected error: {str(error)}")
-            await add_line_to_text(video.reference_message, f"‼️ Unexpected error: {str(error)}",
+            await add_line_to_text(video.message_id_reference, f"‼️ Unexpected error: {str(error)}",
                                    LINE_FOR_SHOW_LAST_ERROR)
             break

@@ -8,7 +8,6 @@ import json
 import mimetypes
 import os
 import shutil
-import sys
 import re
 
 from pathlib import Path
@@ -16,17 +15,17 @@ from typing import AnyStr
 
 import ffmpeg
 from telethon.errors import MessageNotModifiedError
-from telethon.tl.patched import Message
 
 from classes.attribute_object import AttributeObject
 from classes.string_builder import (StringBuilder, LINE_FOR_INFO_DATA,
                                     LINE_FOR_SHOW_LAST_ERROR, TYPE_ACQUIRED,
                                     LINE_FOR_FILE_DIMENSION, LINE_FOR_PINNED_VIDEO,
                                     LINE_FOR_VIDEO_NAME,
-                                    LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE, TYPE_ERROR)
+                                    LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE, TYPE_ERROR, TYPE_COMPLETED)
 from func.messages import t
 from func.rules import apply_rules, reload_rules
 from classes.object_data import ObjectData
+from run import PERSONAL_CHAT_ID
 
 VIDEO_EXTENSIONS = (
     ['.mp4', '.mkv', '.avi', '.mov', '.wmv', '.flv', '.webm', '.mpv']
@@ -195,13 +194,13 @@ async def download_complete_action(video: ObjectData) -> None:
     file_path_dest = Path(str(completed_file_path))
 
     async def compression_message(time_info):
-        await add_line_to_text(video.reference_message, t('trace_compress_action', time_info),
+        await add_line_to_text(video.message_id_reference, t('trace_compress_action', time_info),
                                LINE_FOR_INFO_DATA)
 
     if config.enable_video_compression:
         print(t('start_compress_file', file_path_source))
 
-        await add_line_to_text(video.reference_message, t('start_compress_file', file_path_source),
+        await add_line_to_text(video.message_id_reference, t('start_compress_file', str(file_path_source)[:44]),
                                LINE_FOR_INFO_DATA)
         file_path_c = Path(str(video.file_path))
         converted_file_path = file_path_c.with_name(
@@ -211,15 +210,15 @@ async def download_complete_action(video: ObjectData) -> None:
             file_path_source.unlink()
             file_path_source = converted_file_path
             print(t('complete_compress_file', file_path_source))
-            await add_line_to_text(video.reference_message, t('complete_compress_file', file_path_source),
+            await add_line_to_text(video.message_id_reference, t('complete_compress_file', str(file_path_source)[:44]),
                                    LINE_FOR_INFO_DATA)
         else:
             print(t('cant_compress_file', file_path_source))
-            await add_line_to_text(video.reference_message, t('cant_compress_file', file_path_source),
+            await add_line_to_text(video.message_id_reference, t('cant_compress_file', str(file_path_source)[:44]),
                                    LINE_FOR_SHOW_LAST_ERROR)
             raise Exception(t('cant_compress_file', file_path_source))  # pylint: disable=broad-exception-raised
 
-    await add_line_to_text(video.reference_message, t('ready_to_move', video.video_name_cleaned),
+    await add_line_to_text(video.message_id_reference, t('ready_to_move', str(file_path_dest)[:44]),
                            LINE_FOR_INFO_DATA)
 
     print(t('ready_to_move', video.video_name_cleaned))
@@ -227,13 +226,15 @@ async def download_complete_action(video: ObjectData) -> None:
     async def cb_move_file(src, target, result):
         if result:
             complete_data_file(video)
-            await add_line_to_text(video.reference_message, t('download_complete', video.video_name_cleaned),
+            await add_line_to_text(video.message_id_reference, t('download_complete', str(target)[:44]),
                                    LINE_FOR_INFO_DATA)
-            await define_label(video.reference_message, TYPE_ACQUIRED)
+            await define_label(video.message_id_reference, TYPE_COMPLETED)
+            if video.is_forward_chat_protected is False:
+                remove_video_data(video)
         else:
-            await add_line_to_text(video.reference_message, t('error_move_file', video.video_name_cleaned),
+            await add_line_to_text(video.message_id_reference, t('error_move_file', str(target)[:44]),
                                    LINE_FOR_SHOW_LAST_ERROR)
-            await define_label(video.reference_message, TYPE_ERROR)
+            await define_label(video.message_id_reference, TYPE_ERROR)
 
     await move_file(file_path_source, file_path_dest, cb_move_file)
 
@@ -350,36 +351,46 @@ def load_config(file_path: str):
     return config_data
 
 
-async def add_line_to_text(reference_message: Message, new_line: str, line_number: int, with_default_icon: bool = False) -> None:
+async def add_line_to_text(message_id: str, new_line: str, line_number: int, with_default_icon: bool = False) -> None:
     """
     Add a new line to the text of the reference message.
     """
     from run import LOG_IN_PERSONAL_CHAT
+    from func.main import client
     # Divide il testo in righe
-    builder = StringBuilder(reference_message.text)
+
+    message = await client.get_messages(PERSONAL_CHAT_ID, ids=message_id) # get realtime info
+    text = message.text
+
+    builder = StringBuilder(text)
     builder.edit_in_line(new_line, line_number, with_default_icon)
 
     # Unisce di nuovo le righe in una singola stringa
-    if LOG_IN_PERSONAL_CHAT is True and reference_message is not None:
+    if LOG_IN_PERSONAL_CHAT is True and message is not None:
         try:
-            await reference_message.edit(builder.string)
+            await message.edit(builder.string)
         except (MessageNotModifiedError, PermissionError) as er:
             print(er.message)
             pass
 
-async def define_label(reference_message: Message, label) -> None:
+async def define_label(message_id: str, label) -> None:
     """
     Add a new line to the text of the reference message.
     """
     from run import LOG_IN_PERSONAL_CHAT
+    from func.main import client
+
+    message = await client.get_messages(PERSONAL_CHAT_ID, ids=message_id)  # get realtime info
+    text = message.text
+
     # Divide il testo in righe
-    builder = StringBuilder(reference_message.text)
+    builder = StringBuilder(text)
     builder.define_label(label)
 
     # Unisce di nuovo le righe in una singola stringa
-    if LOG_IN_PERSONAL_CHAT is True and reference_message is not None:
+    if LOG_IN_PERSONAL_CHAT is True and message is not None:
         try:
-            await reference_message.edit(builder.string)
+            await message.edit(builder.string)
         except (MessageNotModifiedError, PermissionError) as er:
             print(er.message)
             pass

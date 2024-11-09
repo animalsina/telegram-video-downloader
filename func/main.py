@@ -7,7 +7,7 @@ import asyncio
 import json
 import os
 import traceback
-from asyncio import CancelledError
+from asyncio import CancelledError, create_task
 from inspect import iscoroutine
 from pathlib import Path
 from typing import Coroutine
@@ -111,7 +111,7 @@ async def download_with_limit(video: ObjectData):
             # Send a status message before starting the download
             try:
                 await add_line_to_text(
-                    getattr(video, "reference_message", None),
+                    getattr(video, "message_id_reference", None),
                     t("download_video"),
                     LINE_FOR_INFO_DATA,
                 )
@@ -120,7 +120,7 @@ async def download_with_limit(video: ObjectData):
                 await download_with_retry(client, video)
             except Exception as e:
                 print(f"Error downloading {video.file_name}: {e}")
-                await add_line_to_text(getattr(video, "reference_message", None), f"Error: {e}",
+                await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
                                        LINE_FOR_SHOW_LAST_ERROR)
                 pass
     except Exception as e:
@@ -203,13 +203,12 @@ async def get_video_task(video_object: ObjectData):
         # Ignora l'errore se il messaggio non è stato modificato
         pass
 
-    video_object.reference_message = reference_message
     document = getattr(video_object.video_media, 'document', None)
 
     # Check if the file already exists
     if os.path.exists(video_object.file_path):
         await add_line_to_text(
-            reference_message,
+            reference_message.id,
             t("ready_to_move", video_object.file_name),
             LINE_FOR_INFO_DATA,
         )
@@ -222,7 +221,7 @@ async def get_video_task(video_object: ObjectData):
             return await download_complete_action(video_object)
         else:
             await add_line_to_text(
-                reference_message,
+                reference_message.id,
                 t("corrupted_file", video_object.file_name),
                 LINE_FOR_SHOW_LAST_ERROR,
             )
@@ -233,7 +232,7 @@ async def get_video_task(video_object: ObjectData):
     download_data = download_with_limit(video_object)
 
     # Queue the download task with the limit on simultaneous downloads
-    return asyncio.create_task(download_data) if iscoroutine(download_data) else None
+    return download_data if iscoroutine(download_data) else False
 
 
 async def main():
@@ -313,7 +312,7 @@ async def main():
                         reply_message = await client.get_messages(PERSONAL_CHAT_ID,
                                                                   ids=message.reply_to.reply_to_msg_id)
                         _, video_object = get_video_object_by_message_id_reference(reply_message.id)
-                        await add_line_to_text(reply_message, new_name, LINE_FOR_VIDEO_NAME, True)
+                        await add_line_to_text(reply_message.id, new_name, LINE_FOR_VIDEO_NAME, True)
                         save_video_data({'video_name': new_name, 'video_name_cleaned': video_name_cleaned},
                                         video_object,
                                         ['video_name'])
@@ -350,9 +349,9 @@ async def main():
                 # Name of a file, File object content
                 tasks = []
                 for _, video_data in videos_data or []:  # type: [str, ObjectData]
-                    task = get_video_task(video_data)
-                    if iscoroutine(task) and any(video_id == video_data.video_id for video_id in run_list) is False:
-                        tasks.append(task)
+                    task = await get_video_task(video_data)
+                    if task is not False and any(video_id == video_data.video_id for video_id in run_list) is False:
+                        tasks.append(create_task(task))
                         run_list.append(video_data.video_id)
 
                 # Execute all queued tasks concurrently
@@ -361,7 +360,6 @@ async def main():
                         await asyncio.gather(*tasks, return_exceptions=True)
                 except CancelledError:
                     print(t('cancel_download'))
-                # await asyncio.gather(*tasks, return_exceptions=True)
             await asyncio.sleep(CHECK_INTERVAL)
 
     except KeyboardInterrupt:
