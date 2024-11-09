@@ -10,7 +10,6 @@ import traceback
 from asyncio import CancelledError, create_task
 from inspect import iscoroutine
 from pathlib import Path
-from typing import Coroutine
 from typing import List, Union
 
 # Moduli di terze parti
@@ -19,13 +18,12 @@ from telethon import events
 from telethon.events import NewMessage
 from telethon.tl.types import Message
 from telethon.tl.types import MessageReplyHeader
-from typing_extensions import runtime
 
 # Moduli locali
 from classes.object_data import ObjectData
 from func.config import load_configuration
 from func.messages import t
-from func.rules import load_rules
+from func.rules import load_rules, reload_rules
 from func.save_video_data_action import acquire_video
 from func.telegram_client import (
     create_telegram_client, download_with_retry,
@@ -276,6 +274,31 @@ async def main():
             text = message.text
 
             if is_personal_chat:
+                if text == 'help':
+                    help_text = "quit: Quit the program\n" \
+                           "status: Show the current configuration\n" \
+                           "download:start: Start the download\n" \
+                           "download:stop: Stop the download\n" \
+                           "download:off: Disable the download\n" \
+                           "download:on: Enable the download\n" \
+                           "rules:reload: Reload the rules\n" \
+                           "rules:show: Show the rules\n" \
+                           "rename: <name>: Rename the video\n"
+                    await edit_service_message(message, help_text, 100)
+                if text == 'rules:show':
+                    from func.rules import rules
+                    for rule in rules['message']:
+                        rules_text = (
+                            f"pattern: {vars(rule.pattern)}\n"
+                            f"translate: {rule.translate}\n"
+                            f"completed_folder_mask: {rule.completed_folder_mask}"
+                        )
+                        await message.delete()
+                        await send_service_message(PERSONAL_CHAT_ID, rules_text, 100)
+                if text == 'rules:reload':
+                    reload_rules()
+                    await edit_service_message(message, t('rules_reloaded'))
+                    return
                 if text == 'status':
                     exclude_keys = ["api_id", "api_hash"]
                     config_dict = vars(configuration)

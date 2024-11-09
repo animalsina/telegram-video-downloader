@@ -351,6 +351,18 @@ def load_config(file_path: str):
     return config_data
 
 
+def safe_getattr(obj, attr, default=''):
+    """
+    Restituisce il valore dell'attributo se esiste, altrimenti restituisce un valore di default.
+    Gestisce anche i casi in cui l'attributo non è una stringa o è None.
+    """
+    value = getattr(obj, attr, default)
+
+    # Se il valore non è una stringa o è None, restituisci una stringa vuota
+    if not isinstance(value, str):
+        return ''
+    return value
+
 async def add_line_to_text(message_id: str, new_line: str, line_number: int, with_default_icon: bool = False) -> None:
     """
     Add a new line to the text of the reference message.
