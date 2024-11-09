@@ -9,7 +9,7 @@ from telethon.tl.patched import Message
 from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo, MessageMediaDocument
 
 from classes.object_data import ObjectData
-from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED
+from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED, TYPE_ACQUIRED
 from func.rules import apply_rules
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
@@ -45,6 +45,10 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]):
                 video = message
 
     if video is None:
+        return None
+
+    contains_link = any(link in message.text for link in [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED])
+    if message.text and contains_link is not True:  # Ignore already acquired videos
         return None
 
     chat_name = getattr(video, 'chat_name') if hasattr(video, 'chat_name') else None
