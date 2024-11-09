@@ -62,6 +62,7 @@ async def send_service_message(chat_id, text, time_to_expire=10):
         return await message.delete()
 
     asyncio.create_task(delete())
+    return message
 
 
 def create_telegram_client(session_name: str, api_id: int, api_hash: str):

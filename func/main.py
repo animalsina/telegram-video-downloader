@@ -6,6 +6,7 @@ Main module for run the program
 import asyncio
 import json
 import os
+import shutil
 import traceback
 from asyncio import CancelledError, create_task
 from inspect import iscoroutine
@@ -32,7 +33,7 @@ from classes.string_builder import (
     LINE_FOR_VIDEO_NAME, LINE_FOR_INFO_DATA,
     StringBuilder, LINE_FOR_SHOW_LAST_ERROR)
 from classes.attribute_object import AttributeObject
-from func.utils import add_line_to_text, save_video_data, sanitize_video_name
+from func.utils import add_line_to_text, save_video_data, sanitize_video_name, sanitize_filename, remove_video_data
 
 configuration = load_configuration()
 
@@ -237,9 +238,12 @@ async def main():
     """Main function to manage the Telegram client and download files."""
     from func.save_video_data_action import save_video_data_action
     from run import root_dir, PERSONAL_CHAT_ID
+    global quit_program, start_download, interrupt
     load_rules(Path(root_dir))
     videos_data = []
     run_list = []
+    rules_registered: dict = {}
+    can_delete_rules=False
 
     try:
         await client_data()
@@ -259,10 +263,44 @@ async def main():
             Message Handler
             """
             message_data = event.message
+            user_id = await get_user_id()
+            is_personal_chat = message_data.chat.id == user_id
             text = message_data.message
-            builder = StringBuilder(text)
-            video_name = builder.get_line(LINE_FOR_VIDEO_NAME)
-            print(video_name)
+
+            if is_personal_chat:
+                await edit_rules(message_data, text)
+                return
+
+        async def edit_rules(message, new_rule_text):
+            nonlocal rules_registered
+            if rules_registered.get(message.id):
+                rule_data = rules_registered[message.id]
+                with open(rule_data.file_name, 'w', encoding='utf-8') as file:
+                    file.write(new_rule_text)
+                await send_service_message(PERSONAL_CHAT_ID, t('rule_updated', rule_data.file_name))
+                reload_rules()
+                await send_service_message(PERSONAL_CHAT_ID, t('rules_reloaded'))
+
+        @client.on(events.MessageDeleted)
+        async def tg_deleted_message_handler(event): # pylint: disable=unused-function
+            """Deleted Message Handler"""
+
+            async def remove_rules(del_message_id):
+                """Remove rules"""
+                nonlocal rules_registered, can_delete_rules
+                if rules_registered.get(del_message_id) and can_delete_rules is True:
+                    rule_data = rules_registered[del_message_id]
+                    shutil.move(rule_data.file_name,
+                                rule_data.file_name + '.deleted')  # Move the file to a deleted folder
+                    reload_rules()
+                    can_delete_rules = False
+                    await client.delete_messages(PERSONAL_CHAT_ID, message_ids=list(rules_registered.keys()))
+                    await send_service_message(PERSONAL_CHAT_ID, t('rules_reloaded'))
+                    await send_service_message(PERSONAL_CHAT_ID, t('rule_deleted', rule_data.file_name))
+
+            for message_id in event.deleted_ids:
+                remove_video_data(get_video_object_by_message_id_reference(message_id))
+                await remove_rules(message_id)
 
         async def tg_new_message_handler(event: NewMessage.Event):
             """NewMessage Handler"""
@@ -276,25 +314,82 @@ async def main():
             if is_personal_chat:
                 if text == 'help':
                     help_text = "quit: Quit the program\n" \
-                           "status: Show the current configuration\n" \
-                           "download:start: Start the download\n" \
-                           "download:stop: Stop the download\n" \
-                           "download:off: Disable the download\n" \
-                           "download:on: Enable the download\n" \
-                           "rules:reload: Reload the rules\n" \
-                           "rules:show: Show the rules\n" \
-                           "rename: <name>: Rename the video\n"
+                                "status: Show the current configuration\n" \
+                                "download:start: Start the download\n" \
+                                "download:stop: Stop the download\n" \
+                                "download:off: Disable the download\n" \
+                                "download:on: Enable the download\n" \
+                                "rules:reload: Reload the rules\n" \
+                                "rules:show: Show the rules\n" \
+                                "rules:add (name of file): Register a new rule\n" \
+                                "rules:edit: Edit the rules\n" \
+                                "rules:delete: Delete the rules\n" \
+                                "rename: <name>: Rename the video\n"
                     await edit_service_message(message, help_text, 100)
                 if text == 'rules:show':
                     from func.rules import rules
+                    await message.delete()
                     for rule in rules['message']:
                         rules_text = (
                             f"pattern: {vars(rule.pattern)}\n"
                             f"translate: {rule.translate}\n"
                             f"completed_folder_mask: {rule.completed_folder_mask}"
                         )
-                        await message.delete()
                         await send_service_message(PERSONAL_CHAT_ID, rules_text, 100)
+                    return
+                if text == 'rules:edit':
+                    from func.rules import rules
+                    await message.delete()
+                    await send_service_message(PERSONAL_CHAT_ID, t('rules_edit', 300), 300)
+                    for rule in rules['message']:
+                        with open(rule.file_name, 'r', encoding='utf-8') as file:
+                            contenuto = file.read()
+                        message = await send_service_message(PERSONAL_CHAT_ID, contenuto, 300)
+                        rules_registered[message.id] = rule
+                    return
+                if text == 'rules:delete':
+                    from func.rules import rules
+                    nonlocal can_delete_rules
+                    await message.delete()
+                    await send_service_message(PERSONAL_CHAT_ID, t('rules_delete', 30), 30)
+                    for rule in rules['message']:
+                        message = await send_service_message(PERSONAL_CHAT_ID, rule.file_name, 30)
+                        rules_registered[message.id] = rule
+                    can_delete_rules=True
+
+                    async def disable_delete_rules():
+                        nonlocal can_delete_rules
+                        await asyncio.sleep(30)
+                        if can_delete_rules is True:
+                            can_delete_rules = False
+                            await send_service_message(PERSONAL_CHAT_ID, t('rules_delete_canceled'), 30)
+                    asyncio.create_task(disable_delete_rules())
+                    return
+                if text.startswith('rules:add'):
+                    rule_name = sanitize_filename(text.replace('rules:add', '')).strip()
+                    path = os.path.join(root_dir, 'rules', f"{rule_name}.rule")
+                    if rule_name == '':
+                        await edit_service_message(message, t('rule_name_empty'))
+                        return
+                    if len(rule_name) > 100:
+                        await edit_service_message(message, t('rule_name_too_long', 100))
+                        return
+                    if len(rule_name) < 3:
+                        await edit_service_message(message, t('rule_name_too_short', 3))
+                        return
+                    if os.path.exists(path):
+                        await edit_service_message(message, t('rule_already_exist', path))
+                        return
+                    with open(path, 'w', encoding='utf-8') as file:
+                        file.write(t('rule_start_text', rule_name))
+                    await edit_service_message(message, t('rule_created', rule_name))
+                    await send_service_message(PERSONAL_CHAT_ID, t('rule_start_text', rule_name), 300)
+                    rules_registered[message.id] = {
+                        'message': {
+                            'file_name': path
+                        }
+                    }
+                    return
                 if text == 'rules:reload':
                     reload_rules()
                     await edit_service_message(message, t('rules_reloaded'))
@@ -354,6 +449,9 @@ async def main():
             client.add_event_handler(
                 tg_new_message_handler, events.NewMessage(chats=chat_name)
             )
+
+        await client.run_until_disconnected()
+
         while True:
 
             filtered_data = [

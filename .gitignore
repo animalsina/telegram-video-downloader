@@ -173,6 +173,7 @@ tg-video
 tg-video-completed
 pipe
 rules/*.rule
+rules/*.deleted
 !rules/hello-world.rule
 videos_data/*
 .stop
