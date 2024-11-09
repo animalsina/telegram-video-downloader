@@ -1,10 +1,19 @@
+"""
+Module for managing object data.
+"""
 from typing import Optional
 
-from classes.attribute_object import AttributeObject
+from telethon.tl.patched import Message
 
 
 class ObjectData:
+    """
+    Class for managing object data.
+    """
     def __init__(self, **kwargs):
+        self.reference_message: Optional[Message] = None
+        self.video_media = None
+        self.original_video_name = None
         self.chat_name = None
         self.is_forward_chat_protected = None
         self.video_id = None

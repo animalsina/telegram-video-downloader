@@ -1,66 +1,84 @@
+"""
+Rules
+
+Apply rules to messages and files.
+"""
 import re
 import glob
 import os
+from collections.abc import Iterator
+from pathlib import Path
+from typing import AnyStr, Union
+
+from telethon.tl.custom import Forward
+from telethon.tl.patched import Message
+from telethon.tl.types import MessageMediaDocument
 
 from classes.config_object import ConfigObject
 
-rules = {'message': []}
+rules: dict = {'message': []}
 
 
-def load_rules(root_directory):
+def load_rules(root_directory: Path):
     """
     Load both rules from .rule files in the specified directory.
     """
 
     rule_files = os.path.join(root_directory, 'rules', '*.rule')
     for rule_file in glob.glob(rule_files):
-        with open(rule_file, 'r') as f:
-            pattern = ConfigObject({
-                'message': None,
-                'folder': None,
-                'chat_id': None,
-                'chat_title': None,
-                'chat_name': None,
-            })
-            translate = None
-            completed_folder_mask = None
-            for line in f:
-                if line.startswith('#'):
-                    continue
-                if line.startswith("on:message:pattern"):
-                    match = re.search(r'="(.*?)"', line)
-                    if match:
-                        pattern.message = match.group(1) # Save the message pattern
-                if line.startswith("set:chat:id"):
-                    match = re.search(r'="(.*?)"', line)
-                    if match:
-                        pattern.chat_id = match.group(1)  # Save the chat_id
-                if line.startswith("set:chat:title"):
-                    match = re.search(r'="(.*?)"', line)
-                    if match:
-                        pattern.chat_title = match.group(1)  # Save the chat_title
-                if line.startswith("set:chat:name"):
-                    match = re.search(r'="(.*?)"', line)
-                    if match:
-                        pattern.chat_name = match.group(1)  # Save the chat_name
-                if pattern.message and line.startswith("action:message:translate"):
-                    match = re.search(r'="(.*?)"', line)
-                    if match:
-                        translate = match.group(1) # Save the message translation
-                if line.startswith("on:folder:pattern"):
-                    match = re.search(r'="(.*?)"', line)
-                    if match:
-                        pattern.folder = match.group(1) # Save the folder pattern
-                if pattern.folder and line.startswith("action:folder:completed"):
-                    match = re.search(r'="(.*?)"', line)
-                    if match:
-                        completed_folder_mask = match.group(1) # Save the folder translation
-            rules['message'].append(
-                {'pattern': pattern, 'translate': translate, 'completed_folder_mask': completed_folder_mask})
+        with open(rule_file, 'r', encoding='utf-8') as f:
+            set_rules(f)
+
     return rules
 
+def set_rules(lines: Iterator[str]) -> None:
+    """
+    Set rules.
+    """
+    pattern = ConfigObject({
+        'message': None,
+        'folder': None,
+        'chat_id': None,
+        'chat_title': None,
+        'chat_name': None,
+    })
+    update_data = ConfigObject({
+        'pattern': pattern,
+        'translate': None,
+        'completed_folder_mask': None
+    })
 
-def safe_format(action: str, *args) -> str:
+    for line in lines:
+        if line.startswith('#'):
+            continue
+        detect_command(line, 'on:message:pattern', lambda match: setattr(pattern, 'message', match))
+        detect_command(line, 'set:chat:id', lambda match: setattr(pattern, 'chat_id', match))
+        detect_command(line, 'set:chat:title', lambda match: setattr(pattern, 'chat_title', match))
+        detect_command(line, 'set:chat:name', lambda match: setattr(pattern, 'chat_name', match))
+
+        if hasattr(pattern, 'message'):
+            detect_command(line, 'on:folder:pattern',
+                           lambda match: setattr(pattern, 'folder', match))
+
+        detect_command(line, 'action:message:translate',
+                       lambda match: setattr(update_data, 'translate', match))
+
+        if hasattr(pattern, 'folder'):
+            detect_command(line, 'action:folder:completed',
+                           lambda match: setattr(update_data, 'completed_folder_mask', match))
+
+    rules['message'].append(update_data)
+
+def detect_command(string: str, command: str, cb: callable(str)) -> None:
+    """
+    Detect commands.
+    """
+    if string.startswith(command):
+        match = re.search(r'="(.*?)"', string)
+        if match:
+            cb(match.group(1))  # Save the folder pattern
+
+def safe_format(action: str, *args: tuple[AnyStr]) -> str:
     """
     Format Safe
     """
@@ -70,49 +88,78 @@ def safe_format(action: str, *args) -> str:
     return action.format(*args)
 
 
-def apply_rules(type_name, input_value, chat = None):
+def apply_rules(type_name: str, input_value: str,
+                chat: Union[Message, MessageMediaDocument] = None) -> str | None:
     """
     Apply rules to input and returns edited output.
     """
 
     # Rules for messages
     if type_name == 'translate':
-        for rule in rules['message']:
-            pattern = rule['pattern']
-            rule_chat_id = pattern.chat_id or None
-            rule_chat_title = pattern.chat_title or None
-            rule_chat_name = pattern.chat_name or None
-            chat_id = None
-            chat_title = None
-            chat_name = None
-            if chat is not None:
-                chat_id = chat.chat_id
-                if chat.chat is not None:
-                    chat_title = chat.chat.title
-                    chat_name = chat.chat.username
-            if rule_chat_id is not None and rule_chat_id != chat_id:
-                continue
-            if rule_chat_name is not None and rule_chat_name != chat_name:
-                continue
-            if rule_chat_title is not None and rule_chat_title != chat_title:
-                continue
-            action = rule['translate']
-            match = re.match(pattern.message, input_value)
-            if match:
-                return safe_format(action, *match.groups())
-    elif type_name == 'completed_folder_mask':
-        for rule in rules['message']:
-            completed_folder_mask = rule.get('completed_folder_mask')
-            if completed_folder_mask is not None:
-                pattern = rule['pattern']
-                match = re.match(pattern.folder, input_value)
-                completed_folder = None
-                if match is not None:
-                    for i, valore in enumerate(match.groups()):
-                        if completed_folder is None:
-                            completed_folder = completed_folder_mask
-                        completed_folder = completed_folder.replace(f'#{i}', valore.strip())
-                    if completed_folder:
-                        return completed_folder
-        return None
+        return translate_string(input_value, chat)
+    if type_name == 'completed_folder_mask':
+        return completed_task(input_value)
     return input_value
+
+def completed_task(input_value: str):
+    """
+    Apply rules to input and returns edited output.
+    """
+    for rule in rules['message']:
+        completed_folder_mask = getattr(rule, 'completed_folder_mask')
+        if completed_folder_mask is not None:
+            pattern = getattr(rule, 'pattern')
+            pattern_folder = getattr(pattern, 'folder') or ''
+            match = re.match(pattern_folder, input_value)
+            completed_folder = None
+            if match is not None:
+                for i, valore in enumerate(match.groups()):
+                    if completed_folder is None:
+                        completed_folder = completed_folder_mask
+                    completed_folder = completed_folder.replace(f'#{i}', valore.strip())
+                if completed_folder:
+                    return completed_folder
+    return None
+
+def translate_string(input_value: str, chat: Union[Message, MessageMediaDocument] = None) -> str:
+    """
+    Apply rules to input and returns edited output.
+    """
+    for rule in rules['message']:
+        pattern = rule.pattern
+        rule_chat_id = pattern.chat_id or None
+        rule_chat_title = pattern.chat_title or None
+        rule_chat_name = pattern.chat_name or None
+        chat_id = None
+        chat_title = None
+        chat_name = None
+        if chat is not None and isinstance(chat, (Message, MessageMediaDocument)):
+            chat_id = chat.chat_id
+            forward = chat.forward
+            sender = forward.sender if hasattr(forward, 'sender') else None
+            if chat.is_channel is True and isinstance(forward, Forward) and forward is not None:
+                if forward.chat is not None:
+                    chat_title = chat.forward.chat.title
+                    chat_name = chat.forward.chat.username
+            if chat.is_private is True and sender is not None and hasattr(sender, 'bot') and sender.bot is True:
+                chat_title = sender.first_name or ''
+                chat_name = sender.username or ''
+        if rule_chat_id is not None and rule_chat_id != chat_id:
+            continue
+        if rule_chat_name is not None and rule_chat_name != chat_name:
+            continue
+        if rule_chat_title is not None and rule_chat_title != chat_title:
+            continue
+        action = rule.translate
+        match = re.match(pattern.message, input_value)
+        if match:
+            return safe_format(action, *match.groups())
+    return input_value
+
+def reload_rules():
+    """
+    Reload rules
+    :return:
+    """
+    from run import root_dir
+    load_rules(root_dir)
