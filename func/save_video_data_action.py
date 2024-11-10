@@ -10,7 +10,6 @@ from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo,
 
 from classes.object_data import ObjectData
 from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED, TYPE_ACQUIRED, TYPE_COMPRESSED
-from func.rules import apply_rules
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
                         video_data_file_exists_by_ref_msg_id, is_video_file, save_video_data, sanitize_video_name)
@@ -96,6 +95,7 @@ async def process_video(video: Union[Message, MessageMediaDocument], chat_name: 
     Process a video message and return the video data dictionary.
     Will recreate the video message and save the video data to a JSON file.
     """
+    from func.main import rules_object
     video_data = initialize_video_data(video, chat_name)
 
     video_name = await get_video_name(video)
@@ -103,7 +103,7 @@ async def process_video(video: Union[Message, MessageMediaDocument], chat_name: 
         return None
 
     video_data['original_video_name'] = video_name
-    video_name = apply_rules('translate', video_name, video)
+    video_name = rules_object.apply_rules('translate', video_name, message=video)
     video_data["video_name"] = video_name
     video_data["video_name_cleaned"] =  sanitize_video_name(video_name)
     video_data["file_name"] = await get_file_name(video, video_name)

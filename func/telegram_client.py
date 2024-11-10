@@ -5,9 +5,10 @@ import time
 import os
 import asyncio
 import collections
+from pathlib import Path
 
 from telethon import TelegramClient
-from telethon.errors import FloodWaitError
+from telethon.errors import FloodWaitError, RPCError
 from telethon.tl.patched import Message
 from tqdm import tqdm
 
@@ -147,6 +148,13 @@ async def progress_tracking(
             if interrupt is True:
                 return
 
+            directory = os.path.dirname(temp_file_path)
+            Path(directory).mkdir(parents=True, exist_ok=True)
+
+            if not os.path.exists(temp_file_path):
+                with open(temp_file_path, 'wb'):
+                    pass
+
             with open(temp_file_path, 'ab') as f:
                 async for chunk in download_iter:
                     from func.main import interrupt
@@ -235,12 +243,11 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
             await add_line_to_text(video.message_id_reference,
                                    t('file_mismatch_error', video.video_name),
                                    LINE_FOR_SHOW_LAST_ERROR)
-            os.remove(temp_file_path)
             raise Exception(  # pylint: disable=broad-exception-raised
                 f"File {video.video_name} size mismatch - I will delete temp file and retry."
             )
 
-        except FloodWaitError as e:
+        except (RPCError, FloodWaitError) as e:
             wait_time = e.seconds + 10  # Add a buffer time for safety
             print(f"Rate limit exceeded. Waiting for {wait_time} seconds before retrying...")
             await add_line_to_text(video.message_id_reference,
