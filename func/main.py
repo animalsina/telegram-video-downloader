@@ -450,8 +450,6 @@ async def main():
                 tg_new_message_handler, events.NewMessage(chats=chat_name)
             )
 
-        await client.run_until_disconnected()
-
         while True:
 
             filtered_data = [
