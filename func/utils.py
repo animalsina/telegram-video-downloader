@@ -23,7 +23,6 @@ from classes.string_builder import (StringBuilder, LINE_FOR_INFO_DATA,
                                     LINE_FOR_VIDEO_NAME,
                                     LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE, TYPE_ERROR, TYPE_COMPLETED)
 from func.messages import t
-from func.rules import apply_rules, reload_rules
 from classes.object_data import ObjectData
 from run import PERSONAL_CHAT_ID
 
@@ -63,6 +62,7 @@ def sanitize_filename(filename: str) -> str:
     sanitized_name = re.sub(r'[^\w\s.-]', '', sanitized_name)
     return sanitized_name.strip()
 
+
 def sanitize_video_name(video_name: str) -> str:
     """
     Remove or replace characters in the filename that are not allowed in file names
@@ -101,14 +101,16 @@ async def move_file(src: Path, dest: Path, cb=None) -> bool:
             try:
                 await cb(src, final_dest, True)
             except (PermissionError, FileNotFoundError):
-                reload_rules()
+                from func.main import rules_object
+                rules_object.reload_rules()
                 if cb is not None:
                     await cb(src, None, False)
                 return False
         return True
     except (shutil.Error, OSError, FileNotFoundError):
+        from func.main import rules_object
         print(t('error_move_file', os.path.basename(src)))
-        reload_rules()
+        rules_object.reload_rules()
         if cb is not None:
             await cb(src, None, False)
         return False
@@ -129,7 +131,9 @@ def is_file_corrupted(file_path: str, total_file_size: int) -> bool:
         return True
     return False
 
-async def compress_video_h265(input_file: Path, output_file: Path, crf=28, callback: callable(AnyStr | None) = None) -> bool:
+
+async def compress_video_h265(input_file: Path, output_file: Path, crf=28,
+                              callback: callable(AnyStr | None) = None) -> bool:
     """
     Convert a video file from h264 to h265 using ffmpeg.
     If the conversion is successful, return True. If an error occurs during the conversion,
@@ -178,11 +182,14 @@ async def download_complete_action(video: ObjectData) -> None:
     Download complete action.
     """
     from func.config import load_configuration
+    from func.main import rules_object, client
     config = load_configuration()
 
     mime_type, _ = mimetypes.guess_type(video.file_path)
     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
-    completed_folder_mask = apply_rules('completed_folder_mask', video.video_name_cleaned)
+    completed_folder_mask = rules_object.apply_rules(
+        'completed_folder_mask',
+        video.video_name, message_id=video.video_id)
     completed_folder = config.completed_folder
 
     if completed_folder_mask:
@@ -365,6 +372,7 @@ def safe_getattr(obj, attr, default=''):
         return ''
     return value
 
+
 async def add_line_to_text(message_id: str, new_line: str, line_number: int, with_default_icon: bool = False) -> None:
     """
     Add a new line to the text of the reference message.
@@ -373,7 +381,7 @@ async def add_line_to_text(message_id: str, new_line: str, line_number: int, wit
     from func.main import client
     # Divide il testo in righe
 
-    message = await client.get_messages(PERSONAL_CHAT_ID, ids=message_id) # get realtime info
+    message = await client.get_messages(PERSONAL_CHAT_ID, ids=message_id)  # get realtime info
     text = message.text
 
     builder = StringBuilder(text)
@@ -386,6 +394,7 @@ async def add_line_to_text(message_id: str, new_line: str, line_number: int, wit
         except (MessageNotModifiedError, PermissionError) as er:
             print(er.message)
             pass
+
 
 async def define_label(message_id: str, label) -> None:
     """

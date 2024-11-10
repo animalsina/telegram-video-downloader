@@ -24,14 +24,14 @@ from telethon.tl.types import MessageReplyHeader
 from classes.object_data import ObjectData
 from func.config import load_configuration
 from func.messages import t
-from func.rules import load_rules, reload_rules
+from classes.rules import Rules
 from func.save_video_data_action import acquire_video
 from func.telegram_client import (
     create_telegram_client, download_with_retry,
     send_service_message, edit_service_message, get_user_id)
 from classes.string_builder import (
     LINE_FOR_VIDEO_NAME, LINE_FOR_INFO_DATA,
-    StringBuilder, LINE_FOR_SHOW_LAST_ERROR)
+    LINE_FOR_SHOW_LAST_ERROR)
 from classes.attribute_object import AttributeObject
 from func.utils import add_line_to_text, save_video_data, sanitize_video_name, sanitize_filename, remove_video_data
 
@@ -40,6 +40,10 @@ configuration = load_configuration()
 client = create_telegram_client(
     configuration.session_name, configuration.api_id, configuration.api_hash
 )
+
+# Initialize rules
+rules_object = Rules()
+
 all_messages: List[Message] = []
 replies_msg = []
 sem = asyncio.Semaphore(configuration.max_simultaneous_file_to_download)
@@ -228,10 +232,8 @@ async def get_video_task(video_object: ObjectData):
             os.remove(video_object.file_path)
         return False
 
-    download_data = download_with_limit(video_object)
-
     # Queue the download task with the limit on simultaneous downloads
-    return download_data if iscoroutine(download_data) else False
+    return video_object
 
 
 async def main():
@@ -239,7 +241,7 @@ async def main():
     from func.save_video_data_action import save_video_data_action
     from run import root_dir, PERSONAL_CHAT_ID
     global quit_program, start_download, interrupt
-    load_rules(Path(root_dir))
+    rules_object.load_rules(Path(root_dir))
     videos_data = []
     run_list = []
     rules_registered: dict = {}
@@ -278,7 +280,7 @@ async def main():
                 with open(rule_data.file_name, 'w', encoding='utf-8') as file:
                     file.write(new_rule_text)
                 await send_service_message(PERSONAL_CHAT_ID, t('rule_updated', rule_data.file_name))
-                reload_rules()
+                rules_object.reload_rules()
                 await send_service_message(PERSONAL_CHAT_ID, t('rules_reloaded'))
 
         @client.on(events.MessageDeleted)
@@ -292,7 +294,7 @@ async def main():
                     rule_data = rules_registered[del_message_id]
                     shutil.move(rule_data.file_name,
                                 rule_data.file_name + '.deleted')  # Move the file to a deleted folder
-                    reload_rules()
+                    rules_object.reload_rules()
                     can_delete_rules = False
                     await client.delete_messages(PERSONAL_CHAT_ID, message_ids=list(rules_registered.keys()))
                     await send_service_message(PERSONAL_CHAT_ID, t('rules_reloaded'))
@@ -327,9 +329,8 @@ async def main():
                                 "rename: <name>: Rename the video\n"
                     await edit_service_message(message, help_text, 100)
                 if text == 'rules:show':
-                    from func.rules import rules
                     await message.delete()
-                    for rule in rules['message']:
+                    for rule in rules_object.get_rules()['message']:
                         rules_text = (
                             f"pattern: {vars(rule.pattern)}\n"
                             f"translate: {rule.translate}\n"
@@ -338,21 +339,19 @@ async def main():
                         await send_service_message(PERSONAL_CHAT_ID, rules_text, 100)
                     return
                 if text == 'rules:edit':
-                    from func.rules import rules
                     await message.delete()
                     await send_service_message(PERSONAL_CHAT_ID, t('rules_edit', 300), 300)
-                    for rule in rules['message']:
+                    for rule in rules_object.get_rules()['message']:
                         with open(rule.file_name, 'r', encoding='utf-8') as file:
                             contenuto = file.read()
                         message = await send_service_message(PERSONAL_CHAT_ID, contenuto, 300)
                         rules_registered[message.id] = rule
                     return
                 if text == 'rules:delete':
-                    from func.rules import rules
                     nonlocal can_delete_rules
                     await message.delete()
                     await send_service_message(PERSONAL_CHAT_ID, t('rules_delete', 30), 30)
-                    for rule in rules['message']:
+                    for rule in rules_object.get_rules()['message']:
                         message = await send_service_message(PERSONAL_CHAT_ID, rule.file_name, 30)
                         rules_registered[message.id] = rule
                     can_delete_rules=True
@@ -391,7 +390,7 @@ async def main():
                     }
                     return
                 if text == 'rules:reload':
-                    reload_rules()
+                    rules_object.reload_rules()
                     await edit_service_message(message, t('rules_reloaded'))
                     return
                 if text == 'status':
@@ -406,7 +405,8 @@ async def main():
                     await edit_service_message(message, config_text, 100)
                 if text == 'quit':
                     quit_program = True
-                    await edit_service_message(message, t('program_quit'))
+                    await edit_service_message(message, t('program_quit'), 3)
+                    await asyncio.sleep(4)
                     return
                 if text == 'download:on' or text == 'download:start':
                     start_download = True
@@ -468,9 +468,9 @@ async def main():
                 # Name of a file, File object content
                 tasks = []
                 for _, video_data in videos_data or []:  # type: [str, ObjectData]
-                    task = await get_video_task(video_data)
-                    if task is not False and any(video_id == video_data.video_id for video_id in run_list) is False:
-                        tasks.append(create_task(task))
+                    task_video_data = await get_video_task(video_data)
+                    if task_video_data is not False and any(video_id == video_data.video_id for video_id in run_list) is False:
+                        tasks.append(create_task(download_with_limit(task_video_data)))
                         run_list.append(video_data.video_id)
 
                 # Execute all queued tasks concurrently

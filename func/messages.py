@@ -51,7 +51,7 @@ def get_message(language: str | None = None):
             'script_running': "Script already running.",
             'ready_to_move': "🔔 File ready to move: {}",
             'already_downloaded': "File already downloaded: {}",
-            'file_mismatch_error': "File {} size mismatch - I will delete temp file and retry.",
+            'file_mismatch_error': "File {} size mismatch - try again later.",
             'empty_reference_specify_name':
                 ("This video does not have a name. Please specify one by"
                  " replying to the video with the correct file name."),
