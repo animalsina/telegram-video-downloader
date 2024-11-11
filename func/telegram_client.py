@@ -280,8 +280,9 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
             break
 
         except Exception as error:  # pylint: disable=broad-exception-caught
+
             print(f"Unexpected error: {str(error)}")
-            await add_line_to_text(video.message_id_reference, f"‼️ Unexpected error: {str(error)}",
+            await add_line_to_text(video.message_id_reference, f"Unexpected error: {str(error)}",
                                    LINE_FOR_SHOW_LAST_ERROR)
             break
 

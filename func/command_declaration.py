@@ -75,6 +75,9 @@ async def command_declaration():
     command_handler.add_command("rules:add", t('command_rules_add'))
     command_handler.add_command("rules:reload", t('command_rules_reload'))
     command_handler.add_command(
+        ["download:unlock", "dl:unlock"], t('command_download_unlock')
+    )
+    command_handler.add_command(
         ["download:rename", "download:rn", "dl:rn", "dl:rename"],
         t('command_rename'),
         args={

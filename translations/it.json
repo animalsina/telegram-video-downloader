@@ -55,6 +55,8 @@
     "command_download_start": "Avvia il download",
     "command_quit": "Termina il programma e ferma il client",
     "command_help": "Mostra questo aiuto",
+    "command_download_unlock": "Sblocca il download",
     "needs_reply": "Questo comando richiede una risposta",
-    "wrong_reply_message": "La risposta non e' un messaggio idoneo, deve corrispondere a un video"
+    "wrong_reply_message": "La risposta non e' un messaggio idoneo, deve corrispondere a un video",
+    "download_unlocked": "Download sbloccato"
 }

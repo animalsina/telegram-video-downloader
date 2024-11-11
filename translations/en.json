@@ -55,6 +55,8 @@
     "command_download_start": "Start download",
     "command_quit": "Quit the program and stop the client",
     "command_help": "Show this help",
+    "command_download_unlock": "Unlock download",
     "needs_reply": "This command needs a reply message",
-    "wrong_reply_message": "The reply message is not a video, must correspond to a video"
+    "wrong_reply_message": "The reply message is not a video, must correspond to a video",
+    "download_unlocked": "Download unlocked"
 }
