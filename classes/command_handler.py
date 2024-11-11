@@ -8,8 +8,9 @@ from telethon.tl.patched import Message
 from telethon.tl.types import MessageMediaDocument
 
 from func.messages import t
-from func.telegram_client import edit_service_message, get_video_data_by_video_id, \
-    get_video_data_by_message_id_reference
+from func.telegram_client import (
+    edit_service_message,
+    get_video_data_by_message_id_reference)
 
 COMMAND_SPLITTER = ":"
 

@@ -22,6 +22,5 @@ if __name__ == "__main__":
     main = importlib.import_module('func.main')
     try:
         asyncio.run(main.main())
-    except Exception as e:
+    except Exception as e: # pylint: disable=broad-exception-caught
         print(e)
-        pass
