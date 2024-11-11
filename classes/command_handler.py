@@ -137,4 +137,4 @@ class CommandHandler:
         :param param:
         :return:
         """
-        return self.commands[param]['args']
+        return self.commands.get(param) and self.commands.get(param).get('args')
