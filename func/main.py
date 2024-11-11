@@ -33,7 +33,9 @@ from func.telegram_client import (
 from classes.string_builder import (
     LINE_FOR_INFO_DATA,
     LINE_FOR_SHOW_LAST_ERROR)
-from func.utils import add_line_to_text, save_video_data, remove_video_data, get_video_object_by_message_id_reference
+from func.utils import (add_line_to_text, save_video_data,
+                        remove_video_data,
+                        get_video_object_by_message_id_reference)
 
 configuration = load_configuration()
 
@@ -223,6 +225,7 @@ async def get_video_task(video_object: ObjectData):
 
     # Queue the download task with the limit on simultaneous downloads
     return video_object
+
 
 async def main():  # pylint: disable=unused-argument, too-many-statements
     """Main function to manage the Telegram client and download files."""

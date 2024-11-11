@@ -70,6 +70,9 @@ class Config:
         self.api_id = None
         self.api_hash = None
         self.phone = None
+        self.completed_folder = None
+        self.enable_video_compression = False
+        self.compression_ratio = 28
         self.group_chats = []
         self.download_folder = None
         for key, value in config_dict.items():
