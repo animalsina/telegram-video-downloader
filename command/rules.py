@@ -4,14 +4,14 @@ Command rules
 import asyncio
 import os
 
-from func.main import rules_object, rules_registered
+from func.main import rules_object, operation_status
 from func.messages import t
 from func.telegram_client import send_service_message, edit_service_message
 from func.utils import sanitize_filename
 from run import PERSONAL_CHAT_ID, root_dir
 
 
-async def run(subcommand: str, text_input: str, extra_args=None, is_personal_chat=False, callback=None):
+async def run(subcommand: str, text_input: str, extra_args=None, is_personal_chat=False, callback=None):  # pylint: disable=unused-argument
     """
     Run the command
     :param subcommand:
@@ -61,7 +61,7 @@ async def edit(message):
         with open(rule.file_name, 'r', encoding='utf-8') as file:
             contenuto = file.read()
         message = await send_service_message(PERSONAL_CHAT_ID, contenuto, 300)
-        rules_registered[message.id] = rule
+        operation_status.rules_registered[message.id] = rule
 
 
 async def delete(message):
@@ -70,20 +70,18 @@ async def delete(message):
     :param message:
     :return:
     """
-    from func import main
     await message.delete()
     await send_service_message(PERSONAL_CHAT_ID, t('rules_delete', 30), 30)
 
     for rule in rules_object.get_rules()['message']:
         message = await send_service_message(PERSONAL_CHAT_ID, rule.file_name, 30)
-        rules_registered[message.id] = rule
-    main.can_delete_rules = True
+        operation_status.rules_registered[message.id] = rule
+    operation_status.can_delete_rules = True
 
     async def disable_delete_rules():
-        from func import main
         await asyncio.sleep(30)
-        if main.can_delete_rules is True:
-            main.can_delete_rules = False
+        if operation_status.can_delete_rules is True:
+            operation_status.can_delete_rules = False
             await send_service_message(PERSONAL_CHAT_ID, t('rules_delete_canceled'), 30)
 
     asyncio.create_task(disable_delete_rules())
@@ -114,7 +112,7 @@ async def add(message, text):
         file.write(t('rule_start_text', rule_name))
     await edit_service_message(message, t('rule_created', rule_name))
     await send_service_message(PERSONAL_CHAT_ID, t('rule_start_text', rule_name), 300)
-    rules_registered[message.id] = {
+    operation_status.rules_registered[message.id] = {
         'message': {
             'file_name': path
         }

@@ -3,13 +3,12 @@ Module for managing object data.
 """
 from typing import Optional
 
-from telethon.tl.patched import Message
-
 
 class ObjectData:
     """
     Class for managing object data.
     """
+
     def __init__(self, **kwargs):
         self.chat_title = None
         self.forward_message_id = None

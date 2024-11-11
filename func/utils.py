@@ -201,29 +201,37 @@ async def download_complete_action(video: ObjectData) -> None:
     file_path_dest = Path(str(completed_file_path))
 
     async def compression_message(time_info):
-        await add_line_to_text(video.message_id_reference, t('trace_compress_action', time_info),
-                               LINE_FOR_INFO_DATA)
+        await add_line_to_text(
+            video.message_id_reference,
+            t('trace_compress_action', time_info),
+            LINE_FOR_INFO_DATA)
 
     if config.enable_video_compression:
         print(t('start_compress_file', file_path_source))
 
-        await add_line_to_text(video.message_id_reference, t('start_compress_file', str(file_path_source)[:44]),
-                               LINE_FOR_INFO_DATA)
+        await add_line_to_text(
+            video.message_id_reference,
+            t('start_compress_file', str(file_path_source)[:44]),
+            LINE_FOR_INFO_DATA)
         file_path_c = Path(str(video.file_path))
         converted_file_path = file_path_c.with_name(
             file_path_c.stem + "_converted" + file_path_c.suffix)
-        if await compress_video_h265(file_path_source, converted_file_path, config.compression_ratio,
-                                     compression_message):
+        if await compress_video_h265(
+                file_path_source, converted_file_path, config.compression_ratio,
+                compression_message):
             file_path_source.unlink()
             file_path_source = converted_file_path
             print(t('complete_compress_file', file_path_source))
-            await add_line_to_text(video.message_id_reference, t('complete_compress_file', str(file_path_source)[:44]),
+            await add_line_to_text(video.message_id_reference,
+                                   t('complete_compress_file', str(file_path_source)[:44]),
                                    LINE_FOR_INFO_DATA)
         else:
             print(t('cant_compress_file', file_path_source))
-            await add_line_to_text(video.message_id_reference, t('cant_compress_file', str(file_path_source)[:44]),
+            await add_line_to_text(video.message_id_reference,
+                                   t('cant_compress_file', str(file_path_source)[:44]),
                                    LINE_FOR_SHOW_LAST_ERROR)
-            raise Exception(t('cant_compress_file', file_path_source))  # pylint: disable=broad-exception-raised
+            raise Exception(t('cant_compress_file',  # pylint: disable=broad-exception-raised
+                              file_path_source))
 
     await add_line_to_text(video.message_id_reference, t('ready_to_move', str(file_path_dest)[:44]),
                            LINE_FOR_INFO_DATA)
@@ -377,7 +385,12 @@ def safe_getattr(obj, attr, default=''):
     return value
 
 
-async def add_line_to_text(message_id: str, new_line: str, line_number: int, with_default_icon: bool = False) -> None:
+async def add_line_to_text(
+        message_id: str,
+        new_line: str,
+        line_number: int,
+        with_default_icon: bool = False
+) -> None:
     """
     Add a new line to the text of the reference message.
     """
@@ -397,7 +410,6 @@ async def add_line_to_text(message_id: str, new_line: str, line_number: int, wit
             await message.edit(builder.string)
         except (MessageNotModifiedError, PermissionError) as er:
             print(er.message)
-            pass
 
 
 async def define_label(message_id: str, label) -> None:
@@ -420,7 +432,6 @@ async def define_label(message_id: str, label) -> None:
             await message.edit(builder.string)
         except (MessageNotModifiedError, PermissionError) as er:
             print(er.message)
-            pass
 
 
 def save_video_data(data: dict, video: ObjectData, fields_to_compare=None) -> bool:
@@ -471,7 +482,6 @@ def save_video_data(data: dict, video: ObjectData, fields_to_compare=None) -> bo
     # Salva solo se ci sono differenze
     with open(file_path, "wb") as f:
         f.write(json.dumps(existing_data, default=serialize).encode('utf-8'))
-    print("Dati salvati con successo.")
     return True
 
 

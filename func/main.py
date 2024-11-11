@@ -9,18 +9,18 @@ import shutil
 import traceback
 from asyncio import CancelledError, create_task
 from pathlib import Path
-from typing import List, Union
+from typing import List
 
 # Moduli di terze parti
 import telethon
 from telethon import events
 from telethon.events import NewMessage
 from telethon.tl.types import Message
-from telethon.tl.types import MessageReplyHeader
 
 from classes.command_handler import CommandHandler
 # Moduli locali
 from classes.object_data import ObjectData
+from classes.operation_status_object import OperationStatusObject
 from func.config import load_configuration
 from func.messages import t
 from classes.rules import Rules
@@ -32,7 +32,7 @@ from func.telegram_client import (
 from classes.string_builder import (
     LINE_FOR_INFO_DATA,
     LINE_FOR_SHOW_LAST_ERROR, LINE_FOR_VIDEO_NAME)
-from func.utils import add_line_to_text, save_video_data, sanitize_video_name, sanitize_filename, remove_video_data
+from func.utils import add_line_to_text, save_video_data, sanitize_video_name, remove_video_data
 
 configuration = load_configuration()
 
@@ -47,16 +47,17 @@ command_handler = CommandHandler()
 
 all_messages: List[Message] = []
 replies_msg = []
-run_list = []
-rules_registered = {}
-can_delete_rules = False
+operation_status = OperationStatusObject({
+    'can_delete_rules': False,
+    'interrupt': False,
+    'quit_program': False,
+    'start_download': True,
+    'run_list': [],
+    'rules_registered': {},
+})
 sem = asyncio.Semaphore(configuration.max_simultaneous_file_to_download)
-interrupt = False
 
 CHECK_INTERVAL = 3
-
-quit_program = False
-start_download = True
 
 
 def load_all_video_data() -> list:
@@ -92,7 +93,6 @@ def load_all_video_data() -> list:
 
 async def download_with_limit(video: ObjectData):
     """Download a file with concurrency limit."""
-    from func.utils import add_line_to_text
 
     # Inizializza il semaforo per gestire i download simultanei
     try:
@@ -107,19 +107,16 @@ async def download_with_limit(video: ObjectData):
 
                 # Start downloading the file with retry logic
                 await download_with_retry(client, video)
-            except Exception as e:
-                global run_list
-                run_list.remove(video.video_id)
+            except Exception as e:  # pylint: disable=broad-except
+                operation_status.run_list.remove(video.video_id)
                 print(f"Error downloading {video.file_name}: {e}")
                 await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
                                        LINE_FOR_SHOW_LAST_ERROR)
-                pass
-    except Exception as e:
+    except Exception as e:  # pylint: disable=broad-except
         print(f"Error downloading {video.file_name}: {e}")
         await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
                                LINE_FOR_SHOW_LAST_ERROR)
-        run_list.remove(video.video_id)
-        pass
+        operation_status.run_list.remove(video.video_id)
     finally:
         # Eventualmente liberare altre risorse
         pass
@@ -136,7 +133,7 @@ async def client_data():
 
     for chat in configuration.group_chats:
         print(t("retrieving_messages", chat))
-        async for message in client.iter_messages(chat, limit=1000):  # type: Union[Message, MessageReplyHeader]
+        async for message in client.iter_messages(chat, limit=1000):
             message.chat_name = chat
             if message.reply_to_msg_id:
                 replies_msg.append(message)
@@ -157,10 +154,9 @@ async def get_video_task(video_object: ObjectData):
     Get the video task
     """
     from run import PERSONAL_CHAT_ID, LOG_IN_PERSONAL_CHAT
-    from func.utils import (add_line_to_text, is_file_corrupted,
+    from func.utils import (is_file_corrupted,
                             download_complete_action,
-                            save_video_data, default_video_message,
-                            remove_video_data, LINE_FOR_SHOW_LAST_ERROR,
+                            default_video_message,
                             remove_video_data_by_video_id)
 
     if video_object.message_id_reference is None:
@@ -214,45 +210,40 @@ async def get_video_task(video_object: ObjectData):
                 video_object.file_path, document.size
         ):
             return await download_complete_action(video_object)
-        else:
-            await add_line_to_text(
-                reference_message.id,
-                t("corrupted_file", video_object.file_name),
-                LINE_FOR_SHOW_LAST_ERROR,
-            )
-            print(t("corrupted_file", video_object.file_name))
-            os.remove(video_object.file_path)
+
+        await add_line_to_text(
+            reference_message.id,
+            t("corrupted_file", video_object.file_name),
+            LINE_FOR_SHOW_LAST_ERROR,
+        )
+        print(t("corrupted_file", video_object.file_name))
+        os.remove(video_object.file_path)
         return False
 
     # Queue the download task with the limit on simultaneous downloads
     return video_object
 
 
-async def main():
+async def main():  # pylint: disable=unused-argument, too-many-statements
     """Main function to manage the Telegram client and download files."""
     from func.save_video_data_action import save_video_data_action
     from run import root_dir, PERSONAL_CHAT_ID
-    global rules_registered, can_delete_rules
 
-    global quit_program, start_download, interrupt
     rules_object.load_rules(Path(root_dir))
     videos_data = []
-    rules_registered = {}
+    operation_status.rules_registered = {}
 
     def set_quit_program():
-        global quit_program
-        quit_program = True
+        operation_status.quit_program = True
 
     def set_download_start():
-        global start_download, interrupt
-        start_download = True
-        interrupt = False
+        operation_status.start_download = True
+        operation_status.interrupt = False
 
     def set_download_stop():
-        global start_download, interrupt, run_list
-        start_download = False
-        interrupt = True
-        run_list = []
+        operation_status.start_download = False
+        operation_status.interrupt = True
+        operation_status.run_list = []
 
     async def rename(message, new_name):
         video_name_cleaned = sanitize_video_name(new_name)
@@ -300,11 +291,11 @@ async def main():
     command_handler.add_command("rules:add", t('command_rules_add'))
     command_handler.add_command("rules:reload", t('command_rules_reload'))
     command_handler.add_command(
-        ["download:rename", "dl:rn", "rename"],
+        ["download:rename", "download:rn", "dl:rn", "dl:rename"],
         t('command_rename'),
         args={},
-        callback=rename
-    ),
+        callback=rename,
+    )
 
     try:
         await client_data()
@@ -329,8 +320,8 @@ async def main():
             text = message_data.message
 
             if is_personal_chat:
-                if rules_registered.get(message_data.id):
-                    rule_data = rules_registered[message_data.id]
+                if operation_status.rules_registered.get(message_data.id):
+                    rule_data = operation_status.rules_registered[message_data.id]
                     with open(rule_data.file_name, 'w', encoding='utf-8') as file:
                         file.write(text)
                     await send_service_message(PERSONAL_CHAT_ID, t('rule_updated', rule_data.file_name))
@@ -339,19 +330,20 @@ async def main():
                 return
 
         @client.on(events.MessageDeleted)
-        async def tg_deleted_message_handler(event):  # pylint: disable=unused-function
+        async def tg_deleted_message_handler(event):  # pylint: disable=unused-argument
             """Deleted Message Handler"""
 
             async def remove_rules(del_message_id):
                 """Remove rules"""
-                global rules_registered, can_delete_rules
-                if rules_registered.get(del_message_id) and can_delete_rules is True:
-                    rule_data = rules_registered[del_message_id]
+                if (operation_status.rules_registered.get(del_message_id) and
+                        operation_status.can_delete_rules is True):
+                    rule_data = operation_status.rules_registered[del_message_id]
                     shutil.move(rule_data.file_name,
                                 rule_data.file_name + '.deleted')  # Move the file to a deleted folder
                     rules_object.reload_rules()
-                    can_delete_rules = False
-                    await client.delete_messages(PERSONAL_CHAT_ID, message_ids=list(rules_registered.keys()))
+                    operation_status.can_delete_rules = False
+                    await client.delete_messages(PERSONAL_CHAT_ID,
+                                                 message_ids=list(operation_status.rules_registered.keys()))
                     await send_service_message(PERSONAL_CHAT_ID, t('rules_reloaded'))
                     await send_service_message(PERSONAL_CHAT_ID, t('rule_deleted', rule_data.file_name))
 
@@ -361,8 +353,6 @@ async def main():
 
         async def tg_new_message_handler(event: NewMessage.Event):
             """NewMessage Handler"""
-            global quit_program, start_download, interrupt
-            global run_list
             message = event.message
             user_id = await get_user_id()
             is_personal_chat = message.chat.id == user_id
@@ -382,7 +372,6 @@ async def main():
             )
 
         while True:
-            global run_list
             filtered_data = [
                 item for item in load_all_video_data() if not item[1].completed
             ]
@@ -393,17 +382,18 @@ async def main():
 
             videos_data = sorted_data
 
-            if quit_program is True:
+            if operation_status.quit_program is True:
                 break
-            if start_download is True:
+            if operation_status.start_download is True:
                 # Name of a file, File object content
                 tasks = []
                 for _, video_data in videos_data or []:  # type: [str, ObjectData]
                     task_video_data = await get_video_task(video_data)
                     if task_video_data is not False and any(
-                            video_id == video_data.video_id for video_id in run_list) is False:
+                            video_id == video_data.video_id for video_id in operation_status.run_list
+                    ) is False:
                         tasks.append(create_task(download_with_limit(task_video_data)))
-                        run_list.append(video_data.video_id)
+                        operation_status.run_list.append(video_data.video_id)
 
                 # Execute all queued tasks concurrently
                 try:
@@ -411,16 +401,16 @@ async def main():
                         await asyncio.gather(*tasks, return_exceptions=True)
                 except CancelledError:
                     print(t('cancel_download'))
-                    run_list = []
+                    operation_status.run_list = []
             await asyncio.sleep(CHECK_INTERVAL)
 
     except KeyboardInterrupt:
-        run_list = []
+        operation_status.run_list = []
         print("Script interrupted manually.")
 
     except Exception as error:  # pylint: disable=broad-except
         print(f"An error occurred: {error}")
-        run_list = []
+        operation_status.run_list = []
         traceback.print_exc()
 
     finally:
