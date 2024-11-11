@@ -7,9 +7,10 @@ import os
 import asyncio
 import collections
 from pathlib import Path
+from pyexpat.errors import messages
 
 from telethon import TelegramClient
-from telethon.errors import FloodWaitError, RPCError
+from telethon.errors import FloodWaitError, RPCError, FloodError
 from telethon.tl.patched import Message
 from tqdm import tqdm
 
@@ -121,7 +122,6 @@ async def progress_tracking(
                                            LINE_FOR_INFO_DATA, True)
                     raise KeyboardInterrupt(t('download_stopped', video.file_name))
 
-
                 percent_complete: float = (current / total) * 100
                 current_time: float = time.time()
 
@@ -189,6 +189,7 @@ async def get_user_id():
     me = await client.get_me()
     return me.id
 
+
 def is_interrupted():
     """
     Check if the download is interrupted
@@ -198,6 +199,7 @@ def is_interrupted():
     return (operation_status.interrupt is True or
             operation_status.quit_program is True or
             operation_status.start_download is not True)
+
 
 async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 20):
     """Download a file with retry attempts in case of failure."""
@@ -266,7 +268,16 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
         except (RPCError, FloodWaitError) as e:
             attempt += 1
             wait_time = 10  # Add a buffer time for safety
-            print(f"Rate limit exceeded. Waiting for some {wait_time} seconds before retrying... Remaining attempts: {attempt} on {retry_attempts}")
+            if isinstance(e, FloodWaitError):
+                wait_time = e.seconds
+            elif isinstance(e, (RPCError, FloodError)):
+                message = e.message
+                if message is not None:
+                    wait_time = int(
+                        message.replace("FLOOD_PREMIUM_WAIT_", "")
+                    ) + 1 if message.startswith("FLOOD_PREMIUM_WAIT_") else 10
+            print(
+                f"Rate limit exceeded. Waiting for some {wait_time} seconds before retrying... Remaining attempts: {attempt} on {retry_attempts}")
             print("Exception: " + str(e))
             await add_line_to_text(video.message_id_reference,
                                    t('rate_limit_exceeded_error', wait_time, attempt, retry_attempts),
@@ -286,7 +297,7 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
             break
 
 
-def get_video_data_by_video_id(video_id: int) -> ObjectData | None: # pylint: disable=unused-argument
+def get_video_data_by_video_id(video_id: int) -> ObjectData | None:  # pylint: disable=unused-argument
     """
     Get video data by video id
     """
@@ -303,7 +314,7 @@ def get_video_data_by_video_id(video_id: int) -> ObjectData | None: # pylint: di
 
                 video_attribute = getattr(object_data, "video_attribute")
                 if isinstance(video_attribute, dict):
-                    object_data.video_attribute = AttributeObject(**video_attribute) # pylint: disable=not-a-mapping
+                    object_data.video_attribute = AttributeObject(**video_attribute)  # pylint: disable=not-a-mapping
 
                 return object_data
             except Exception as error2:  # pylint: disable=broad-except
@@ -328,7 +339,7 @@ def get_video_data_by_message_id_reference(message_id_reference: int) -> ObjectD
 
                 video_attribute = getattr(object_data, "video_attribute")
                 if isinstance(video_attribute, dict):
-                    object_data.video_attribute = AttributeObject(**video_attribute) # pylint: disable=not-a-mapping
+                    object_data.video_attribute = AttributeObject(**video_attribute)  # pylint: disable=not-a-mapping
 
                 return object_data
             except Exception as error2:  # pylint: disable=broad-except

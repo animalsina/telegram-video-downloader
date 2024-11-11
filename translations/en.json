@@ -56,7 +56,11 @@
     "command_quit": "Quit the program and stop the client",
     "command_help": "Show this help",
     "command_download_unlock": "Unlock download",
+    "command_download_pin": "Pin for priority the message",
+    "command_download_unpin": "Unpin for remove priority the message",
     "needs_reply": "This command needs a reply message",
     "wrong_reply_message": "The reply message is not a video, must correspond to a video",
-    "download_unlocked": "Download unlocked"
+    "download_unlocked": "Download unlocked",
+    "pinned_message": "Pinned message",
+    "unpinned_message": "Unpinned message"
 }

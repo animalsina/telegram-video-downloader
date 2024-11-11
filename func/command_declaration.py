@@ -10,6 +10,7 @@ async def command_declaration():
     """
     Command declaration
     """
+    from func.main import command_handler
 
     def set_quit_program():
         from func.main import operation_status
@@ -47,7 +48,6 @@ async def command_declaration():
         video_object.video_name = new_name
         await message.delete()
 
-    from func.main import command_handler
     command_handler.add_command(["help", "command", "commands"], t('command_help'))
     command_handler.add_command(
         "quit",
@@ -67,6 +67,20 @@ async def command_declaration():
         t('command_download_stop'),
         args={},
         callback=set_download_stop
+    )
+    command_handler.add_command(
+        ["download:pin", "dl:pin"],
+        t('command_download_pin'),
+        args={
+            'needs_reply': True
+        },
+    )
+    command_handler.add_command(
+        ["download:unpin", "dl:unpin"],
+        t('command_download_unpin'),
+        args={
+            'needs_reply': True
+        },
     )
     command_handler.add_command("rules:show", t('command_rules_show'))
     command_handler.add_command("rules:edit", t('command_rules_edit'))
