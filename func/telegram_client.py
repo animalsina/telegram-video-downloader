@@ -301,9 +301,9 @@ def get_video_data_by_video_id(video_id: int) -> ObjectData | None: # pylint: di
                 data = json.load(file)
                 object_data = ObjectData(**data)
 
-                video_attribute = getattr(object_data, "video_attribute") # pylint: disable=not-a-mapping
+                video_attribute = getattr(object_data, "video_attribute")
                 if isinstance(video_attribute, dict):
-                    object_data.video_attribute = AttributeObject(**video_attribute)
+                    object_data.video_attribute = AttributeObject(**video_attribute) # pylint: disable=not-a-mapping
 
                 return object_data
             except Exception as error2:  # pylint: disable=broad-except
@@ -326,9 +326,9 @@ def get_video_data_by_message_id_reference(message_id_reference: int) -> ObjectD
                 data = json.load(file)
                 object_data = ObjectData(**data)
 
-                video_attribute = getattr(object_data, "video_attribute") # pylint: disable=not-a-mapping
+                video_attribute = getattr(object_data, "video_attribute")
                 if isinstance(video_attribute, dict):
-                    object_data.video_attribute = AttributeObject(**video_attribute)
+                    object_data.video_attribute = AttributeObject(**video_attribute) # pylint: disable=not-a-mapping
 
                 return object_data
             except Exception as error2:  # pylint: disable=broad-except
