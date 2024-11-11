@@ -1,48 +1,117 @@
 """
 CommandHandler
 """
-import inspect
-import re
-from typing import Any
+import importlib
+from typing import Any, Optional, Union, List
 
-COMMAND_PREFIX = "."  # prefisso dei comandi
+from telethon.tl.patched import Message
+from telethon.tl.types import MessageMediaDocument
+
+from func.telegram_client import edit_service_message
+
+COMMAND_SPLITTER = ":"
+
 
 class CommandHandler:
     """
     CommandHandler
     """
+
     def __init__(self):
         self.commands = {}
 
-    def add_command(self, command: str, callback: callable(Any), args=None):
-        """Aggiungi un comando all'elenco dei comandi."""
-        command_with_prefix = f'{COMMAND_PREFIX}{command}'
-        self.commands[command_with_prefix] = {'callback': callback, 'args': args}
+    async def exec(self, text_input: str, extra_args=None, is_personal_chat=False):
+        """
+        Execute a command
+        :param callback:
+        :param is_personal_chat:
+        :param text_input:
+        :param extra_args:
+        :return:
+        """
+        text_input_split = text_input.split(" ", 1)
+        text_lower_case = text_input_split[0].lower()
+        try:
+            command_data = text_lower_case.split(COMMAND_SPLITTER)
+
+            if not self.command_exists(":".join(command_data).strip()):
+                return
+
+            module_name = self.get_module_name(":".join(command_data).strip())
+
+            module_command = importlib.import_module(f"command.{module_name}")
+            if not module_command:
+                return
+
+            await module_command.run(
+                command_data[1] if len(command_data) > 1 else "",
+                text_input_split[1].strip() if len(text_input_split) > 1 else "",
+                extra_args,
+                is_personal_chat,
+                self.command_callback(
+                    ":".join(command_data).strip(),
+                    extra_args,
+                    is_personal_chat
+                ))
+        except Exception as e:
+            target = extra_args.get('target')
+            if isinstance(target, Union[Message, MessageMediaDocument]):
+                await edit_service_message(extra_args.get('target'), str(e))
+            print(e)
+
+    def add_command(self, command: str | List[str], description: str = '', args: Optional[Any] = None, callback=None):
+        """
+        Add command
+        command can be a string or a list, if it's a list, the first element will be the module name
+            take care that the module name must be the first element of the list and it must be unique
+            or it will be wrong and the command will not work as expected
+        :param command:
+        :param description:
+        :param args:
+        :param callback:
+        :return:
+        """
+        if isinstance(command, str):
+            command = [command]
+
+        for c in command:
+            self.commands[c] = {'module_name': command[0].split(COMMAND_SPLITTER)[0],'description': description, 'args': args, 'callback': callback}
 
     def list_commands(self):
-        """Restituisce l'elenco dei comandi disponibili."""
-        return list(self.commands.keys())
+        """
+        List commands
+        :return:
+        """
+        command_list = "\n".join(
+            f"{key}: {value['description']}" for key, value in self.commands.items()
+        )
+        return command_list
 
-    async def detect_and_execute(self, text: str, extra_args=None):
-        """Esegue il comando se presente nel testo."""
-        for command, details in self.commands.items():
-            match = re.match(rf"^{re.escape(command)}\s*(.*)$", text)
-            if match:
-                args = match.group(1).strip() if match.group(1) else ""
+    def command_callback(self, command: str, *args, **kwargs):
+        """
+        Callback
+        :param command:
+        :param args:
+        :param kwargs:
+        :return:
+        """
+        return self.commands[command]['callback']
 
-                # Unisci args e extra_args se esistono
-                if extra_args:
-                    combined_args = f"{args} {extra_args}".strip()
-                else:
-                    combined_args = args
-
-                callback = details['callback']
-                num_params = len(inspect.signature(callback).parameters)
-
-                # Chiama il callback con o senza argomenti, a seconda di quanti ne accetta
-                if num_params == 0:
-                    await callback()  # Senza argomenti
-                else:
-                    await callback(combined_args)  # Con argomenti
+    def command_exists(self, param):
+        """
+        Check if command exists
+        :param param:
+        :return:
+        """
+        for command in list(self.commands.keys()):
+            if command == param:
                 return True
         return False
+
+    def get_module_name(self, param):
+        """
+        Get module name
+        :param param:
+        :return:
+        """
+        return self.commands[param]['module_name']

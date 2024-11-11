@@ -10,6 +10,7 @@ import sys
 
 # Add the 'func' and 'class' directory to the system path to import custom modules
 sys.path.append(os.path.join(os.path.dirname(__file__), "func"))
+sys.path.append(os.path.join(os.path.dirname(__file__), "command"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "classes"))
 
 PERSONAL_CHAT_ID = "me"

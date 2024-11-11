@@ -8,13 +8,11 @@ import glob
 import os
 from collections.abc import Iterator
 from pathlib import Path
-from typing import AnyStr, Union, Optional
-
-from telethon.tl.custom import Forward
-from telethon.tl.patched import Message
-from telethon.tl.types import MessageMediaDocument
+from typing import AnyStr, Optional
 
 from classes.config_object import ConfigObject
+from classes.object_data import ObjectData
+
 
 class Rules:
     """
@@ -29,7 +27,7 @@ class Rules:
         """
         Load both rules from .rule files in the specified directory.
         """
-        from utils import safe_getattr
+        from func.utils import safe_getattr
 
         self.rules = {'message': []}
         rule_files = os.path.join(root_directory, 'rules', '*.rule')
@@ -71,13 +69,14 @@ class Rules:
         self.id_increment = self.id_increment + 1
 
         for line in lines:
+            line = line.strip()
             if line.startswith('#'):
                 continue
             self.detect_command(line, 'on:message:pattern', lambda match: setattr(pattern, 'message', match))
             self.detect_command(line, 'set:chat:id', lambda match: setattr(pattern, 'chat_id', match))
             self.detect_command(line, 'set:chat:title', lambda match: setattr(pattern, 'chat_title', match))
             self.detect_command(line, 'set:chat:name', lambda match: setattr(pattern, 'chat_name', match))
-            self.detect_command(line, 'use:message:filename', lambda match: setattr(pattern, 'use_filename', match))
+            self.detect_command(line, 'use:message:filename', lambda match: setattr(pattern, 'use_filename', True))
 
             if hasattr(pattern, 'message'):
                 self.detect_command(line, 'on:folder:pattern',
@@ -116,14 +115,14 @@ class Rules:
     def apply_rules(self, type_name: str, input_value: str,
                     *,
                     message_id: Optional[int] = None,
-                    message: Optional[Union[Message, MessageMediaDocument]] = None) -> str | None:
+                    video_object: Optional[ObjectData] = None) -> str | None:
         """
         Apply rules to input and returns edited output.
         """
 
         # Rules for messages
         if type_name == 'translate':
-            return self.translate_string(input_value, message)
+            return self.translate_string(input_value, video_object)
         if type_name == 'completed_folder_mask':
             return self.completed_task(input_value, message_id)
         return input_value
@@ -150,31 +149,26 @@ class Rules:
                         return completed_folder
         return None
 
-    def translate_string(self, input_value: str, message: Union[Message, MessageMediaDocument]) -> str:
+    def translate_string(self, input_value: str, video_object: ObjectData) -> str:
         """
         Apply rules to input and returns edited output.
         """
+        match_text = self.get_match_by_message_text(input_value, video_object)
+        return match_text if match_text is not None else input_value
+
+    def get_match_by_message_text(self, input_value: str, video_object: ObjectData) -> str:
         for rule in self.rules['message']:
-            if message is None:
+            if video_object is None:
                 continue
+            if rule.pattern.use_filename and video_object.file_name is not None:
+                input_value = video_object.file_name
             pattern = rule.pattern
             rule_chat_id = pattern.chat_id or None
             rule_chat_title = pattern.chat_title or None
             rule_chat_name = pattern.chat_name or None
-            chat_id = None
-            chat_title = None
-            chat_name = None
-            if isinstance(message, (Message, MessageMediaDocument)):
-                chat_id = message.chat_id
-                forward = message.forward
-                sender = forward.sender if hasattr(forward, 'sender') else None
-                if forward.is_channel is True and isinstance(forward, Forward) and forward is not None:
-                    if forward.chat is not None:
-                        chat_title = message.forward.chat.title
-                        chat_name = message.forward.chat.username
-                if message.is_private is True and sender is not None and hasattr(sender, 'bot') and sender.bot is True:
-                    chat_title = sender.first_name or ''
-                    chat_name = sender.username or ''
+            chat_id = video_object.chat_id
+            chat_title = video_object.chat_title
+            chat_name = video_object.chat_name
             if rule_chat_id is not None and rule_chat_id != chat_id:
                 continue
             if rule_chat_name is not None and rule_chat_name != chat_name:
@@ -184,9 +178,11 @@ class Rules:
             action = rule.translate
             match = re.match(pattern.message, input_value)
             if match:
-                self.rule_item_ids[rule.id] = message.id
+                self.rule_item_ids[rule.id] = video_object.video_id
                 return self.safe_format(action, *match.groups())
-        return input_value
+
+    def assign_rule_by_video_data(self, original_video_name, video_object: ObjectData):
+        self.get_match_by_message_text(original_video_name, video_object)
 
     def reload_rules(self):
         """
