@@ -199,7 +199,7 @@ def is_interrupted():
             operation_status.quit_program is True or
             operation_status.start_download is not True)
 
-async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 5):
+async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 15):
     """Download a file with retry attempts in case of failure."""
     from run import PERSONAL_CHAT_ID
 
