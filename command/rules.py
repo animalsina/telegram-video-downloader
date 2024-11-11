@@ -40,7 +40,7 @@ async def show(message):
     :return:
     """
     await message.delete()
-    for rule in rules_object.get_rules()['message']:
+    for rule in rules_object.get_rules()['message'].values():
         rules_text = (
             f"pattern: {vars(rule.pattern)}\n"
             f"translate: {rule.translate}\n"
@@ -57,7 +57,7 @@ async def edit(message):
     """
     await message.delete()
     await send_service_message(PERSONAL_CHAT_ID, t('rules_edit', 300), 300)
-    for rule in rules_object.get_rules()['message']:
+    for rule in rules_object.get_rules()['message'].values():
         with open(rule.file_name, 'r', encoding='utf-8') as file:
             contenuto = file.read()
         message = await send_service_message(PERSONAL_CHAT_ID, contenuto, 300)
@@ -73,7 +73,7 @@ async def delete(message):
     await message.delete()
     await send_service_message(PERSONAL_CHAT_ID, t('rules_delete', 30), 30)
 
-    for rule in rules_object.get_rules()['message']:
+    for rule in rules_object.get_rules()['message'].values():
         message = await send_service_message(PERSONAL_CHAT_ID, rule.file_name, 30)
         operation_status.rules_registered[message.id] = rule
     operation_status.can_delete_rules = True
