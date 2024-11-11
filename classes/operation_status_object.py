@@ -7,7 +7,6 @@ class OperationStatusObject:
     """
     def __init__(self, config_dict):
         self.videos_data = []
-        self.run_list = []
         self.start_download = True
         self.quit_program = False
         self.message = None

@@ -199,7 +199,7 @@ def is_interrupted():
             operation_status.quit_program is True or
             operation_status.start_download is not True)
 
-async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 15):
+async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 20):
     """Download a file with retry attempts in case of failure."""
     from run import PERSONAL_CHAT_ID
 
@@ -265,10 +265,10 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
 
         except (RPCError, FloodWaitError) as e:
             wait_time = 10  # Add a buffer time for safety
-            print(f"Rate limit exceeded. Waiting for some {wait_time} seconds before retrying...")
+            print(f"Rate limit exceeded. Waiting for some {wait_time} seconds before retrying... Remaining attempts: {attempt} on {retry_attempts}")
             print("Exception: " + str(e))
             await add_line_to_text(video.message_id_reference,
-                                   t('rate_limit_exceeded_error', wait_time),
+                                   t('rate_limit_exceeded_error', wait_time, attempt, retry_attempts),
                                    LINE_FOR_SHOW_LAST_ERROR)
             await asyncio.sleep(wait_time)
             attempt += 1
@@ -280,7 +280,6 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
             break
 
         except Exception as error:  # pylint: disable=broad-exception-caught
-
             print(f"Unexpected error: {str(error)}")
             await add_line_to_text(video.message_id_reference, f"Unexpected error: {str(error)}",
                                    LINE_FOR_SHOW_LAST_ERROR)

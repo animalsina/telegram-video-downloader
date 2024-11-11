@@ -31,8 +31,6 @@ async def run(  # pylint: disable=unused-argument
         await rename(extra_args.get('target'), text_input, callback)
     elif subcommand in ('target', 'dir', 'destination'):
         await target_to_download(extra_args.get('target'), extra_args.get('reply_message'))
-    elif subcommand == 'unlock':
-        await unlock_download(extra_args.get('target'))
 
 
 async def start(message, callback):
@@ -76,11 +74,3 @@ async def target_to_download(target, video_object: ObjectData):
         'completed_folder_mask',
         video_object.video_name, message_id=video_object.video_id)
     await edit_service_message(target, completed_folder_mask or configuration.completed_folder)
-
-async def unlock_download(target):
-    """
-    :param target:
-    :return:
-    """
-    await edit_service_message(target, t('download_unlocked'))
-    operation_status.run_list = []

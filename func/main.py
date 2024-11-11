@@ -55,7 +55,6 @@ operation_status = OperationStatusObject({
     'interrupt': False,
     'quit_program': False,
     'start_download': True,
-    'run_list': [],
     'rules_registered': {},
 })
 sem = asyncio.Semaphore(configuration.max_simultaneous_file_to_download)
@@ -112,7 +111,6 @@ async def download_with_limit(video: ObjectData):
                 await download_with_retry(client, video)
                 return True
             except Exception as e:  # pylint: disable=broad-except
-                operation_status.run_list.remove(video.video_id)
                 print(f"Error downloading {video.file_name}: {e}")
                 await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
                                        LINE_FOR_SHOW_LAST_ERROR)
@@ -121,7 +119,6 @@ async def download_with_limit(video: ObjectData):
         print(f"Error downloading {video.file_name}: {e}")
         await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
                                LINE_FOR_SHOW_LAST_ERROR)
-        operation_status.run_list.remove(video.video_id)
         return video
     finally:
         return True
@@ -323,31 +320,22 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
                 tasks = []
                 for _, video_data in operation_status.videos_data or []:  # type: [str, ObjectData]
                     task_video_data = await get_video_task(video_data)
-                    if task_video_data is not False and any(
-                            video_id == video_data.video_id for video_id in operation_status.run_list
-                    ) is False:
-                        tasks.append(create_task(download_with_limit(task_video_data)))
-                        operation_status.run_list.append(video_data.video_id)
+                    if task_video_data is not False:
+                        task = asyncio.create_task(download_with_limit(task_video_data))
+                        tasks.append(task)
 
                 # Execute all queued tasks concurrently
                 try:
-                    if len(tasks) > 0:
-                        results = await asyncio.gather(*tasks, return_exceptions=True)
-                        for result in results:
-                            if isinstance(result, ObjectData):
-                                await define_label(result.message_id_reference, TYPE_ERROR)
+                    await asyncio.gather(*tasks, return_exceptions=True)
                 except CancelledError:
                     print(t('cancel_download'))
-                    operation_status.run_list = []
             await asyncio.sleep(CHECK_INTERVAL)
 
     except KeyboardInterrupt:
-        operation_status.run_list = []
         print("Script interrupted manually.")
 
     except Exception as error:  # pylint: disable=broad-except
         print(f"An error occurred: {error}")
-        operation_status.run_list = []
         traceback.print_exc()
 
     finally:
