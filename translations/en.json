@@ -18,7 +18,7 @@
     "already_downloaded": "File already downloaded: {}",
     "file_mismatch_error": "File {} size mismatch - try again later.",
     "empty_reference_specify_name": "This video does not have a name. Please specify one by replying to the video with the correct file name.",
-    "rate_limit_exceeded_error": "Rate limit exceeded. Wait for {} seconds before to retrying...",
+    "rate_limit_exceeded_error": "Rate limit exceeded. Wait for {0} seconds before to retrying... Attempts: {1} on {2}",
     "file_system_error": "File system error: {}",
     "all_attempts_failed": "All retry attempts failed - {} - retry on next check.",
     "video_saved_and_moved": "🔔 Video is saved and moved in {}",

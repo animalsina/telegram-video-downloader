@@ -24,7 +24,6 @@ async def command_declaration():
         from func.main import operation_status
         operation_status.start_download = False
         operation_status.interrupt = True
-        operation_status.run_list = []
 
     async def rename(message, new_name):
         from func.utils import sanitize_video_name
@@ -74,9 +73,6 @@ async def command_declaration():
     command_handler.add_command("rules:delete", t('command_rules_delete'))
     command_handler.add_command("rules:add", t('command_rules_add'))
     command_handler.add_command("rules:reload", t('command_rules_reload'))
-    command_handler.add_command(
-        ["download:unlock", "dl:unlock"], t('command_download_unlock')
-    )
     command_handler.add_command(
         ["download:rename", "download:rn", "dl:rn", "dl:rename"],
         t('command_rename'),
