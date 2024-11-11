@@ -16,11 +16,13 @@ from tqdm import tqdm
 from classes.attribute_object import AttributeObject
 from classes.object_data import ObjectData
 from func.messages import t
-from func.utils import is_file_corrupted, \
-    download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA, LINE_FOR_SHOW_LAST_ERROR, get_video_data_path
+from func.utils import (
+    is_file_corrupted, \
+    download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA, \
+    LINE_FOR_SHOW_LAST_ERROR, get_video_data_path)
 
 # Buffer to store speed data samples
-speed_samples = collections.deque(maxlen=20)  # Keep only the last 100 samples
+speed_samples = collections.deque(maxlen=20)  # Keep only the last 20 samples
 
 
 def calculate_download_speed(current: int, time_elapsed: float, last_current: int):
@@ -89,6 +91,7 @@ def format_time(seconds: float) -> str:
     minutes, seconds = divmod(rem, 60)
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
+
 async def progress_tracking(
         client: TelegramClient,
         progress: int, file_size: int, video: ObjectData,
@@ -97,9 +100,8 @@ async def progress_tracking(
     """
     Track the download progress and update the status message.
     """
-    from main import configuration
 
-    await add_line_to_text(video.message_id_reference, '', LINE_FOR_SHOW_LAST_ERROR)
+    await add_line_to_text(video.message_id_reference, '', LINE_FOR_SHOW_LAST_ERROR, False)
 
     # Initialize the progress bar
     with tqdm(total=file_size, initial=progress,
@@ -111,6 +113,15 @@ async def progress_tracking(
             nonlocal last_update_time
 
             if total is not None:
+
+                if is_interrupted() is True:
+                    print(t('download_stopped'))
+                    await add_line_to_text(video.message_id_reference,
+                                           t('download_stopped', video.file_name),
+                                           LINE_FOR_INFO_DATA, True)
+                    raise KeyboardInterrupt(t('download_stopped', video.file_name))
+
+
                 percent_complete: float = (current / total) * 100
                 current_time: float = time.time()
 
@@ -146,8 +157,8 @@ async def progress_tracking(
         # Download the media to the temp file using iter_download
         async with client.iter_download(video.video_media, offset=progress,
                                         request_size=64 * 1024) as download_iter:
-            from func.main import interrupt
-            if interrupt is True:
+            from func.main import operation_status
+            if operation_status.interrupt is True:
                 return
 
             directory = os.path.dirname(temp_file_path)
@@ -159,11 +170,12 @@ async def progress_tracking(
 
             with open(temp_file_path, 'ab') as f:
                 async for chunk in download_iter:
-                    from func.main import interrupt
-                    if interrupt is True:
+                    from func.main import operation_status
+                    if operation_status.interrupt is True:
                         return
                     f.write(chunk)
                     await progress_callback(f.tell(), file_size)
+
 
 async def get_user_id():
     """
@@ -176,6 +188,16 @@ async def get_user_id():
         client.start(configuration.phone)
     me = await client.get_me()
     return me.id
+
+def is_interrupted():
+    """
+    Check if the download is interrupted
+    :return:
+    """
+    from func.main import operation_status
+    return (operation_status.interrupt is True or
+            operation_status.quit_program is True or
+            operation_status.start_download is not True)
 
 async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 5):
     """Download a file with retry attempts in case of failure."""
@@ -195,14 +217,6 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
     last_update_time = time.time()
     file_size = video.video_media.document.size
     temp_file_path = f"{video.file_path}.temp"
-
-    def is_interrupted():
-        """
-        Check if the download is interrupted
-        :return:
-        """
-        from func.main import interrupt
-        return interrupt
 
     while attempt < retry_attempts:
         try:
@@ -270,7 +284,11 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
                                    LINE_FOR_SHOW_LAST_ERROR)
             break
 
-def get_video_data_by_video_id(video_id: int) -> ObjectData | None:
+
+def get_video_data_by_video_id(video_id: int) -> ObjectData | None: # pylint: disable=unused-argument
+    """
+    Get video data by video id
+    """
     import glob
 
     files = glob.glob(os.path.join(get_video_data_path(), f"*_{video_id}.json"))
@@ -291,7 +309,11 @@ def get_video_data_by_video_id(video_id: int) -> ObjectData | None:
                 print(f"Error on loading file {file_name}: {error2}")
     return None
 
+
 def get_video_data_by_message_id_reference(message_id_reference: int) -> ObjectData | None:
+    """
+    Get video data by message id reference
+    """
     import glob
 
     files = glob.glob(os.path.join(get_video_data_path(), f"{message_id_reference}_*.json"))

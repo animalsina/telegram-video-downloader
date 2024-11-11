@@ -7,7 +7,7 @@ from func.messages import t
 from func.telegram_client import edit_service_message
 
 
-async def run(subcommand: str, text_input: str, extra_args=None, is_personal_chat=False, callback=None):
+async def run(subcommand: str, text_input: str, extra_args=None, is_personal_chat=False, callback=None):  # pylint: disable=unused-argument
     """
     Run the command
     :param subcommand:

@@ -18,6 +18,7 @@ class Rules:
     """
     Rules Class
     """
+
     def __init__(self):
         self.id_increment: int = 0
         self.rule_item_ids = {}
@@ -76,18 +77,19 @@ class Rules:
             self.detect_command(line, 'set:chat:id', lambda match: setattr(pattern, 'chat_id', match))
             self.detect_command(line, 'set:chat:title', lambda match: setattr(pattern, 'chat_title', match))
             self.detect_command(line, 'set:chat:name', lambda match: setattr(pattern, 'chat_name', match))
-            self.detect_command(line, 'use:message:filename', lambda match: setattr(pattern, 'use_filename', True))
+            self.detect_command(line,
+                                'use:message:filename', lambda match: setattr(pattern, 'use_filename', True))
 
             if hasattr(pattern, 'message'):
                 self.detect_command(line, 'on:folder:pattern',
-                               lambda match: setattr(pattern, 'folder', match))
+                                    lambda match: setattr(pattern, 'folder', match))
 
             self.detect_command(line, 'action:message:translate',
-                           lambda match: setattr(update_data, 'translate', match))
+                                lambda match: setattr(update_data, 'translate', match))
 
             if hasattr(pattern, 'folder'):
                 self.detect_command(line, 'action:folder:completed',
-                               lambda match: setattr(update_data, 'completed_folder_mask', match))
+                                    lambda match: setattr(update_data, 'completed_folder_mask', match))
 
         self.rules['message'].append(update_data)
         return self
@@ -156,7 +158,10 @@ class Rules:
         match_text = self.get_match_by_message_text(input_value, video_object)
         return match_text if match_text is not None else input_value
 
-    def get_match_by_message_text(self, input_value: str, video_object: ObjectData) -> str:
+    def get_match_by_message_text(self, input_value: str, video_object: ObjectData) -> str | None:
+        """
+        Apply rules to input and returns edited output.
+        """
         for rule in self.rules['message']:
             if video_object is None:
                 continue
@@ -180,8 +185,12 @@ class Rules:
             if match:
                 self.rule_item_ids[rule.id] = video_object.video_id
                 return self.safe_format(action, *match.groups())
+        return None
 
     def assign_rule_by_video_data(self, original_video_name, video_object: ObjectData):
+        """
+        Assign rule by video data
+        """
         self.get_match_by_message_text(original_video_name, video_object)
 
     def reload_rules(self):
@@ -193,7 +202,7 @@ class Rules:
         self.load_rules(root_dir)
         return self
 
-    def get_rule_by_id(self, rule_id: int):
+    def get_rule_by_id(self, rule_id: int): # pylint: disable=unused-argument
         """
         Get rule by id
         :param rule_id:
@@ -202,8 +211,9 @@ class Rules:
         for rule in self.rules['message']:
             if rule.id == rule_id:
                 return rule
+        return None
 
-    def get_rule_by_item_id(self, message_id: int):
+    def get_rule_by_item_id(self, message_id: int): # pylint: disable=unused-argument
         """
         Get rule by item id
         :param message_id:
@@ -212,6 +222,10 @@ class Rules:
         for rule in self.rules['message']:
             if self.rule_item_ids[rule.id] == message_id:
                 return rule
+        return None
 
     def get_rules(self):
+        """
+        Get rules
+        """
         return self.rules

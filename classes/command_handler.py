@@ -48,18 +48,15 @@ class CommandHandler:
                 text_input_split[1].strip() if len(text_input_split) > 1 else "",
                 extra_args,
                 is_personal_chat,
-                self.command_callback(
-                    ":".join(command_data).strip(),
-                    extra_args,
-                    is_personal_chat
-                ))
-        except Exception as e:
+                self.command_callback(":".join(command_data).strip()))
+        except Exception as e: # pylint: disable=broad-except
             target = extra_args.get('target')
             if isinstance(target, Union[Message, MessageMediaDocument]):
                 await edit_service_message(extra_args.get('target'), str(e))
             print(e)
 
-    def add_command(self, command: str | List[str], description: str = '', args: Optional[Any] = None, callback=None):
+    def add_command(self, command: str | List[str], description: str = '',
+                    args: Optional[Any] = None, callback=None):
         """
         Add command
         command can be a string or a list, if it's a list, the first element will be the module name
@@ -75,7 +72,9 @@ class CommandHandler:
             command = [command]
 
         for c in command:
-            self.commands[c] = {'module_name': command[0].split(COMMAND_SPLITTER)[0],'description': description, 'args': args, 'callback': callback}
+            self.commands[c] = {'module_name': command[0].split(COMMAND_SPLITTER)[0],
+                                'description': description,
+                                'args': args, 'callback': callback}
 
     def list_commands(self):
         """
@@ -87,12 +86,10 @@ class CommandHandler:
         )
         return command_list
 
-    def command_callback(self, command: str, *args, **kwargs):
+    def command_callback(self, command: str):
         """
         Callback
         :param command:
-        :param args:
-        :param kwargs:
         :return:
         """
         return self.commands[command]['callback']
