@@ -32,10 +32,10 @@ from func.telegram_client import (
     get_video_data_by_message_id_reference)
 from classes.string_builder import (
     LINE_FOR_INFO_DATA,
-    LINE_FOR_SHOW_LAST_ERROR)
+    LINE_FOR_SHOW_LAST_ERROR, TYPE_COMPLETED, TYPE_ERROR)
 from func.utils import (add_line_to_text, save_video_data,
                         remove_video_data,
-                        get_video_object_by_message_id_reference)
+                        get_video_object_by_message_id_reference, define_label)
 
 configuration = load_configuration()
 
@@ -110,19 +110,21 @@ async def download_with_limit(video: ObjectData):
 
                 # Start downloading the file with retry logic
                 await download_with_retry(client, video)
+                return True
             except Exception as e:  # pylint: disable=broad-except
                 operation_status.run_list.remove(video.video_id)
                 print(f"Error downloading {video.file_name}: {e}")
                 await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
                                        LINE_FOR_SHOW_LAST_ERROR)
+                return video
     except Exception as e:  # pylint: disable=broad-except
         print(f"Error downloading {video.file_name}: {e}")
         await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
                                LINE_FOR_SHOW_LAST_ERROR)
         operation_status.run_list.remove(video.video_id)
+        return video
     finally:
-        # Eventualmente liberare altre risorse
-        pass
+        return True
 
 
 async def client_data():
@@ -147,9 +149,6 @@ async def client_data():
         if LOG_IN_PERSONAL_CHAT is True:
             await client.send_message(PERSONAL_CHAT_ID, t("no_message_found"))
         return
-
-    # Delete previously created service messages
-    # await delete_service_messages()
 
 
 async def get_video_task(video_object: ObjectData):
@@ -333,7 +332,10 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
                 # Execute all queued tasks concurrently
                 try:
                     if len(tasks) > 0:
-                        await asyncio.gather(*tasks, return_exceptions=True)
+                        results = await asyncio.gather(*tasks, return_exceptions=True)
+                        for result in results:
+                            if isinstance(result, ObjectData):
+                                await define_label(result.message_id_reference, TYPE_ERROR)
                 except CancelledError:
                     print(t('cancel_download'))
                     operation_status.run_list = []
