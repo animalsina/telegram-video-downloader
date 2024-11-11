@@ -1,6 +1,7 @@
 """
 Module for interacting with Telegram API to download files with progress tracking and retry logic.
 """
+import json
 import time
 import os
 import asyncio
@@ -12,10 +13,11 @@ from telethon.errors import FloodWaitError, RPCError
 from telethon.tl.patched import Message
 from tqdm import tqdm
 
+from classes.attribute_object import AttributeObject
 from classes.object_data import ObjectData
 from func.messages import t
 from func.utils import is_file_corrupted, \
-    download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA, LINE_FOR_SHOW_LAST_ERROR
+    download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA, LINE_FOR_SHOW_LAST_ERROR, get_video_data_path
 
 # Buffer to store speed data samples
 speed_samples = collections.deque(maxlen=20)  # Keep only the last 100 samples
@@ -267,3 +269,45 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
             await add_line_to_text(video.message_id_reference, f"‼️ Unexpected error: {str(error)}",
                                    LINE_FOR_SHOW_LAST_ERROR)
             break
+
+def get_video_data_by_video_id(video_id: int) -> ObjectData | None:
+    import glob
+
+    files = glob.glob(os.path.join(get_video_data_path(), f"*_{video_id}.json"))
+    file_path = files[0] if files else None
+    if file_path is not None or os.path.isfile(str(file_path)):
+        file_name = os.path.basename(file_path)
+        with open(file_path, "rb") as file:
+            try:
+                data = json.load(file)
+                object_data = ObjectData(**data)
+
+                video_attribute = getattr(object_data, "video_attribute")
+                if isinstance(video_attribute, dict):
+                    object_data.video_attribute = AttributeObject(**video_attribute)
+
+                return object_data
+            except Exception as error2:  # pylint: disable=broad-except
+                print(f"Error on loading file {file_name}: {error2}")
+    return None
+
+def get_video_data_by_message_id_reference(message_id_reference: int) -> ObjectData | None:
+    import glob
+
+    files = glob.glob(os.path.join(get_video_data_path(), f"{message_id_reference}_*.json"))
+    file_path = files[0] if files else None
+    if file_path is not None or os.path.isfile(str(file_path)):
+        file_name = os.path.basename(file_path)
+        with open(file_path, "rb") as file:
+            try:
+                data = json.load(file)
+                object_data = ObjectData(**data)
+
+                video_attribute = getattr(object_data, "video_attribute")
+                if isinstance(video_attribute, dict):
+                    object_data.video_attribute = AttributeObject(**video_attribute)
+
+                return object_data
+            except Exception as error2:  # pylint: disable=broad-except
+                print(f"Error on loading file {file_name}: {error2}")
+    return None

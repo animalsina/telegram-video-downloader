@@ -182,7 +182,7 @@ async def download_complete_action(video: ObjectData) -> None:
     Download complete action.
     """
     from func.config import load_configuration
-    from func.main import rules_object, client
+    from func.main import rules_object
     config = load_configuration()
 
     mime_type, _ = mimetypes.guess_type(video.file_path)
@@ -281,12 +281,12 @@ def video_data_file_exists_by_video_id(video_id: str):
     return bool(files)
 
 
-def get_video_data_name(video: ObjectData):
+def get_video_data_name(message_id_reference: int, chat_id: int, video_id: int):
     """
     Returns the name of the video data file based on the video object.
     """
     from main import client
-    return f"{video.message_id_reference}_{client.api_id}_{video.chat_id}_{video.id}.json"
+    return f"{message_id_reference}_{client.api_id}_{chat_id}_{video_id}.json"
 
 
 def get_video_data_full_path(video: ObjectData):
@@ -295,7 +295,11 @@ def get_video_data_full_path(video: ObjectData):
     """
     if os.path.isdir(get_video_data_path()) is False:
         os.mkdir(get_video_data_path())
-    return os.path.join(get_video_data_path(), get_video_data_name(video))
+    return os.path.join(
+        get_video_data_path(),
+        get_video_data_name(
+            video.message_id_reference, video.chat_id, video.video_id)
+    )
 
 
 def get_video_data_path() -> str:

@@ -11,6 +11,8 @@ class ObjectData:
     Class for managing object data.
     """
     def __init__(self, **kwargs):
+        self.chat_title = None
+        self.forward_message_id = None
         self.video_media = None
         self.original_video_name = None
         self.chat_name = None

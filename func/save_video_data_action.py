@@ -6,7 +6,7 @@ from typing import List, Union
 
 from telethon.errors import ChatForwardsRestrictedError
 from telethon.tl.patched import Message
-from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo, MessageMediaDocument
+from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo, MessageMediaDocument, Channel
 
 from classes.object_data import ObjectData
 from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED, TYPE_ACQUIRED, TYPE_COMPRESSED
@@ -103,10 +103,38 @@ async def process_video(video: Union[Message, MessageMediaDocument], chat_name: 
         return None
 
     video_data['original_video_name'] = video_name
-    video_name = rules_object.apply_rules('translate', video_name, message=video)
+
+    forward = video.forward
+    chat_name = None
+    chat_title = None
+    chat_id = None
+
+    if hasattr(forward, 'chat') and isinstance(forward.chat, Channel):
+        chat_name = forward.chat.username
+        chat_title = forward.chat.title
+        chat_id = forward.chat_id
+    elif hasattr(forward, 'sender') and hasattr(forward.sender, 'bot') and forward.sender.bot is True:
+        chat_name = forward.sender.username
+        chat_title = forward.sender.first_name
+        chat_id = forward.sender.id
+
+    video_name = rules_object.apply_rules('translate', video_name, video_object=ObjectData(**{
+        'chat_id': chat_id,
+        'chat_name': chat_name,
+        'chat_title': chat_title,
+        'video_id': video_data["video_id"],
+        'file_name': await get_file_name(video),
+    }))
     video_data["video_name"] = video_name
     video_data["video_name_cleaned"] =  sanitize_video_name(video_name)
-    video_data["file_name"] = await get_file_name(video, video_name)
+    video_data["file_name"] = (await get_file_name(video)) or sanitize_filename(video_name)
+
+    if video.forward is not None:
+        video_data['chat_name'] = chat_name
+        video_data['chat_id'] = chat_id
+        video_data['chat_title'] = chat_title
+        if isinstance(video.forward.chat, Channel):
+            video_data['forward_message_id'] = video.forward.channel_post
 
     if video_data["file_name"] is None:
         print("Error: file_name is None. Unable to determine the file path.")
@@ -132,8 +160,6 @@ def initialize_video_data(video: Union[Message, MessageMediaDocument], chat_name
         "id": video.id,
         "video_id": video.id,
         "video_text": video.text,
-        "chat_name": chat_name,
-        "chat_id": video.chat.id,
         "pinned": video.pinned,
         "completed": False,
         "video_attribute": None,
@@ -179,7 +205,7 @@ async def get_video_name_from_text(video):
     return sanitize_filename(msg1 + msg2 + msg3) if video.text else None
 
 
-async def get_file_name(video, video_name):
+async def get_file_name(video):
     """ Determine the file name based on video attributes. """
     file_name = None
     video_message_document_attributes = video.media.document.attributes
@@ -187,10 +213,8 @@ async def get_file_name(video, video_name):
     for attr in video_message_document_attributes:
         if isinstance(attr, DocumentAttributeFilename):
             file_name = sanitize_filename(attr.file_name)
-        # if isinstance(attr, DocumentAttributeVideo):
-        #    video_attribute = attr
 
-    if video_name is None and file_name is not None:
+    if file_name is not None:
         return sanitize_filename(file_name.rsplit(".", 1)[0].strip())
 
     return file_name
@@ -255,6 +279,8 @@ def get_video_data_keys():
         "file_path",
         "chat_id",
         "chat_name",
+        "chat_title",
+        "forward_message_id"
         "video_attribute",
         "pinned",
         "message_id_reference",

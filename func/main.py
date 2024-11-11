@@ -4,12 +4,10 @@ Main module for run the program
 
 # Moduli standard
 import asyncio
-import json
 import os
 import shutil
 import traceback
 from asyncio import CancelledError, create_task
-from inspect import iscoroutine
 from pathlib import Path
 from typing import List, Union
 
@@ -20,6 +18,7 @@ from telethon.events import NewMessage
 from telethon.tl.types import Message
 from telethon.tl.types import MessageReplyHeader
 
+from classes.command_handler import CommandHandler
 # Moduli locali
 from classes.object_data import ObjectData
 from func.config import load_configuration
@@ -28,11 +27,11 @@ from classes.rules import Rules
 from func.save_video_data_action import acquire_video
 from func.telegram_client import (
     create_telegram_client, download_with_retry,
-    send_service_message, edit_service_message, get_user_id)
+    send_service_message, get_user_id,
+    get_video_data_by_message_id_reference)
 from classes.string_builder import (
-    LINE_FOR_VIDEO_NAME, LINE_FOR_INFO_DATA,
-    LINE_FOR_SHOW_LAST_ERROR)
-from classes.attribute_object import AttributeObject
+    LINE_FOR_INFO_DATA,
+    LINE_FOR_SHOW_LAST_ERROR, LINE_FOR_VIDEO_NAME)
 from func.utils import add_line_to_text, save_video_data, sanitize_video_name, sanitize_filename, remove_video_data
 
 configuration = load_configuration()
@@ -44,8 +43,13 @@ client = create_telegram_client(
 # Initialize rules
 rules_object = Rules()
 
+command_handler = CommandHandler()
+
 all_messages: List[Message] = []
 replies_msg = []
+run_list = []
+rules_registered = {}
+can_delete_rules = False
 sem = asyncio.Semaphore(configuration.max_simultaneous_file_to_download)
 interrupt = False
 
@@ -80,27 +84,9 @@ def load_all_video_data() -> list:
         file_path = None
         if file_name.endswith(".json"):
             file_path = os.path.join(video_data_dir, file_name)
-        if file_path is None:
-            continue
-
-        # Verifica che sia un file
-        if os.path.isfile(file_path):
-            # Carica il contenuto del file data
-            with open(file_path, "rb") as file:
-                try:
-                    data = json.load(file)
-                    object_data = ObjectData(**data)
-
-                    # Verifica se l'attributo 'video_attribute' è un dizionario e se s ,
-                    # crea un oggetto AttributeObject
-                    video_attribute = getattr(object_data, "video_attribute")
-                    if isinstance(video_attribute, dict):
-                        object_data.video_attribute = AttributeObject(**video_attribute)
-
-                    all_data.append((file_name, object_data))
-                except Exception as error2:  # pylint: disable=broad-except
-                    print(f"Errore nel caricamento di {file_name}: {error2}")
-
+        if file_path is not None:
+            message_id_reference = int(os.path.basename(file_path).split("_")[0])
+            all_data.append((file_name, get_video_data_by_message_id_reference(message_id_reference)))
     return all_data
 
 
@@ -122,12 +108,17 @@ async def download_with_limit(video: ObjectData):
                 # Start downloading the file with retry logic
                 await download_with_retry(client, video)
             except Exception as e:
+                global run_list
+                run_list.remove(video.video_id)
                 print(f"Error downloading {video.file_name}: {e}")
                 await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
                                        LINE_FOR_SHOW_LAST_ERROR)
                 pass
     except Exception as e:
         print(f"Error downloading {video.file_name}: {e}")
+        await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
+                               LINE_FOR_SHOW_LAST_ERROR)
+        run_list.remove(video.video_id)
         pass
     finally:
         # Eventualmente liberare altre risorse
@@ -197,6 +188,7 @@ async def get_video_task(video_object: ObjectData):
             remove_video_data(video_object)
             return False
 
+    rules_object.assign_rule_by_video_data(video_object.original_video_name, video_object)
     save_video_data({"pinned": reference_message.pinned}, video_object, ["pinned"])
 
     try:
@@ -240,16 +232,83 @@ async def main():
     """Main function to manage the Telegram client and download files."""
     from func.save_video_data_action import save_video_data_action
     from run import root_dir, PERSONAL_CHAT_ID
+    global rules_registered, can_delete_rules
+
     global quit_program, start_download, interrupt
     rules_object.load_rules(Path(root_dir))
     videos_data = []
-    run_list = []
-    rules_registered: dict = {}
-    can_delete_rules=False
+    rules_registered = {}
+
+    def set_quit_program():
+        global quit_program
+        quit_program = True
+
+    def set_download_start():
+        global start_download, interrupt
+        start_download = True
+        interrupt = False
+
+    def set_download_stop():
+        global start_download, interrupt, run_list
+        start_download = False
+        interrupt = True
+        run_list = []
+
+    async def rename(message, new_name):
+        video_name_cleaned = sanitize_video_name(new_name)
+        if message.reply_to is not None:
+            reply_message = await client.get_messages(
+                PERSONAL_CHAT_ID,
+                ids=message.reply_to.reply_to_msg_id)
+            _, video_object = get_video_object_by_message_id_reference(reply_message.id)
+            await add_line_to_text(
+                reply_message.id,
+                new_name,
+                LINE_FOR_VIDEO_NAME,
+                True
+            )
+            save_video_data({'video_name': new_name,
+                             'video_name_cleaned': video_name_cleaned},
+                            video_object,
+                            ['video_name'])
+            video_object.video_name = new_name
+            await message.delete()
+
+    command_handler.add_command(["help", "command", "commands"], t('command_help'))
+    command_handler.add_command(
+        "quit",
+        t('command_quit'),
+        args={},
+        callback=set_quit_program
+    )
+    command_handler.add_command("status", t('command_status'))
+    command_handler.add_command(
+        ["download:on", "download:start", "dl:start", "dl:on"],
+        t('command_download_start'),
+        args={},
+        callback=set_download_start
+    )
+    command_handler.add_command(
+        ["download:off", "download:stop", "dl:off", "dl:stop"],
+        t('command_download_stop'),
+        args={},
+        callback=set_download_stop
+    )
+    command_handler.add_command("rules:show", t('command_rules_show'))
+    command_handler.add_command("rules:edit", t('command_rules_edit'))
+    command_handler.add_command("rules:delete", t('command_rules_delete'))
+    command_handler.add_command("rules:add", t('command_rules_add'))
+    command_handler.add_command("rules:reload", t('command_rules_reload'))
+    command_handler.add_command(
+        ["download:rename", "dl:rn", "rename"],
+        t('command_rename'),
+        args={},
+        callback=rename
+    ),
 
     try:
         await client_data()
-        await send_service_message(PERSONAL_CHAT_ID, t('program_start'))
+        await send_service_message(PERSONAL_CHAT_ID, t('program_start'), 5)
 
         # Prepare video files
         await save_video_data_action()
@@ -270,26 +329,22 @@ async def main():
             text = message_data.message
 
             if is_personal_chat:
-                await edit_rules(message_data, text)
+                if rules_registered.get(message_data.id):
+                    rule_data = rules_registered[message_data.id]
+                    with open(rule_data.file_name, 'w', encoding='utf-8') as file:
+                        file.write(text)
+                    await send_service_message(PERSONAL_CHAT_ID, t('rule_updated', rule_data.file_name))
+                    rules_object.reload_rules()
+                    await send_service_message(PERSONAL_CHAT_ID, t('rules_reloaded'))
                 return
 
-        async def edit_rules(message, new_rule_text):
-            nonlocal rules_registered
-            if rules_registered.get(message.id):
-                rule_data = rules_registered[message.id]
-                with open(rule_data.file_name, 'w', encoding='utf-8') as file:
-                    file.write(new_rule_text)
-                await send_service_message(PERSONAL_CHAT_ID, t('rule_updated', rule_data.file_name))
-                rules_object.reload_rules()
-                await send_service_message(PERSONAL_CHAT_ID, t('rules_reloaded'))
-
         @client.on(events.MessageDeleted)
-        async def tg_deleted_message_handler(event): # pylint: disable=unused-function
+        async def tg_deleted_message_handler(event):  # pylint: disable=unused-function
             """Deleted Message Handler"""
 
             async def remove_rules(del_message_id):
                 """Remove rules"""
-                nonlocal rules_registered, can_delete_rules
+                global rules_registered, can_delete_rules
                 if rules_registered.get(del_message_id) and can_delete_rules is True:
                     rule_data = rules_registered[del_message_id]
                     shutil.move(rule_data.file_name,
@@ -307,137 +362,13 @@ async def main():
         async def tg_new_message_handler(event: NewMessage.Event):
             """NewMessage Handler"""
             global quit_program, start_download, interrupt
-            nonlocal run_list
+            global run_list
             message = event.message
             user_id = await get_user_id()
             is_personal_chat = message.chat.id == user_id
             text = message.text
 
-            if is_personal_chat:
-                if text == 'help':
-                    help_text = "quit: Quit the program\n" \
-                                "status: Show the current configuration\n" \
-                                "download:start: Start the download\n" \
-                                "download:stop: Stop the download\n" \
-                                "download:off: Disable the download\n" \
-                                "download:on: Enable the download\n" \
-                                "rules:reload: Reload the rules\n" \
-                                "rules:show: Show the rules\n" \
-                                "rules:add (name of file): Register a new rule\n" \
-                                "rules:edit: Edit the rules\n" \
-                                "rules:delete: Delete the rules\n" \
-                                "rename: <name>: Rename the video\n"
-                    await edit_service_message(message, help_text, 100)
-                if text == 'rules:show':
-                    await message.delete()
-                    for rule in rules_object.get_rules()['message']:
-                        rules_text = (
-                            f"pattern: {vars(rule.pattern)}\n"
-                            f"translate: {rule.translate}\n"
-                            f"completed_folder_mask: {rule.completed_folder_mask}"
-                        )
-                        await send_service_message(PERSONAL_CHAT_ID, rules_text, 100)
-                    return
-                if text == 'rules:edit':
-                    await message.delete()
-                    await send_service_message(PERSONAL_CHAT_ID, t('rules_edit', 300), 300)
-                    for rule in rules_object.get_rules()['message']:
-                        with open(rule.file_name, 'r', encoding='utf-8') as file:
-                            contenuto = file.read()
-                        message = await send_service_message(PERSONAL_CHAT_ID, contenuto, 300)
-                        rules_registered[message.id] = rule
-                    return
-                if text == 'rules:delete':
-                    nonlocal can_delete_rules
-                    await message.delete()
-                    await send_service_message(PERSONAL_CHAT_ID, t('rules_delete', 30), 30)
-                    for rule in rules_object.get_rules()['message']:
-                        message = await send_service_message(PERSONAL_CHAT_ID, rule.file_name, 30)
-                        rules_registered[message.id] = rule
-                    can_delete_rules=True
-
-                    async def disable_delete_rules():
-                        nonlocal can_delete_rules
-                        await asyncio.sleep(30)
-                        if can_delete_rules is True:
-                            can_delete_rules = False
-                            await send_service_message(PERSONAL_CHAT_ID, t('rules_delete_canceled'), 30)
-                    asyncio.create_task(disable_delete_rules())
-                    return
-                if text.startswith('rules:add'):
-                    rule_name = sanitize_filename(text.replace('rules:add', '')).strip()
-                    path = os.path.join(root_dir, 'rules', f"{rule_name}.rule")
-                    if rule_name == '':
-                        await edit_service_message(message, t('rule_name_empty'))
-                        return
-                    if len(rule_name) > 100:
-                        await edit_service_message(message, t('rule_name_too_long', 100))
-                        return
-                    if len(rule_name) < 3:
-                        await edit_service_message(message, t('rule_name_too_short', 3))
-                        return
-                    if os.path.exists(path):
-                        await edit_service_message(message, t('rule_already_exist', path))
-                        return
-                    with open(path, 'w', encoding='utf-8') as file:
-                        file.write(t('rule_start_text', rule_name))
-                    await edit_service_message(message, t('rule_created', rule_name))
-                    await send_service_message(PERSONAL_CHAT_ID, t('rule_start_text', rule_name), 300)
-                    rules_registered[message.id] = {
-                        'message': {
-                            'file_name': path
-                        }
-                    }
-                    return
-                if text == 'rules:reload':
-                    rules_object.reload_rules()
-                    await edit_service_message(message, t('rules_reloaded'))
-                    return
-                if text == 'status':
-                    exclude_keys = ["api_id", "api_hash"]
-                    config_dict = vars(configuration)
-
-                    config_text = "\n".join(
-                        f"{key}: {value}"
-                        for key, value in config_dict.items()
-                        if key not in exclude_keys
-                    )
-                    await edit_service_message(message, config_text, 100)
-                if text == 'quit':
-                    quit_program = True
-                    await edit_service_message(message, t('program_quit'), 3)
-                    await asyncio.sleep(4)
-                    return
-                if text == 'download:on' or text == 'download:start':
-                    start_download = True
-                    interrupt = False
-                    await edit_service_message(message, t('download_enabled'))
-                    return
-                if text == 'download:off':
-                    start_download = False
-                    await edit_service_message(message, t('download_disabled'))
-                    return
-                if text == 'download:stop':
-                    start_download = False
-                    interrupt = True
-                    run_list = []
-                    await edit_service_message(message, t('download_stopped'))
-                    return
-                if text.startswith('rename:'):
-                    new_name = text.replace('rename:', '')
-                    video_name_cleaned = sanitize_video_name(new_name)
-                    if message.reply_to is not None:
-                        reply_message = await client.get_messages(PERSONAL_CHAT_ID,
-                                                                  ids=message.reply_to.reply_to_msg_id)
-                        _, video_object = get_video_object_by_message_id_reference(reply_message.id)
-                        await add_line_to_text(reply_message.id, new_name, LINE_FOR_VIDEO_NAME, True)
-                        save_video_data({'video_name': new_name, 'video_name_cleaned': video_name_cleaned},
-                                        video_object,
-                                        ['video_name'])
-                        video_object.video_name = new_name
-                        await message.delete()
-                    return
-
+            await command_handler.exec(text, {'target': message}, is_personal_chat)
             await acquire_video(message)
             return
 
@@ -451,7 +382,7 @@ async def main():
             )
 
         while True:
-
+            global run_list
             filtered_data = [
                 item for item in load_all_video_data() if not item[1].completed
             ]
@@ -469,7 +400,8 @@ async def main():
                 tasks = []
                 for _, video_data in videos_data or []:  # type: [str, ObjectData]
                     task_video_data = await get_video_task(video_data)
-                    if task_video_data is not False and any(video_id == video_data.video_id for video_id in run_list) is False:
+                    if task_video_data is not False and any(
+                            video_id == video_data.video_id for video_id in run_list) is False:
                         tasks.append(create_task(download_with_limit(task_video_data)))
                         run_list.append(video_data.video_id)
 
@@ -479,13 +411,16 @@ async def main():
                         await asyncio.gather(*tasks, return_exceptions=True)
                 except CancelledError:
                     print(t('cancel_download'))
+                    run_list = []
             await asyncio.sleep(CHECK_INTERVAL)
 
     except KeyboardInterrupt:
+        run_list = []
         print("Script interrupted manually.")
 
     except Exception as error:  # pylint: disable=broad-except
         print(f"An error occurred: {error}")
+        run_list = []
         traceback.print_exc()
 
     finally:
