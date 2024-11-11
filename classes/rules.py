@@ -137,7 +137,8 @@ class Rules:
         Apply rules to input and returns edited output.
         """
         for rule in self.rules['message'].values():
-            if message_id is None or message_id not in self.rule_item_ids.get(rule.id):
+            rules_item_ids = self.rule_item_ids.get(rule.id)
+            if rules_item_ids is None or message_id is None or message_id not in rules_item_ids:
                 continue
             completed_folder_mask = getattr(rule, 'completed_folder_mask')
             if completed_folder_mask is not None:
@@ -165,7 +166,9 @@ class Rules:
         """
         Apply rules to input and returns edited output.
         """
+        original_input_value = input_value
         for rule in self.rules['message'].values():
+            input_value = original_input_value
             if video_object is None:
                 continue
             if rule.pattern.use_filename and video_object.file_name is not None:
