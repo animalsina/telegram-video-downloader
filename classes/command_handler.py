@@ -7,7 +7,9 @@ from typing import Any, Optional, Union, List
 from telethon.tl.patched import Message
 from telethon.tl.types import MessageMediaDocument
 
-from func.telegram_client import edit_service_message
+from func.messages import t
+from func.telegram_client import edit_service_message, get_video_data_by_video_id, \
+    get_video_data_by_message_id_reference
 
 COMMAND_SPLITTER = ":"
 
@@ -23,7 +25,6 @@ class CommandHandler:
     async def exec(self, text_input: str, extra_args=None, is_personal_chat=False):
         """
         Execute a command
-        :param callback:
         :param is_personal_chat:
         :param text_input:
         :param extra_args:
@@ -33,11 +34,28 @@ class CommandHandler:
         text_lower_case = text_input_split[0].lower()
         try:
             command_data = text_lower_case.split(COMMAND_SPLITTER)
+            command_string = ":".join(command_data).strip()
+            message = extra_args.get('target')
+            command_args = self.get_command_args(command_string)
 
-            if not self.command_exists(":".join(command_data).strip()):
+            if command_args:
+                if (command_args is not None and command_args.get('needs_reply')
+                        and message.reply_to is None):
+                    await edit_service_message(message, t('needs_reply'), 4)
+                    return
+
+                if (command_args is not None and command_args.get('needs_reply')
+                        and message.reply_to is not None):
+                    message_reply = get_video_data_by_message_id_reference(message.reply_to.reply_to_msg_id)
+                    if message_reply is None:
+                        await edit_service_message(message, t('wrong_reply_message'), 4)
+                        return
+                    extra_args['reply_message'] = message_reply
+
+            if not self.command_exists(command_string):
                 return
 
-            module_name = self.get_module_name(":".join(command_data).strip())
+            module_name = self.get_module_name(command_string)
 
             module_command = importlib.import_module(f"command.{module_name}")
             if not module_command:
@@ -48,11 +66,11 @@ class CommandHandler:
                 text_input_split[1].strip() if len(text_input_split) > 1 else "",
                 extra_args,
                 is_personal_chat,
-                self.command_callback(":".join(command_data).strip()))
-        except Exception as e: # pylint: disable=broad-except
+                self.command_callback(command_string))
+        except Exception as e:  # pylint: disable=broad-except
             target = extra_args.get('target')
             if isinstance(target, Union[Message, MessageMediaDocument]):
-                await edit_service_message(extra_args.get('target'), str(e))
+                await edit_service_message(target, str(e))
             print(e)
 
     def add_command(self, command: str | List[str], description: str = '',
@@ -112,3 +130,11 @@ class CommandHandler:
         :return:
         """
         return self.commands[param]['module_name']
+
+    def get_command_args(self, param):
+        """
+        Get command args
+        :param param:
+        :return:
+        """
+        return self.commands[param]['args']
