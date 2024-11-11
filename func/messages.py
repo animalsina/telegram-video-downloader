@@ -1,7 +1,12 @@
 """
 This module contains functions for retrieving localized messages based on the language key.
 """
+import json
 import locale
+import os.path
+
+from run import root_dir
+
 
 def get_system_language():
     """
@@ -14,6 +19,7 @@ def get_system_language():
         return 'it'
     return 'en'
 
+
 def get_message(language: str | None = None):
     """
     Retrieve a dictionary of localized messages based on the provided language.
@@ -25,131 +31,24 @@ def get_message(language: str | None = None):
     Returns:
         dict: A dictionary of localized messages corresponding to the language.
     """
-
-
     if language is None:
         language = get_system_language()
+    return load_messages(language)
 
-    lang_messages = {
-        'en': {
-            'start_connection': "Starting connection to the client...",
-            'connection_success': "Connection successful.",
-            'retrieving_messages': "Retrieving messages from: {}...",
-            'found_videos': "Found {} videos.",
-            'error_message': "Error message deleted.",
-            'starting_download': "⬇️ Starting download: {}",
-            'download_started': "⬇️ Downloading: {}%",
-            'corrupted_file': "The file '{}' is corrupted. Re-downloading...",
-            'download_complete': (
-                "Download completed and moved: {} - Completed"
-            ),
-            'error_move_file': "❌ Error moving file: {}",
-            'not_found_file': "❌ File Not Found: {}",
-            'error_download': "❌ Error downloading video '{}': {}",
-            "download_video": "🔔 Downloading video in progress...",
-            'permission_error': "Permission error: {}",
-            'script_running': "Script already running.",
-            'ready_to_move': "🔔 File ready to move: {}",
-            'already_downloaded': "File already downloaded: {}",
-            'file_mismatch_error': "File {} size mismatch - try again later.",
-            'empty_reference_specify_name':
-                ("This video does not have a name. Please specify one by"
-                 " replying to the video with the correct file name."),
-            'rate_limit_exceeded_error': (
-                "Rate limit exceeded. Waiting for {} seconds before retrying..."
-            ),
-            'file_system_error': "File system error: {}",
-            'all_attempts_failed': "All retry attempts failed - {} - retry on next check.",
-            'video_saved_and_moved': (
-                "🔔 Video is saved and moved in {}"
-            ),
-            'no_message_found': "No message found",
-            'cant_compress_file': "Can't compress the file {}",
-            'start_compress_file': "🗜️ Start compression of the file {}",
-            'complete_compress_file': "✅ Complete compression of the file {}",
-            'trace_compress_action': "🗜️ estimated missing time to complete the compression: {}",
-            'download_stopped': "Download stopped",
-            'program_start': "Program is ready!",
-            'download_enabled': "Download enabled",
-            'download_disabled': "Download disabled",
-            'program_quit': "Program quit",
-            'cancel_download': "Download canceled",
-            'rules_reloaded': "Rules reloaded",
-            'rule_updated': "Rule updated: {}",
-            'rules_edit': "Rule edit action: {} sec.",
-            'rule_start_text': "# Begin of rule for {}",
-            'rule_already_exist': "Rule for {} already exist",
-            'rule_name_too_short': "Rule name too short - {}",
-            'rule_name_too_long': "Rule name too long - {}",
-            'rule_name_empty': "Rule name is empty",
-            'rule_created': "Rule created: {}",
-            'rule_deleted': "Rule deleted: {}",
-            'rules_delete': "Rules to delete",
-            'rules_delete_canceled': "Rules deletion canceled",
-        },
-        'it': {
-            'start_connection': "Inizio connessione al client...",
-            'connection_success': "Connessione avvenuta con successo.",
-            'retrieving_messages': "Recupero dei messaggi da: {}...",
-            'found_videos': "Trovati {} video.",
-            'error_message': "Messaggio di errore eliminato.",
-            'starting_download': "️⬇️ Inizio download: {}",
-            'download_started': "⬇️ Scaricando: {}%",
-            'corrupted_file': "Il file '{}' è corrotto. Verrà riscaricato...",
-            'download_complete': (
-                "Download completato e spostato: {} - Completato"
-            ),
-            'error_move_file': "❌ Errore durante lo spostamento del file: {}",
-            'not_found_file': "❌ File non trovato: {}",
-            'error_download': "❌ Errore durante il download del video '{}': {}",
-            'permission_error': "Errore di permesso: {}",
-            'script_running': "Script già in esecuzione.",
-            'ready_to_move': "🔔 File pronto per essere spostato: {}",
-            'already_downloaded': "File già scaricato: {}",
-            'empty_reference_specify_name':
-                "Questo video non ha un nome. Specificane uno rispondendo"
-                " a questo video con il nome del file corretto.",
-            'file_mismatch_error': (
-                "Grandezza del file {} non corrisponde - Sarà cancellato e riscaricato."
-            ),
-            'rate_limit_exceeded_error': (
-                "Superato il limite. Attendi {} secondi prima di riprovare..."
-            ),
-            'file_system_error': "Errore file system: {}",
-            'all_attempts_failed': (
-                "‼️ Tutti i tentativi sono falliti - {} - Riprovo al prossimo controllo."
-            ),
-            'video_saved_and_moved': (
-                "🔔 Il video è stato salvato e spostato su {}"
-            ),
-            'no_message_found': "Nessun messaggio trovato",
-            "download_video": "🔔 Scaricamento video in corso...",
-            'cant_compress_file': "Impossibile comprimere il file {}",
-            'start_compress_file': "🗜️ Inizio compressione del file {}",
-            'complete_compress_file': "✅ Completamento compressione del file {}",
-            'trace_compress_action': "🗜️ tempo mancante stimato per compressione: {}",
-            'download_stopped': "Download fermato",
-            'program_start': "Programma pronto!",
-            'download_enabled': "Download abilitato",
-            'download_disabled': "Download disabilitato",
-            'program_quit': "Programma terminato",
-            'cancel_download': "Download annullato",
-            'rules_reloaded': "Regole ricaricate",
-            'rule_updated': "Regola aggiornata: {}",
-            'rules_edit': "Azione modifica regole: {} sec.",
-            'rule_start_text': "# Inizio regola per {}",
-            'rule_already_exist': "Regola per {} gia' esistente",
-            'rule_name_too_short': "Nome regola troppo corto - {}",
-            'rule_name_too_long': "Nome regola troppo lungo - {}",
-            'rule_name_empty': "Nome regola vuoto",
-            'rule_created': "Regola creata: {}",
-            'rule_deleted': "Regola {} cancellata",
-            'rules_delete': "Regole da cancellare",
-            'rules_delete_canceled': "Regole cancellazione annullata",
-        }
-    }
-    # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese
-    return lang_messages.get(language, lang_messages['en'])
+def load_messages(language: str):
+    """
+    Load and return the messages for the specified language.
+    If the file is not found, return the default messages for English.
+    """
+    file_name = f"{language}.json"
+    try:
+        with open(os.path.join(root_dir, 'translations', file_name), 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"File '{file_name}' non trovato. Caricamento di default in inglese.")
+        with open(os.path.join(root_dir, 'translations', 'en.json'), 'r', encoding='utf-8') as f:
+            return json.load(f)
+
 
 def t(key: str, *args):
     """

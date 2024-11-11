@@ -21,6 +21,7 @@ from classes.command_handler import CommandHandler
 # Moduli locali
 from classes.object_data import ObjectData
 from classes.operation_status_object import OperationStatusObject
+from func.command_declaration import command_declaration
 from func.config import load_configuration
 from func.messages import t
 from classes.rules import Rules
@@ -31,8 +32,8 @@ from func.telegram_client import (
     get_video_data_by_message_id_reference)
 from classes.string_builder import (
     LINE_FOR_INFO_DATA,
-    LINE_FOR_SHOW_LAST_ERROR, LINE_FOR_VIDEO_NAME)
-from func.utils import add_line_to_text, save_video_data, sanitize_video_name, remove_video_data
+    LINE_FOR_SHOW_LAST_ERROR)
+from func.utils import add_line_to_text, save_video_data, remove_video_data, get_video_object_by_message_id_reference
 
 configuration = load_configuration()
 
@@ -223,79 +224,16 @@ async def get_video_task(video_object: ObjectData):
     # Queue the download task with the limit on simultaneous downloads
     return video_object
 
-
 async def main():  # pylint: disable=unused-argument, too-many-statements
     """Main function to manage the Telegram client and download files."""
     from func.save_video_data_action import save_video_data_action
     from run import root_dir, PERSONAL_CHAT_ID
 
-    rules_object.load_rules(Path(root_dir))
-    videos_data = []
+    rules_object.load_rules(Path(root_dir), True)
+    operation_status.videos_data = []
     operation_status.rules_registered = {}
 
-    def set_quit_program():
-        operation_status.quit_program = True
-
-    def set_download_start():
-        operation_status.start_download = True
-        operation_status.interrupt = False
-
-    def set_download_stop():
-        operation_status.start_download = False
-        operation_status.interrupt = True
-        operation_status.run_list = []
-
-    async def rename(message, new_name):
-        video_name_cleaned = sanitize_video_name(new_name)
-        if message.reply_to is not None:
-            reply_message = await client.get_messages(
-                PERSONAL_CHAT_ID,
-                ids=message.reply_to.reply_to_msg_id)
-            _, video_object = get_video_object_by_message_id_reference(reply_message.id)
-            await add_line_to_text(
-                reply_message.id,
-                new_name,
-                LINE_FOR_VIDEO_NAME,
-                True
-            )
-            save_video_data({'video_name': new_name,
-                             'video_name_cleaned': video_name_cleaned},
-                            video_object,
-                            ['video_name'])
-            video_object.video_name = new_name
-            await message.delete()
-
-    command_handler.add_command(["help", "command", "commands"], t('command_help'))
-    command_handler.add_command(
-        "quit",
-        t('command_quit'),
-        args={},
-        callback=set_quit_program
-    )
-    command_handler.add_command("status", t('command_status'))
-    command_handler.add_command(
-        ["download:on", "download:start", "dl:start", "dl:on"],
-        t('command_download_start'),
-        args={},
-        callback=set_download_start
-    )
-    command_handler.add_command(
-        ["download:off", "download:stop", "dl:off", "dl:stop"],
-        t('command_download_stop'),
-        args={},
-        callback=set_download_stop
-    )
-    command_handler.add_command("rules:show", t('command_rules_show'))
-    command_handler.add_command("rules:edit", t('command_rules_edit'))
-    command_handler.add_command("rules:delete", t('command_rules_delete'))
-    command_handler.add_command("rules:add", t('command_rules_add'))
-    command_handler.add_command("rules:reload", t('command_rules_reload'))
-    command_handler.add_command(
-        ["download:rename", "download:rn", "dl:rn", "dl:rename"],
-        t('command_rename'),
-        args={},
-        callback=rename,
-    )
+    await command_declaration()
 
     try:
         await client_data()
@@ -303,12 +241,6 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
 
         # Prepare video files
         await save_video_data_action()
-
-        def get_video_object_by_message_id_reference(message_id_reference: str):
-            for video in videos_data:
-                if message_id_reference == video[1].message_id_reference:
-                    return video
-            return None
 
         async def tg_message_handler(event):
             """
@@ -380,14 +312,14 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
                 filtered_data, key=lambda item: (not item[1].pinned, item[1].video_id)
             )
 
-            videos_data = sorted_data
+            operation_status.videos_data = sorted_data
 
             if operation_status.quit_program is True:
                 break
             if operation_status.start_download is True:
                 # Name of a file, File object content
                 tasks = []
-                for _, video_data in videos_data or []:  # type: [str, ObjectData]
+                for _, video_data in operation_status.videos_data or []:  # type: [str, ObjectData]
                     task_video_data = await get_video_task(video_data)
                     if task_video_data is not False and any(
                             video_id == video_data.video_id for video_id in operation_status.run_list

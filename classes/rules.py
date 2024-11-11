@@ -3,6 +3,7 @@ Rules
 
 Apply rules to messages and files.
 """
+import hashlib
 import re
 import glob
 import os
@@ -20,31 +21,33 @@ class Rules:
     """
 
     def __init__(self):
-        self.id_increment: int = 0
         self.rule_item_ids = {}
-        self.rules = {'message': []}
+        self.rules = {'message': {}}
 
-    def load_rules(self, root_directory: Path):
+    def load_rules(self, root_directory: Path, reset_data: bool):
         """
         Load both rules from .rule files in the specified directory.
         """
         from func.utils import safe_getattr
 
-        self.rules = {'message': []}
+        if reset_data:
+            self.rules = {'message': {}}
+
         rule_files = os.path.join(root_directory, 'rules', '*.rule')
         for rule_file in glob.glob(rule_files):
             with open(rule_file, 'r', encoding='utf-8') as f:
                 self.set_rules(f, rule_file)
 
-        self.rules['message'] = sorted(
-            self.rules['message'],
-            key=lambda rule: (
-                safe_getattr(rule.pattern, 'chat_id'),
-                safe_getattr(rule.pattern, 'chat_name'),
-                safe_getattr(rule.pattern, 'chat_title')
+        # Ordina l'elenco 'message' esistente (nuove regole incluse)
+        self.rules['message'] = dict(sorted(
+            self.rules['message'].items(),
+            key=lambda item: (
+                safe_getattr(item[1].pattern, 'chat_id'),
+                safe_getattr(item[1].pattern, 'chat_name'),
+                safe_getattr(item[1].pattern, 'chat_title')
             ),
             reverse=True
-        )
+        ))
 
         return self
 
@@ -52,6 +55,7 @@ class Rules:
         """
         Set rules.
         """
+        rule_id = hashlib.sha3_256(rule_file.encode('utf-8')).hexdigest()
         pattern = ConfigObject({
             'message': None,
             'folder': None,
@@ -61,13 +65,12 @@ class Rules:
             'use_filename': False,
         })
         update_data = ConfigObject({
-            'id': self.id_increment,
+            'id': rule_id,
             'pattern': pattern,
             'translate': None,
             'completed_folder_mask': None,
             'file_name': rule_file
         })
-        self.id_increment = self.id_increment + 1
 
         for line in lines:
             line = line.strip()
@@ -91,7 +94,7 @@ class Rules:
                 self.detect_command(line, 'action:folder:completed',
                                     lambda match: setattr(update_data, 'completed_folder_mask', match))
 
-        self.rules['message'].append(update_data)
+        self.rules['message'][rule_id] = update_data
         return self
 
     @staticmethod
@@ -133,8 +136,8 @@ class Rules:
         """
         Apply rules to input and returns edited output.
         """
-        for rule in self.rules['message']:
-            if message_id is None or self.rule_item_ids.get(rule.id) != message_id:
+        for rule in self.rules['message'].values():
+            if message_id is None or message_id not in self.rule_item_ids.get(rule.id):
                 continue
             completed_folder_mask = getattr(rule, 'completed_folder_mask')
             if completed_folder_mask is not None:
@@ -162,7 +165,7 @@ class Rules:
         """
         Apply rules to input and returns edited output.
         """
-        for rule in self.rules['message']:
+        for rule in self.rules['message'].values():
             if video_object is None:
                 continue
             if rule.pattern.use_filename and video_object.file_name is not None:
@@ -183,7 +186,9 @@ class Rules:
             action = rule.translate
             match = re.match(pattern.message, input_value)
             if match:
-                self.rule_item_ids[rule.id] = video_object.video_id
+                if self.rule_item_ids.get(rule.id) is None:
+                    self.rule_item_ids[rule.id] = []
+                self.rule_item_ids[rule.id].append(video_object.video_id)
                 return self.safe_format(action, *match.groups())
         return None
 
@@ -199,7 +204,7 @@ class Rules:
         :return:
         """
         from run import root_dir
-        self.load_rules(root_dir)
+        self.load_rules(root_dir, False)
         return self
 
     def get_rule_by_id(self, rule_id: int): # pylint: disable=unused-argument
@@ -208,10 +213,7 @@ class Rules:
         :param rule_id:
         :return:
         """
-        for rule in self.rules['message']:
-            if rule.id == rule_id:
-                return rule
-        return None
+        return self.rules['message'].get(rule_id)
 
     def get_rule_by_item_id(self, message_id: int): # pylint: disable=unused-argument
         """
@@ -219,8 +221,8 @@ class Rules:
         :param message_id:
         :return:
         """
-        for rule in self.rules['message']:
-            if self.rule_item_ids[rule.id] == message_id:
+        for rule in self.rules['message'].values():
+            if message_id in self.rule_item_ids[rule.id]:
                 return rule
         return None
 

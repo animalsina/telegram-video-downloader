@@ -176,6 +176,15 @@ async def compress_video_h265(input_file: Path, output_file: Path, crf=28,
         print(f"Error during the compression: {str(exception)}")
         return False
 
+def get_video_object_by_message_id_reference(message_id_reference: str):
+    """
+    Get video object by message id reference.
+    """
+    from func.main import operation_status
+    for video in operation_status.videos_data:
+        if message_id_reference == video[1].message_id_reference:
+            return video
+    return None
 
 async def download_complete_action(video: ObjectData) -> None:
     """
