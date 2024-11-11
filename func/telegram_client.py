@@ -264,6 +264,7 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
             )
 
         except (RPCError, FloodWaitError) as e:
+            attempt += 1
             wait_time = 10  # Add a buffer time for safety
             print(f"Rate limit exceeded. Waiting for some {wait_time} seconds before retrying... Remaining attempts: {attempt} on {retry_attempts}")
             print("Exception: " + str(e))
@@ -271,7 +272,6 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
                                    t('rate_limit_exceeded_error', wait_time, attempt, retry_attempts),
                                    LINE_FOR_SHOW_LAST_ERROR)
             await asyncio.sleep(wait_time)
-            attempt += 1
 
         except (OSError, IOError) as e:
             print(f"File system error: {str(e)}")
