@@ -5,7 +5,7 @@
 This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) library to download videos from Telegram's "Saved Messages" and manage their download and relocation status. If the message containing the video lacks a name, the script will look for a name in the subsequent message. Additionally, the script handles folder permissions and uses a lock file to prevent simultaneous executions. The script now includes configurable options for file validation based on size, improved progress reporting, support for resuming interrupted downloads, and the ability to use a custom configuration file.
 
 ## Requirements
-- Python 3.7 or higher
+- Python 3.9 or higher
 
 ## Installation
 1. Clone this repository:
