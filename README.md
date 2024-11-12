@@ -9,6 +9,10 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
 ## Requirements
 - Python 3.9 or higher
 
+## Useful Readme
+- [Commands](/README-commands.md)
+- [Rules](/README-rules.md)
+
 ## Installation
 1. Clone this repository:
     ```bash
@@ -88,7 +92,11 @@ Distributed under the [MIT License](https://opensource.org/licenses/MIT).
 Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWebs/Telethon) per scaricare video dai "Messaggi Salvati" di Telegram e gestire il loro stato di download e spostamento. Se il messaggio contenente il video non ha un nome, lo script cerca un nome nel messaggio successivo. Inoltre, lo script gestisce i permessi delle cartelle e utilizza un file di lock per prevenire esecuzioni simultanee. Lo script ora include opzioni configurabili per la validazione dei file basata sulla dimensione, un miglioramento nella segnalazione del progresso, il supporto per il resume dei download interrotti e la possibilità di utilizzare un file di configurazione personalizzato.
 
 ## Requisiti
-- Python 3.7 o superiore
+- Python 3.9 o superiore
+
+## Readme utili
+- [Comandi](/README-commands.md)
+- [Regole](/README-rules.md)
 
 ## Installazione
 1. Clona questo repository:
