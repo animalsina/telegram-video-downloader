@@ -5,9 +5,7 @@
 This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) library to download videos from Telegram's "Saved Messages" and manage their download and relocation status. If the message containing the video lacks a name, the script will look for a name in the subsequent message. Additionally, the script handles folder permissions and uses a lock file to prevent simultaneous executions. The script now includes configurable options for file validation based on size, improved progress reporting, support for resuming interrupted downloads, and the ability to use a custom configuration file.
 
 ## Requirements
-- Python 3.7 or higher
-- Telethon
-- tqdm
+- Python 3.9 or higher
 
 ## Installation
 1. Clone this repository:
@@ -16,14 +14,9 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     cd telegram-video-downloader
     ```
 
-2. Install dependencies:
-    ```bash
-    pip install telethon tqdm
-    ```
+2. Create an account and get the data to add to the config file: [Link MyTelegram App](https://my.telegram.org/apps)
 
-3. Create an account and get the data to add to the config file: [Link MyTelegram App](https://my.telegram.org/apps)
-
-4. Create a configuration file `tg-config.txt` with the following information:
+3. Create a configuration file `tg-config.txt` with the following information:
     ```ini
     [telegram]
     api_id=YOUR_API_ID
@@ -31,7 +24,6 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     phone=YOUR_PHONE_NUMBER
     download_folder=YOUR_DOWNLOAD_FOLDER
     completed_folder=YOUR_COMPLETED_FOLDER
-    check_file=YOUR_CHECK_FILE
     min_valid_file_size_mb=10
     session_name=YOUR_SESSION_NAME
     max_simultaneous_file_to_download=2
@@ -49,7 +41,6 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     phone=123123123
     download_folder=tg-video
     completed_folder=tg-video-completed
-    check_file=downloaded_files.txt
     session_name=session_name
     max_simultaneous_file_to_download=1
 
@@ -63,7 +54,6 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
    - `phone`: Your phone number used for Telegram login.
    - `download_folder`: The folder where videos will be initially saved.
    - `completed_folder`: The folder where videos will be moved after successful download.
-   - `check_file`: The file used to keep track of downloaded videos.
    - `min_valid_file_size_mb`: The minimum file size in megabytes to consider a file valid. Files smaller than this size will be considered corrupted and re-downloaded.
    - `session_name`: The name of the session file used for Telegram login.
    - `max_simultaneous_file_to_download`: The maximum number of files to download simultaneously.
@@ -98,8 +88,6 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
 
 ## Requisiti
 - Python 3.7 o superiore
-- Telethon
-- tqdm
 
 ## Installazione
 1. Clona questo repository:
@@ -108,14 +96,9 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     cd telegram-video-downloader
     ```
 
-2. Installa le dipendenze:
-    ```bash
-    pip install telethon tqdm
-    ```
+2. Crea un account e recupera i dati da aggiungere nel file config: [Link MyTelegram App](https://my.telegram.org/apps)
 
-3. Crea un account e recupera i dati da aggiungere nel file config: [Link MyTelegram App](https://my.telegram.org/apps)
-
-4. Crea un file di configurazione `tg-config.txt` con le seguenti informazioni:
+3. Crea un file di configurazione `tg-config.txt` con le seguenti informazioni:
     ```ini
     [telegram]
     api_id=YOUR_API_ID
@@ -123,7 +106,6 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     phone=YOUR_PHONE_NUMBER
     download_folder=YOUR_DOWNLOAD_FOLDER
     completed_folder=YOUR_COMPLETED_FOLDER
-    check_file=YOUR_CHECK_FILE
     min_valid_file_size_mb=10
     session_name=YOUR_SESSION_NAME
     max_simultaneous_file_to_download=2
@@ -141,7 +123,6 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     phone=123123123
     download_folder=tg-video
     completed_folder=tg-video-completed
-    check_file=downloaded_files.txt
     session_name=session_name
     max_simultaneous_file_to_download=1
 
@@ -155,7 +136,6 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
    - `phone`: Il tuo numero di telefono utilizzato per il login su Telegram.
    - `download_folder`: La cartella in cui i video saranno inizialmente salvati.
    - `completed_folder`: La cartella in cui i video saranno spostati dopo il download riuscito.
-   - `check_file`: Il file usato per tenere traccia dei video scaricati.
    - `min_valid_file_size_mb`: La dimensione minima del file in megabyte per considerare valido un file. I file più piccoli di questa dimensione saranno considerati corrotti e riscaricati.
    - `session_name`: Il nome del file di sessione utilizzato per il login su Telegram.
    - `max_simultaneous_file_to_download`: Il numero massimo di file da scaricare simultaneamente.

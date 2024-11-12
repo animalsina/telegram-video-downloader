@@ -1,7 +1,12 @@
 """
 This module contains functions for retrieving localized messages based on the language key.
 """
+import json
 import locale
+import os.path
+
+from run import root_dir
+
 
 def get_system_language():
     """
@@ -9,12 +14,13 @@ def get_system_language():
     If the system language starts with 'it' (indicating Italian), return 'it'.
     Otherwise, default to English ('en').
     """
-    lang, _ = locale.getdefaultlocale()
+    lang, _ = locale.getlocale()
     if lang.startswith('it'):
         return 'it'
     return 'en'
 
-def get_message(key, language = None):
+
+def get_message(language: str | None = None):
     """
     Retrieve a dictionary of localized messages based on the provided language.
 
@@ -25,90 +31,46 @@ def get_message(key, language = None):
     Returns:
         dict: A dictionary of localized messages corresponding to the language.
     """
-
-
     if language is None:
         language = get_system_language()
+    return load_messages(language)
 
-    messages = {
-        'en': {
-            'start_connection': "Starting connection to the client...",
-            'connection_success': "Connection successful.",
-            'retrieving_messages': "Retrieving messages from: {}...",
-            'found_videos': "Found {} videos.",
-            'error_message': "Error message deleted.",
-            'starting_download': "⬇️ Starting download: {}",
-            'download_started': "⬇️ Downloading: {}%",
-            'corrupted_file': "‼️ The file '{}' is corrupted. Re-downloading...",
-            'download_complete': (
-                "✅ Download completed and moved: {}\nCompleted"
-            ),
-            'error_move_file': "❌ Error moving file: {}",
-            'not_found_file': "❌ File Not Found: {}",
-            'error_download': "❌ Error downloading video '{}': {}",
-            "download_video": "🔔 Downloading video '{}'...",
-            'permission_error': "Permission error: {}",
-            'script_running': "Script already running.",
-            'ready_to_move': "🔔 File ready to move: {}",
-            'already_downloaded': "File already downloaded: {}",
-            'file_mismatch_error': "‼️ File {} size mismatch - I will delete temp file and retry.",
-            'empty_reference_specify_name': "‼️ This video does not have a name. Please specify one by replying to the video with the correct file name.",
-            'rate_limit_exceeded_error': (
-                "‼️ Rate limit exceeded. Waiting for {} seconds before retrying..."
-            ),
-            'file_system_error': "‼️ File system error: {}",
-            'all_attempts_failed': "‼️ All retry attempts failed - {} - retry on next check.",
-            'video_saved_and_moved': (
-                "🔔 Video is saved and moved in {}"
-            ),
-            'no_message_found': "‼️ No message found",
-            'cant_compress_file': "‼️ Can't compress the file {}",
-            'start_compress_file': "🗜️ Start compression of the file {}",
-            'complete_compress_file': "✅ Complete compression of the file {}",
-            'trace_compress_action': "🗜️ estimated missing time to complete the compression: {}",
-        },
-        'it': {
-            'start_connection': "Inizio connessione al client...",
-            'connection_success': "Connessione avvenuta con successo.",
-            'retrieving_messages': "Recupero dei messaggi da: {}...",
-            'found_videos': "Trovati {} video.",
-            'error_message': "Messaggio di errore eliminato.",
-            'starting_download': "️⬇️ Inizio download: {}",
-            'download_started': "⬇️ Scaricando: {}%",
-            'corrupted_file': "‼️ Il file '{}' è corrotto. Verrà riscaricato...",
-            'download_complete': (
-                "✅ Download completato e spostato: {}\nCompletato"
-            ),
-            'error_move_file': "❌ Errore durante lo spostamento del file: {}",
-            'not_found_file': "❌ File non trovato: {}",
-            'error_download': "❌ Errore durante il download del video '{}': {}",
-            'permission_error': "Errore di permesso: {}",
-            'script_running': "Script già in esecuzione.",
-            'ready_to_move': "🔔 File pronto per essere spostato: {}",
-            'already_downloaded': "File già scaricato: {}",
-            'empty_reference_specify_name': "‼️ Questo video non ha un nome. Specificane uno rispondendo a questo video con il nome del file corretto.",
-            'file_mismatch_error': (
-                "‼️ Grandezza del file {} non corrisponde - Sarà cancellato e riscaricato."
-            ),
-            'rate_limit_exceeded_error': (
-                "‼️ Superato il limite. Attendi {} secondi prima di riprovare..."
-            ),
-            'file_system_error': "‼️ Errore file system: {}",
-            'all_attempts_failed': (
-                "‼️ Tutti i tentativi sono falliti - {} - Riprovo al prossimo controllo."
-            ),
-            'video_saved_and_moved': (
-                "🔔 Il video è stato salvato e spostato su {}"
-            ),
-            'no_message_found': "‼️ Nessun messaggio trovato",
-            "download_video": "🔔 Scaricamento video '{}'...",
-            'cant_compress_file': "‼️ Impossibile comprimere il file {}",
-            'start_compress_file': "🗜️ Inizio compressione del file {}",
-            'complete_compress_file': "✅ Completamento compressione del file {}",
-            'trace_compress_action': "🗜️ tempo mancante stimato per compressione: {}",
-        }
-    }
-    # Restituisce il dizionario di messaggi per la lingua richiesta, con default a inglese
-    if key:
-        return messages.get(language, messages['en']).get(key, "Message key not found")
-    return messages.get(language, messages['en'])
+def load_messages(language: str):
+    """
+    Load and return the messages for the specified language.
+    If the file is not found, return the default messages for English.
+    """
+    file_name = f"{language}.json"
+    try:
+        with open(os.path.join(root_dir, 'translations', file_name), 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"File '{file_name}' non trovato. Caricamento di default in inglese.")
+        with open(os.path.join(root_dir, 'translations', 'en.json'), 'r', encoding='utf-8') as f:
+            return json.load(f)
+
+
+def t(key: str, *args):
+    """
+    Retrieve a message based on its key and arguments.
+    If the message is not found, return the key as a string.
+    """
+    messages = get_message()
+
+    if key not in messages:
+        return key
+
+    message = messages[key]
+
+    if args is None:
+        return message
+
+    if len(args) == 1:
+        sanitized_value = str(args[0]).replace('{', '').replace('}', '')
+        message = message.replace('{}', sanitized_value)
+    else:
+        for i, value in enumerate(args):
+            sanitized_value = str(value).replace('{', '').replace('}', '')
+            message = message.replace(f'{{{i}}}', sanitized_value)
+
+    return message
