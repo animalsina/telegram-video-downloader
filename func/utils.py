@@ -445,6 +445,11 @@ async def define_label(message_id: str, label) -> None:
             print(er.message)
 
 async def get_video_status_label(message_reference: int | Union[Message, MessageMediaDocument]):
+    """
+    Get the status label of the video.
+    :param message_reference:
+    :return:
+    """
     from func.main import client
 
     if isinstance(message_reference, int):

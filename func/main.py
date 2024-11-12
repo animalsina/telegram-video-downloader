@@ -32,10 +32,11 @@ from func.telegram_client import (
     get_video_data_by_message_id_reference)
 from classes.string_builder import (
     LINE_FOR_INFO_DATA,
-    LINE_FOR_SHOW_LAST_ERROR, TYPE_COMPLETED, TYPE_ERROR)
-from func.utils import (add_line_to_text, save_video_data,
-                        remove_video_data,
-                        get_video_object_by_message_id_reference, define_label)
+    LINE_FOR_SHOW_LAST_ERROR)
+from func.utils import (
+    add_line_to_text, save_video_data,
+    remove_video_data,
+    get_video_object_by_message_id_reference)
 
 configuration = load_configuration()
 
@@ -120,8 +121,6 @@ async def download_with_limit(video: ObjectData):
         await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
                                LINE_FOR_SHOW_LAST_ERROR)
         return video
-    finally:
-        return True
 
 
 async def client_data():
@@ -321,7 +320,7 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
                 for _, video_data in operation_status.videos_data or []:  # type: [str, ObjectData]
                     task_video_data = await get_video_task(video_data)
                     if task_video_data is not False:
-                        task = asyncio.create_task(download_with_limit(task_video_data))
+                        task = create_task(download_with_limit(task_video_data))
                         tasks.append(task)
 
                 # Execute all queued tasks concurrently
