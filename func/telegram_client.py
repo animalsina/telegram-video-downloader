@@ -7,7 +7,6 @@ import os
 import asyncio
 import collections
 from pathlib import Path
-from pyexpat.errors import messages
 
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError, RPCError, FloodError
