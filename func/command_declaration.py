@@ -82,13 +82,14 @@ async def command_declaration():
             'needs_reply': True
         },
     )
+    command_handler.add_command(["download:clean", "clean"], t('command_download_clean'))
     command_handler.add_command("rules:show", t('command_rules_show'))
     command_handler.add_command("rules:edit", t('command_rules_edit'))
     command_handler.add_command("rules:delete", t('command_rules_delete'))
     command_handler.add_command("rules:add", t('command_rules_add'))
     command_handler.add_command("rules:reload", t('command_rules_reload'))
     command_handler.add_command(
-        ["download:rename", "download:rn", "dl:rn", "dl:rename"],
+        ["download:rename", "download:rn", "dl:rn", "dl:rename", "rename", "rn"],
         t('command_rename'),
         args={
             'needs_reply': True
@@ -96,7 +97,7 @@ async def command_declaration():
         callback=rename,
     )
     command_handler.add_command(
-        ["download:target", "download:destination", "dl:target", "dl:destination", "dl:dir"],
+        ["download:target", "download:destination", "dl:target", "dl:destination", "dl:dir", "target"],
         t('command_stop'),
         args={
             'needs_reply': True

@@ -58,9 +58,11 @@
     "command_download_unlock": "Sblocca il download",
     "command_download_pin": "Pin per dare priorità al video",
     "command_download_unpin": "Unpin per rimuovere priorità al video",
+    "command_download_clean": "Ripulisce dalla chat tutti i messaggi dei video completati",
     "needs_reply": "Questo comando richiede una risposta",
     "wrong_reply_message": "La risposta non e' un messaggio idoneo, deve corrispondere a un video",
     "download_unlocked": "Download sbloccato",
     "pinned_message": "Messaggio con priorità",
-    "unpinned_message": "Messaggio senza priorità"
+    "unpinned_message": "Messaggio senza priorità",
+    "completed_video_cleaned": "Tutti i video completati sono stati rimossi"
 }

@@ -34,9 +34,9 @@ class CommandHandler:
         text_input_split = text_input.split(" ", 1)
         text_lower_case = text_input_split[0].lower()
         try:
-            command_data = text_lower_case.split(COMMAND_SPLITTER)
+            command_data = text_lower_case.split(COMMAND_SPLITTER, 1)
             command_string = ":".join(command_data).strip()
-            message = extra_args.get('target')
+            message = extra_args.get('source_message')
             command_args = self.get_command_args(command_string)
 
             if command_args:
@@ -63,15 +63,16 @@ class CommandHandler:
                 return
 
             await module_command.run(
+                command_data[0] if len(command_data) > 0 else "",
                 command_data[1] if len(command_data) > 1 else "",
                 text_input_split[1].strip() if len(text_input_split) > 1 else "",
                 extra_args,
                 is_personal_chat,
                 self.command_callback(command_string))
         except Exception as e:  # pylint: disable=broad-except
-            target = extra_args.get('target')
-            if isinstance(target, Union[Message, MessageMediaDocument]):
-                await edit_service_message(target, str(e))
+            source_message = extra_args.get('source_message')
+            if isinstance(source_message, Union[Message, MessageMediaDocument]):
+                await edit_service_message(source_message, str(e))
             print(e)
 
     def add_command(self, command: str | List[str], description: str = '',

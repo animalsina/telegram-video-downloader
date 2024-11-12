@@ -11,10 +11,12 @@ import shutil
 import re
 
 from pathlib import Path
-from typing import AnyStr
+from typing import AnyStr, Union
 
 import ffmpeg
 from telethon.errors import MessageNotModifiedError
+from telethon.tl.patched import Message
+from telethon.tl.types import MessageMediaDocument
 
 from classes.attribute_object import AttributeObject
 from classes.string_builder import (StringBuilder, LINE_FOR_INFO_DATA,
@@ -250,13 +252,13 @@ async def download_complete_action(video: ObjectData) -> None:
     async def cb_move_file(src, target, result):
         if result:
             complete_data_file(video)
-            await add_line_to_text(video.message_id_reference, t('download_complete', str(target)[:44]),
+            await add_line_to_text(video.message_id_reference, t('download_complete', str(target)[:55]),
                                    LINE_FOR_INFO_DATA)
             await define_label(video.message_id_reference, TYPE_COMPLETED)
             if video.is_forward_chat_protected is not True:
                 remove_video_data(video)
         else:
-            await add_line_to_text(video.message_id_reference, t('error_move_file', str(target)[:44]),
+            await add_line_to_text(video.message_id_reference, t('error_move_file', str(target)[:55]),
                                    LINE_FOR_SHOW_LAST_ERROR)
             await define_label(video.message_id_reference, TYPE_ERROR)
 
@@ -441,6 +443,20 @@ async def define_label(message_id: str, label) -> None:
             await message.edit(builder.string)
         except (MessageNotModifiedError, PermissionError) as er:
             print(er.message)
+
+async def get_video_status_label(message_reference: int | Union[Message, MessageMediaDocument]):
+    from func.main import client
+
+    if isinstance(message_reference, int):
+        message = await client.get_messages(PERSONAL_CHAT_ID, ids=message_reference)
+    elif isinstance(message_reference, (Message, MessageMediaDocument)):
+        message = message_reference
+    else:
+        return None
+
+    text = message.text
+    string_object = StringBuilder(text)
+    return string_object.get_label()
 
 
 def save_video_data(data: dict, video: ObjectData, fields_to_compare=None) -> bool:

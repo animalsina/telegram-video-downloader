@@ -289,7 +289,7 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
             is_personal_chat = message.chat.id == user_id
             text = message.text
 
-            await command_handler.exec(text, {'target': message}, is_personal_chat)
+            await command_handler.exec(text, {'source_message': message}, is_personal_chat)
             await acquire_video(message)
             return
 

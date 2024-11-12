@@ -345,3 +345,18 @@ def get_video_data_by_message_id_reference(message_id_reference: int) -> ObjectD
             except Exception as error2:  # pylint: disable=broad-except
                 print(f"Error on loading file {file_name}: {error2}")
     return None
+
+
+async def fetch_all_messages(chat_id):
+    """
+
+    :param chat_id:
+    :return:
+    """
+    from func.main import client
+    all_messages = []
+
+    async for message in client.iter_messages(chat_id):
+        all_messages.append(message)
+
+    return all_messages
