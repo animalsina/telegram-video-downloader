@@ -8,7 +8,7 @@ from telethon.tl.types import MessageMediaDocument
 
 from classes.object_data import ObjectData
 from classes.string_builder import LINE_FOR_PINNED_VIDEO, TYPE_COMPLETED
-from func.main import configuration, client
+from func.main import configuration
 from func.messages import t
 from func.telegram_client import edit_service_message, fetch_all_messages
 from func.utils import save_video_data, add_line_to_text, get_video_status_label
@@ -115,6 +115,11 @@ async def set_pinned_message(source_message, video_object: ObjectData, pinned: b
         LINE_FOR_PINNED_VIDEO, True)
 
 async def clear_downloads(source_message: Union[Message, MessageMediaDocument]):
+    """
+    Clear completed downloads from the chat.
+    :param source_message:
+    :return:
+    """
     messages = await fetch_all_messages(PERSONAL_CHAT_ID)
 
     for message in messages:

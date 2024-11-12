@@ -267,21 +267,7 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
 
         except (RPCError, FloodWaitError) as e:
             attempt += 1
-            wait_time = 10  # Add a buffer time for safety
-            if isinstance(e, FloodWaitError):
-                wait_time = e.seconds
-            elif isinstance(e, (RPCError, FloodError)):
-                message = e.message
-                if message is not None:
-                    wait_time = int(
-                        message.replace("FLOOD_PREMIUM_WAIT_", "")
-                    ) + 1 if message.startswith("FLOOD_PREMIUM_WAIT_") else 10
-            print(
-                f"Rate limit exceeded. Waiting for some {wait_time} seconds before retrying... Remaining attempts: {attempt} on {retry_attempts}")
-            print("Exception: " + str(e))
-            await add_line_to_text(video.message_id_reference,
-                                   t('rate_limit_exceeded_error', wait_time, attempt, retry_attempts),
-                                   LINE_FOR_SHOW_LAST_ERROR)
+            wait_time = await attempt_message(e, attempt, retry_attempts, video)
             await asyncio.sleep(wait_time)
 
         except (OSError, IOError) as e:
@@ -296,6 +282,32 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
                                    LINE_FOR_SHOW_LAST_ERROR)
             break
 
+
+async def attempt_message(error_message, attempt, retry_attempts, video):
+    """
+    :param error_message:
+    :param attempt:
+    :param retry_attempts:
+    :param video:
+    :return:
+    """
+    wait_time = 10  # Add a buffer time for safety
+    if isinstance(error_message, FloodWaitError):
+        wait_time = error_message.seconds
+    elif isinstance(error_message, (RPCError, FloodError)):
+        message = error_message.message
+        if message is not None:
+            wait_time = int(
+                message.replace("FLOOD_PREMIUM_WAIT_", "")
+            ) + 1 if message.startswith("FLOOD_PREMIUM_WAIT_") else 10
+    print(
+        f"Rate limit exceeded. Waiting for some {wait_time} seconds before retrying..."
+        f" Remaining attempts: {attempt} on {retry_attempts}")
+    print("Exception: " + str(error_message))
+    await add_line_to_text(video.message_id_reference,
+                           t('rate_limit_exceeded_error', wait_time, attempt, retry_attempts),
+                           LINE_FOR_SHOW_LAST_ERROR)
+    return wait_time
 
 def get_video_data_by_video_id(video_id: int) -> ObjectData | None:  # pylint: disable=unused-argument
     """
