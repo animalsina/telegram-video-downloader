@@ -6,8 +6,6 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
 
 ## Requirements
 - Python 3.7 or higher
-- Telethon
-- tqdm
 
 ## Installation
 1. Clone this repository:
@@ -16,14 +14,9 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     cd telegram-video-downloader
     ```
 
-2. Install dependencies:
-    ```bash
-    pip install telethon tqdm
-    ```
+2. Create an account and get the data to add to the config file: [Link MyTelegram App](https://my.telegram.org/apps)
 
-3. Create an account and get the data to add to the config file: [Link MyTelegram App](https://my.telegram.org/apps)
-
-4. Create a configuration file `tg-config.txt` with the following information:
+3. Create a configuration file `tg-config.txt` with the following information:
     ```ini
     [telegram]
     api_id=YOUR_API_ID
@@ -95,8 +88,6 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
 
 ## Requisiti
 - Python 3.7 o superiore
-- Telethon
-- tqdm
 
 ## Installazione
 1. Clona questo repository:
@@ -105,14 +96,9 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     cd telegram-video-downloader
     ```
 
-2. Installa le dipendenze:
-    ```bash
-    pip install telethon tqdm
-    ```
+2. Crea un account e recupera i dati da aggiungere nel file config: [Link MyTelegram App](https://my.telegram.org/apps)
 
-3. Crea un account e recupera i dati da aggiungere nel file config: [Link MyTelegram App](https://my.telegram.org/apps)
-
-4. Crea un file di configurazione `tg-config.txt` con le seguenti informazioni:
+3. Crea un file di configurazione `tg-config.txt` con le seguenti informazioni:
     ```ini
     [telegram]
     api_id=YOUR_API_ID
