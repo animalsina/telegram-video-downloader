@@ -10,10 +10,16 @@ from func.telegram_client import send_service_message, edit_service_message
 from func.utils import sanitize_filename
 from run import PERSONAL_CHAT_ID, root_dir
 
-
-async def run(subcommand: str, text_input: str, extra_args=None, is_personal_chat=False, callback=None):  # pylint: disable=unused-argument
+async def run(  # pylint: disable=unused-argument
+        command: str,
+        subcommand: str,
+        text_input: str,
+        extra_args=None,
+        is_personal_chat=False,
+        callback=None):
     """
     Run the command
+    :param command:
     :param subcommand:
     :param text_input:
     :param extra_args:
@@ -22,15 +28,15 @@ async def run(subcommand: str, text_input: str, extra_args=None, is_personal_cha
     :return:
     """
     if subcommand == 'show':
-        await show(extra_args.get('target'))
+        await show(extra_args.get('source_message'))
     elif subcommand == 'edit':
-        await edit(extra_args.get('target'))
+        await edit(extra_args.get('source_message'))
     elif subcommand == 'delete':
-        await delete(extra_args.get('target'))
+        await delete(extra_args.get('source_message'))
     elif subcommand == 'add':
-        await add(extra_args.get('target'), text_input)
+        await add(extra_args.get('source_message'), text_input)
     elif subcommand == 'reload':
-        await reload(extra_args.get('target'))
+        await reload(extra_args.get('source_message'))
 
 
 async def show(message):
