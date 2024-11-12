@@ -1,5 +1,7 @@
+# Telegram Video Downloader V 2.0.0
+
+
 # == ENG
-# Telegram Video Downloader
 
 ## Description
 This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) library to download videos from Telegram's "Saved Messages" and manage their download and relocation status. If the message containing the video lacks a name, the script will look for a name in the subsequent message. Additionally, the script handles folder permissions and uses a lock file to prevent simultaneous executions. The script now includes configurable options for file validation based on size, improved progress reporting, support for resuming interrupted downloads, and the ability to use a custom configuration file.
@@ -81,7 +83,6 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
 Distributed under the [MIT License](https://opensource.org/licenses/MIT).
 
 # == ITA
-# Telegram Video Downloader
 
 ## Descrizione
 Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWebs/Telethon) per scaricare video dai "Messaggi Salvati" di Telegram e gestire il loro stato di download e spostamento. Se il messaggio contenente il video non ha un nome, lo script cerca un nome nel messaggio successivo. Inoltre, lo script gestisce i permessi delle cartelle e utilizza un file di lock per prevenire esecuzioni simultanee. Lo script ora include opzioni configurabili per la validazione dei file basata sulla dimensione, un miglioramento nella segnalazione del progresso, il supporto per il resume dei download interrotti e la possibilità di utilizzare un file di configurazione personalizzato.
