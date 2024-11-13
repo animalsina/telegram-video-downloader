@@ -7,6 +7,7 @@ import os
 import asyncio
 import collections
 from pathlib import Path
+from xmlrpc.client import MAXINT
 
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError, RPCError, FloodError
@@ -15,6 +16,7 @@ from tqdm import tqdm
 
 from classes.attribute_object import AttributeObject
 from classes.object_data import ObjectData
+from classes.tqdm_object import TqdmObject
 from func.messages import t
 from func.utils import (
     is_file_corrupted, \
@@ -92,10 +94,17 @@ def format_time(seconds: float) -> str:
     return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
 
+tqdm_config = TqdmObject({
+    'last_current': 0,
+    'last_update_time': 0
+})
+
+
 async def progress_tracking(
-        client: TelegramClient,
-        progress: int, file_size: int, video: ObjectData,
-        last_update_time: float, temp_file_path: str, last_current: int
+        progress: int,
+        file_size: int,
+        video: ObjectData,
+        temp_file_path: str
 ):
     """
     Track the download progress and update the status message.
@@ -108,85 +117,132 @@ async def progress_tracking(
               desc=f"Downloading {video.video_id} - {video.file_name} -"
                    f" {video.video_name_cleaned}",
               unit='B', unit_scale=True, unit_divisor=1024) as pbar:
-        async def progress_callback(current: int, total: int):
-            nonlocal last_current
-            nonlocal last_update_time
-
-            if total is not None:
-
-                if is_interrupted() is True:
-                    print(t('download_stopped'))
-                    await add_line_to_text(video.message_id_reference,
-                                           t('download_stopped', video.file_name),
-                                           LINE_FOR_INFO_DATA, True)
-                    raise KeyboardInterrupt(t('download_stopped', video.file_name))
-
-                percent_complete: float = (current / total) * 100
-                current_time: float = time.time()
-
-                # Calculate time elapsed
-                time_elapsed: float = current_time - last_update_time
-
-                # Calculate download speed
-                download_speed: float | int = calculate_download_speed(current, time_elapsed, last_current)
-
-                # Add the current speed to the speed sample buffer
-                speed_samples.append(download_speed)
-
-                # Calculate average speed for a more accurate estimate
-                average_speed: float = (sum(speed_samples) / len(speed_samples)
-                                        if speed_samples else 0)
-                time_remaining: float = ((total - current) / average_speed
-                                         if average_speed > 0 else float('inf'))
-
-                # Update the status message every 3 seconds
-                if current_time - last_update_time >= 3:
-                    time_remaining_formatted = format_time(time_remaining)
-                    await update_download_message(video.message_id_reference,
-                                                  percent_complete,
-                                                  time_remaining_formatted)
-                    last_update_time = current_time
-                    last_current = current
-
-                # Update the progress bar
-                pbar.update(current - pbar.n)
-                pbar.total = total
-                pbar.n = current
-
         # Download the media to the temp file using iter_download
-        async with client.iter_download(video.video_media, offset=progress,
-                                        request_size=64 * 1024) as download_iter:
-            from func.main import operation_status
-            if operation_status.interrupt is True:
-                return
+        await download_with_rate_limit(pbar, video, progress, file_size, temp_file_path)
 
-            directory = os.path.dirname(temp_file_path)
-            Path(directory).mkdir(parents=True, exist_ok=True)
 
-            if not os.path.exists(temp_file_path):
-                with open(temp_file_path, 'wb'):
-                    pass
+async def progress_callback(
+        video: ObjectData,
+        pbar: tqdm,
+        current: int,
+        total: int,
+):
+    """
+    Callback function to update the progress bar and status message.
+    :param video:
+    :param pbar:
+    :param current:
+    :param total:
+    :return:
+    """
 
-            with open(temp_file_path, 'ab') as f:
-                async for chunk in download_iter:
-                    from func.main import operation_status
-                    if operation_status.interrupt is True:
-                        return
-                    f.write(chunk)
-                    await progress_callback(f.tell(), file_size)
+    if total is not None:
+
+        if is_interrupted() is True:
+            print(t('download_stopped'))
+            await add_line_to_text(video.message_id_reference,
+                                   t('download_stopped', video.file_name),
+                                   LINE_FOR_INFO_DATA, True)
+            raise KeyboardInterrupt(t('download_stopped', video.file_name))
+
+        percent_complete: float = (current / total) * 100
+        current_time: float = time.time()
+
+        # Calculate time elapsed
+        time_elapsed: float = current_time - tqdm_config.last_update_time
+
+        # Calculate download speed
+        download_speed: float | int = calculate_download_speed(
+            current,
+            time_elapsed,
+            tqdm_config.last_current
+        )
+
+        # Add the current speed to the speed sample buffer
+        speed_samples.append(download_speed)
+
+        # Calculate average speed for a more accurate estimate
+        average_speed: float = (sum(speed_samples) / len(speed_samples)
+                                if speed_samples else 0)
+        time_remaining: float = ((total - current) / average_speed
+                                 if average_speed > 0 else float('inf'))
+
+        # Update the status message every 3 seconds
+        if current_time - tqdm_config.last_update_time >= 3:
+            time_remaining_formatted = format_time(time_remaining)
+            await update_download_message(video.message_id_reference,
+                                          percent_complete,
+                                          time_remaining_formatted)
+            tqdm_config.last_update_time = current_time
+            tqdm_config.last_current = current
+
+        # Update the progress bar
+        pbar.update(current - pbar.n)
+        pbar.total = total
+        pbar.n = current
+
+
+async def download_with_rate_limit(
+        pbar: tqdm,
+        video: ObjectData,
+        progress: int,
+        file_size: int,
+        temp_file_path: str
+):
+    """
+    Download the media to the temp file using iter_download
+    :param pbar:
+    :param video:
+    :param progress:
+    :param file_size:
+    :param temp_file_path:
+    :return:
+    """
+    from func.main import client, operation_status, configuration
+
+    kb_download = 64
+
+    if operation_status.is_premium is True:
+        kb_download = configuration.max_download_size_request_limit_kb \
+            if configuration.max_download_size_request_limit_kb != -1 else MAXINT
+
+    async with client.iter_download(video.video_media, offset=progress,
+                                    request_size=kb_download * 1024) as download_iter:
+        if operation_status.interrupt is True:
+            return
+
+        directory = os.path.dirname(temp_file_path)
+        Path(directory).mkdir(parents=True, exist_ok=True)
+
+        if not os.path.exists(temp_file_path):
+            with open(temp_file_path, 'wb'):
+                pass
+
+        with open(temp_file_path, 'ab') as f:
+            async for chunk in download_iter:
+                if operation_status.interrupt is True:
+                    return
+                f.write(chunk)
+                await progress_callback(video, pbar, f.tell(), file_size)
+        await asyncio.sleep(0.5)
 
 
 async def get_user_id():
     """
     Get user id
     """
-    from func.config import load_configuration
+    return (await get_user_data()).id
+
+
+async def get_user_data():
+    """
+    Get user data
+    """
+    from func.main import configuration
     from func.main import client
     if client.is_connected() is False:
-        configuration = load_configuration()
         client.start(configuration.phone)
-    me = await client.get_me()
-    return me.id
+    return await client.get_me()
 
 
 def is_interrupted():
@@ -214,8 +270,8 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
 
     attempt = 0
     progress = 0
-    last_current = 0
-    last_update_time = time.time()
+    tqdm_config.last_current = 0
+    tqdm_config.last_update_time = time.time()
     file_size = video.video_media.document.size
     temp_file_path = f"{video.file_path}.temp"
 
@@ -225,9 +281,7 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
                 progress = os.path.getsize(temp_file_path)
 
             # Download the file with progress tracking
-            await progress_tracking(
-                client, progress, file_size, video, last_update_time, temp_file_path, last_current
-            )
+            await progress_tracking(progress, file_size, video, temp_file_path)
 
             # Wait 3 seconds before to get temp file size
             await asyncio.sleep(3)
@@ -307,6 +361,7 @@ async def attempt_message(error_message, attempt, retry_attempts, video):
                            t('rate_limit_exceeded_error', wait_time, attempt, retry_attempts),
                            LINE_FOR_SHOW_LAST_ERROR)
     return wait_time
+
 
 def get_video_data_by_video_id(video_id: int) -> ObjectData | None:  # pylint: disable=unused-argument
     """

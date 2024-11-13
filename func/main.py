@@ -29,7 +29,7 @@ from func.save_video_data_action import acquire_video
 from func.telegram_client import (
     create_telegram_client, download_with_retry,
     send_service_message, get_user_id,
-    get_video_data_by_message_id_reference)
+    get_video_data_by_message_id_reference, get_user_data)
 from classes.string_builder import (
     LINE_FOR_INFO_DATA,
     LINE_FOR_SHOW_LAST_ERROR)
@@ -57,6 +57,7 @@ operation_status = OperationStatusObject({
     'quit_program': False,
     'start_download': True,
     'rules_registered': {},
+    'is_premium': False,
 })
 sem = asyncio.Semaphore(configuration.max_simultaneous_file_to_download)
 
@@ -236,6 +237,8 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
     try:
         await client_data()
         await send_service_message(PERSONAL_CHAT_ID, t('program_start'), 5)
+
+        operation_status.is_premium = (await get_user_data()).premium
 
         # Prepare video files
         await save_video_data_action()

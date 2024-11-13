@@ -33,6 +33,7 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     min_valid_file_size_mb=10
     session_name=YOUR_SESSION_NAME
     max_simultaneous_file_to_download=2
+    max_download_size_request_limit_kb=8388608
 
     [groups]
     # Key = ChannelID
@@ -49,6 +50,7 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     completed_folder=tg-video-completed
     session_name=session_name
     max_simultaneous_file_to_download=1
+    max_download_size_request_limit_kb=8388608
 
     [groups]
     # Key = ChannelID
@@ -63,6 +65,7 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
    - `min_valid_file_size_mb`: The minimum file size in megabytes to consider a file valid. Files smaller than this size will be considered corrupted and re-downloaded.
    - `session_name`: The name of the session file used for Telegram login.
    - `max_simultaneous_file_to_download`: The maximum number of files to download simultaneously.
+   - `max_download_size_request_limit_kb`: The maximum limit size in kilobytes for the download request.
 
 ## Usage
 1. Ensure you have created and configured the `tg-config.txt` file as described above. [Link MyTelegram App](https://my.telegram.org/apps)
@@ -118,6 +121,7 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     min_valid_file_size_mb=10
     session_name=YOUR_SESSION_NAME
     max_simultaneous_file_to_download=2
+    max_download_size_request_limit_kb=8388608
 
     [groups]
     # Key = ChannelID
@@ -134,6 +138,7 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     completed_folder=tg-video-completed
     session_name=session_name
     max_simultaneous_file_to_download=1
+    max_download_size_request_limit_kb=8388608
 
     [groups]
     # Key = ChannelID
@@ -148,6 +153,7 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
    - `min_valid_file_size_mb`: La dimensione minima del file in megabyte per considerare valido un file. I file più piccoli di questa dimensione saranno considerati corrotti e riscaricati.
    - `session_name`: Il nome del file di sessione utilizzato per il login su Telegram.
    - `max_simultaneous_file_to_download`: Il numero massimo di file da scaricare simultaneamente.
+   - `max_download_size_request_limit_kb`: La dimensione massima per una richiesta di download in kilobytes.
 
 ## Uso
 1. Assicurati di aver creato e configurato il file `tg-config.txt` come descritto sopra. [Link MyTelegram App](https://my.telegram.org/apps)
