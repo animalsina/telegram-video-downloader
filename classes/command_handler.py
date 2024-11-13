@@ -63,8 +63,8 @@ class CommandHandler:
                 return
 
             await module_command.run(
-                command_data[0] if len(command_data) > 0 else "",
-                command_data[1] if len(command_data) > 1 else "",
+                command_data[0].strip() if len(command_data) > 0 else "",
+                command_data[1].strip() if len(command_data) > 1 else "",
                 text_input_split[1].strip() if len(text_input_split) > 1 else "",
                 extra_args,
                 is_personal_chat,
