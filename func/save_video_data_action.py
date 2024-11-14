@@ -2,14 +2,16 @@
 Module for save video info in JSON files with all useful info
 """
 import os
-from typing import List, Union
+from typing import List, Union, Tuple
 
 from telethon.errors import ChatForwardsRestrictedError
 from telethon.tl.patched import Message
 from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo, MessageMediaDocument, Channel
 
+from classes.attribute_object import AttributeObject
 from classes.object_data import ObjectData
-from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED, TYPE_ACQUIRED, TYPE_COMPRESSED
+from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED, TYPE_ACQUIRED, TYPE_COMPRESSED, TYPE_CANCELLED, \
+    TYPE_ERROR
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
                         video_data_file_exists_by_ref_msg_id,
@@ -31,7 +33,7 @@ async def save_video_data_action() -> None:
         await acquire_video(video)
 
 
-async def acquire_video(message: Union[MessageMediaDocument, Message]):
+async def acquire_video(message: Union[MessageMediaDocument, Message]) -> Tuple[str, ObjectData] | None:
     """Acquire Video"""
     document = getattr(message, 'document')
     video: Union[MessageMediaDocument, Message, {'chat_name': str}] | None = None
@@ -48,7 +50,7 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]):
         return None
 
     contains_link = any(link in message.text for link in
-                        [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED, TYPE_COMPRESSED])
+                        [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED, TYPE_COMPRESSED, TYPE_CANCELLED, TYPE_ERROR])
     if message.text and contains_link is True:  # Ignore already acquired videos
         return None
 
@@ -58,6 +60,8 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]):
         print(f"Video saved: {video_data['original_video_name']}")
         if video_data["is_forward_chat_protected"] is not True:
             await video.delete()
+
+    return get_file_name_from_message(video), ObjectData(**video_data)
 
 
 async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
@@ -70,7 +74,7 @@ async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
         document = getattr(message, 'document')
         text = getattr(message, 'text', '')
         contains_link = any(link in text for link in
-                            [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED, TYPE_COMPRESSED])
+                            [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED, TYPE_COMPRESSED, TYPE_CANCELLED, TYPE_ERROR])
         if text and contains_link is True:  # Ignore already acquired videos
             continue
         if hasattr(document, 'attributes') and not video_data_file_exists_by_ref_msg_id(message.id):
@@ -84,7 +88,7 @@ async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
     return videos
 
 
-def get_file_name_from_message(message):
+def get_file_name_from_message(message: Union[MessageMediaDocument, Message]) -> str | None:
     """ Extracts the file name from a message's media attributes. """
     for attr in message.media.document.attributes:
         if isinstance(attr, DocumentAttributeFilename):
@@ -164,7 +168,7 @@ def initialize_video_data(video: Union[Message, MessageMediaDocument], chat_name
         "id": video.id,
         "video_id": video.id,
         "video_text": video.text,
-        "pinned": video.pinned,
+        "pinned": False,
         "completed": False,
         "video_attribute": None,
         "is_forward_chat_protected": False,
@@ -209,7 +213,7 @@ async def get_video_name_from_text(video):
     return sanitize_filename(msg1 + msg2 + msg3) if video.text else None
 
 
-async def get_file_name(video, with_extension: bool = False):
+async def get_file_name(video: Union[Message, MessageMediaDocument], with_extension: bool = False):
     """ Determine the file name based on video attributes. """
     file_name = None
     video_message_document_attributes = video.media.document.attributes
@@ -226,14 +230,14 @@ async def get_file_name(video, with_extension: bool = False):
     return file_name
 
 
-def set_additional_video_data(video_data, video):
+def set_additional_video_data(video_data: dict, video: Union[Message, MessageMediaDocument]):
     """ Set additional data for the video. """
     from func.main import configuration
     video_data["file_path"] = os.path.join(configuration.download_folder, video_data["file_name"])
     video_data["video_attribute"] = get_video_attribute(video)
 
 
-def get_video_attribute(video):
+def get_video_attribute(video: Union[Message, MessageMediaDocument]):
     """ Get the video attribute if available. """
     for attr in video.media.document.attributes:
         if isinstance(attr, DocumentAttributeVideo):
@@ -241,22 +245,30 @@ def get_video_attribute(video):
     return None
 
 
-async def send_video_to_chat(video_data, video):
+async def send_video_to_chat(video_data: dict | ObjectData, video: Union[Message, MessageMediaDocument]):
     """ Send the video to the specified chat and return the sent message. """
     from func.main import client
+
+    if isinstance(video_data, ObjectData) is False:
+        video_data = ObjectData(**video_data)
+        if hasattr(video_data, 'video_media') is False or video_data.video_media is None:
+            video_data.video_media = video.media
+        if hasattr(video_data, 'video_attribute') and isinstance(video_data.video_attribute, AttributeObject) is False:
+            video_data.video_attribute = AttributeObject(**video_data.video_attribute)
+
     try:
         if LOG_IN_PERSONAL_CHAT:
             return await client.send_file(
                 PERSONAL_CHAT_ID,
                 video.media,
-                caption=default_video_message(ObjectData(**video_data)),
+                caption=default_video_message(video_data),
                 parse_mode="Markdown",
             )
     except ChatForwardsRestrictedError:
-        return await handle_forward_chat_protected(video_data, video)
+        return await handle_forward_chat_protected(video_data)
 
 
-async def handle_forward_chat_protected(video_data, video):
+async def handle_forward_chat_protected(video_data: ObjectData):
     """ Handle the case where forwarding is restricted. """
     from func.main import client
 
@@ -265,11 +277,11 @@ async def handle_forward_chat_protected(video_data, video):
             PERSONAL_CHAT_ID,
             default_video_message(ObjectData(
                 **{
-                    "video_name": video_data['video_name_cleaned'],
-                    "file_name": video_data["file_name"],
-                    "video_attribute": video_data.get("video_attribute"),
-                    "pinned": video.pinned,
-                    "is_forward_chat_protected": video_data['is_forward_chat_protected']
+                    "video_name": video_data.video_name_cleaned,
+                    "file_name": video_data.file_name,
+                    "video_attribute": video_data.video_attribute,
+                    "pinned": video_data.pinned,
+                    "is_forward_chat_protected": video_data.is_forward_chat_protected
                 }
             )),
         )

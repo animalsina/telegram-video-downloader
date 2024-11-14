@@ -4,6 +4,7 @@ Config module for run the program
 """
 import os
 import sys
+from xmlrpc.client import MAXINT
 
 from func.utils import check_folder_permissions, load_config
 
@@ -38,6 +39,7 @@ def load_configuration():
 
     session_name = os.path.join(root_dir, config.get('session_name', 'session_name'))
     max_simultaneous_file_to_download = int(config.get('max_simultaneous_file_to_download', 2))
+    max_download_size_request_limit_kb = int(config.get('max_download_size_request_limit_kb', MAXINT))
     enable_video_compression = config.get('enable_video_compression', 0) == "1"
     compression_ratio = max(0, min(int(config.get('compression_ratio', 28)), 51))
     group_chats = config.get('group_chats', [])
@@ -55,6 +57,7 @@ def load_configuration():
         'completed_folder': completed_folder,
         'session_name': session_name,
         'max_simultaneous_file_to_download': max_simultaneous_file_to_download,
+        'max_download_size_request_limit_kb': max_download_size_request_limit_kb,
         'enable_video_compression': enable_video_compression,
         'compression_ratio': compression_ratio,
         'group_chats': group_chats,

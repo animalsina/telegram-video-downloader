@@ -64,6 +64,7 @@
     "download_unlocked": "Download unlocked",
     "pinned_message": "Pinned message",
     "unpinned_message": "Unpinned message",
-    "completed_video_cleaned": "All completed videos was remove"
+    "completed_video_cleaned": "All completed videos was remove",
+    "download_error": "Error during download"
 }
 
