@@ -27,6 +27,15 @@ TYPE_COMPLETED = '✅'
 TYPE_ERROR = '‼️'
 TYPE_COMPRESSED = '📦'
 
+ACQUIRED_TYPES = [
+    TYPE_ACQUIRED,
+    TYPE_DELETED,
+    TYPE_COMPLETED,
+    TYPE_COMPRESSED,
+    TYPE_CANCELLED,
+    TYPE_ERROR
+]
+
 
 class StringBuilder:
     """
@@ -44,7 +53,7 @@ class StringBuilder:
         """
         self.lines = text.splitlines() + self.lines
 
-    def edit_in_line(self, new_line: str, line_number: int, with_default_icon = False):
+    def edit_in_line(self, new_line: str, line_number: int, with_default_icon=False):
         """
         Edit a line in the string.
         """

@@ -10,8 +10,7 @@ from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo,
 
 from classes.attribute_object import AttributeObject
 from classes.object_data import ObjectData
-from classes.string_builder import TYPE_DELETED, TYPE_COMPLETED, TYPE_ACQUIRED, TYPE_COMPRESSED, TYPE_CANCELLED, \
-    TYPE_ERROR
+from classes.string_builder import ACQUIRED_TYPES
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
                         video_data_file_exists_by_ref_msg_id,
@@ -49,8 +48,7 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]) -> Tuple[
     if video is None:
         return None
 
-    contains_link = any(link in message.text for link in
-                        [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED, TYPE_COMPRESSED, TYPE_CANCELLED, TYPE_ERROR])
+    contains_link = any(link in message.text for link in ACQUIRED_TYPES)
     if message.text and contains_link is True:  # Ignore already acquired videos
         return None
 
@@ -73,8 +71,7 @@ async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
             continue
         document = getattr(message, 'document')
         text = getattr(message, 'text', '')
-        contains_link = any(link in text for link in
-                            [TYPE_ACQUIRED, TYPE_DELETED, TYPE_COMPLETED, TYPE_COMPRESSED, TYPE_CANCELLED, TYPE_ERROR])
+        contains_link = any(link in text for link in ACQUIRED_TYPES)
         if text and contains_link is True:  # Ignore already acquired videos
             continue
         if hasattr(document, 'attributes') and not video_data_file_exists_by_ref_msg_id(message.id):
@@ -253,7 +250,8 @@ async def send_video_to_chat(video_data: dict | ObjectData, video: Union[Message
         video_data = ObjectData(**video_data)
         if hasattr(video_data, 'video_media') is False or video_data.video_media is None:
             video_data.video_media = video.media
-        if hasattr(video_data, 'video_attribute') and isinstance(video_data.video_attribute, AttributeObject) is False:
+        if (hasattr(video_data, 'video_attribute') and
+                isinstance(video_data.video_attribute, AttributeObject) is False):
             video_data.video_attribute = AttributeObject(**video_data.video_attribute)
 
     try:

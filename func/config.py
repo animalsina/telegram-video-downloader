@@ -69,6 +69,7 @@ class Config:
     """
     def __init__(self, config_dict):
         self.max_simultaneous_file_to_download = None
+        self.max_download_size_request_limit_kb = MAXINT
         self.session_name = None
         self.api_id = None
         self.api_hash = None
