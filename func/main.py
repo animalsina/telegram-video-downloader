@@ -15,7 +15,7 @@ from typing import List
 import telethon
 from telethon import events
 from telethon.events import NewMessage
-from telethon.tl.types import Message
+from telethon.tl.types import Message, MessageMediaDocument
 
 from classes.command_handler import CommandHandler
 # Moduli locali
@@ -102,27 +102,21 @@ async def download_with_limit(video: ObjectData):
     try:
         async with sem:
             # Send a status message before starting the download
-            try:
-                await add_line_to_text(
-                    getattr(video, "message_id_reference", None),
-                    t("download_video"),
-                    LINE_FOR_INFO_DATA,
-                )
+            await add_line_to_text(
+                getattr(video, "message_id_reference", None),
+                t("download_video"),
+                LINE_FOR_INFO_DATA,
+            )
 
-                # Start downloading the file with retry logic
-                await download_with_retry(client, video)
-                return True
-            except Exception as e:  # pylint: disable=broad-except
-                print(f"Error downloading {video.file_name}: {e}")
-                await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
-                                       LINE_FOR_SHOW_LAST_ERROR)
-                return video
+            # Start downloading the file with retry logic
+            await download_with_retry(client, video)
     except Exception as e:  # pylint: disable=broad-except
         print(f"Error downloading {video.file_name}: {e}")
         await add_line_to_text(getattr(video, "message_id_reference", None), f"Error: {e}",
                                LINE_FOR_SHOW_LAST_ERROR)
         return video
 
+    return True
 
 async def client_data():
     """
@@ -292,7 +286,11 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
             text = message.text
 
             await command_handler.exec(text, {'source_message': message}, is_personal_chat)
-            await acquire_video(message)
+
+            if isinstance(message.media, MessageMediaDocument):
+                file_name, new_video_data = await acquire_video(message)
+                if new_video_data is not None:
+                    operation_status.videos_data.append((file_name, new_video_data))
             return
 
         for chat_name in configuration.group_chats:

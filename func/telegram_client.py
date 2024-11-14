@@ -15,13 +15,15 @@ from telethon.tl.patched import Message
 from tqdm import tqdm
 
 from classes.attribute_object import AttributeObject
+from classes.custom_flood_error import CustomFloodError
 from classes.object_data import ObjectData
+from classes.string_builder import TYPE_CANCELLED
 from classes.tqdm_object import TqdmObject
 from func.messages import t
 from func.utils import (
     is_file_corrupted, \
     download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA, \
-    LINE_FOR_SHOW_LAST_ERROR, get_video_data_path)
+    LINE_FOR_SHOW_LAST_ERROR, get_video_data_path, define_label)
 
 # Buffer to store speed data samples
 speed_samples = collections.deque(maxlen=20)  # Keep only the last 20 samples
@@ -104,7 +106,9 @@ async def progress_tracking(
         progress: int,
         file_size: int,
         video: ObjectData,
-        temp_file_path: str
+        temp_file_path: str,
+        attempt: int,
+        retry_attempts: int
 ):
     """
     Track the download progress and update the status message.
@@ -118,7 +122,7 @@ async def progress_tracking(
                    f" {video.video_name_cleaned}",
               unit='B', unit_scale=True, unit_divisor=1024) as pbar:
         # Download the media to the temp file using iter_download
-        await download_with_rate_limit(pbar, video, progress, file_size, temp_file_path)
+        await download_with_rate_limit(pbar, video, progress, file_size, temp_file_path, attempt, retry_attempts)
 
 
 async def progress_callback(
@@ -187,10 +191,14 @@ async def download_with_rate_limit(
         video: ObjectData,
         progress: int,
         file_size: int,
-        temp_file_path: str
+        temp_file_path: str,
+        attempt: int,
+        retry_attempts: int
 ):
     """
     Download the media to the temp file using iter_download
+    :param retry_attempts:
+    :param attempt:
     :param pbar:
     :param video:
     :param progress:
@@ -200,14 +208,16 @@ async def download_with_rate_limit(
     """
     from func.main import client, operation_status, configuration
 
-    kb_download = 64
+    kb_download = min(256, configuration.max_download_size_request_limit_kb)
 
     if operation_status.is_premium is True:
         kb_download = configuration.max_download_size_request_limit_kb \
             if configuration.max_download_size_request_limit_kb != -1 else MAXINT
 
-    async with client.iter_download(video.video_media, offset=progress,
-                                    request_size=kb_download * 1024) as download_iter:
+    try:
+        download_iter = client.iter_download(
+                video.video_media, offset=progress,
+                request_size=kb_download * 1024)
         if operation_status.interrupt is True:
             return
 
@@ -224,15 +234,22 @@ async def download_with_rate_limit(
                     return
                 f.write(chunk)
                 await progress_callback(video, pbar, f.tell(), file_size)
-        await asyncio.sleep(0.5)
+                sleep_time = 0.5 + (2 - 0.5) * (min(1 - attempt, 0) / retry_attempts)
+                await asyncio.sleep(sleep_time)
 
+            await asyncio.sleep(5)
+    except FloodError as e:
+        print(e)
+        raise CustomFloodError(e.message)
+    except Exception as e:  # pylint: disable=broad-except
+        print(e)
+        raise
 
 async def get_user_id():
     """
     Get user id
     """
     return (await get_user_data()).id
-
 
 async def get_user_data():
     """
@@ -256,12 +273,17 @@ def is_interrupted():
             operation_status.start_download is not True)
 
 
-async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 20):
+async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 2):
     """Download a file with retry attempts in case of failure."""
     from run import PERSONAL_CHAT_ID
 
     # Here checks for video data, because if video is stored during the iteration, it will expire
     video_message_data = await client.get_messages(PERSONAL_CHAT_ID, ids=video.message_id_reference)
+
+    if video_message_data is None:
+        print(t('download_stopped'))
+        return
+
     if video.is_forward_chat_protected is not True:
         video.video_media = video_message_data.media
     else:
@@ -280,14 +302,16 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
             if os.path.exists(temp_file_path):
                 progress = os.path.getsize(temp_file_path)
 
+            await video_message_data.pin()
             # Download the file with progress tracking
-            await progress_tracking(progress, file_size, video, temp_file_path)
-
+            await progress_tracking(progress, file_size, video, temp_file_path, attempt, retry_attempts)
+            await video_message_data.unpin()
             # Wait 3 seconds before to get temp file size
             await asyncio.sleep(3)
 
             if is_interrupted() is True:
                 print(t('download_stopped'))
+                await video_message_data.unpin()
                 await add_line_to_text(video.message_id_reference,
                                        t('download_stopped', video.file_name),
                                        LINE_FOR_INFO_DATA, True)
@@ -315,22 +339,35 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
                                    t('file_mismatch_error', video.video_name),
                                    LINE_FOR_SHOW_LAST_ERROR)
             raise Exception(  # pylint: disable=broad-exception-raised
-                f"File {video.video_name} size mismatch - I will delete temp file and retry."
+                f"File {video.video_name} size mismatch - I will retry again later."
             )
 
-        except (RPCError, FloodWaitError) as e:
+        except CustomFloodError as e:
             attempt += 1
             wait_time = await attempt_message(e, attempt, retry_attempts, video)
+            if attempt == retry_attempts:
+                await define_label(video.message_id_reference, TYPE_CANCELLED)
+                await add_line_to_text(
+                    video.message_id_reference,
+                    t('download_error', video.file_name),
+                    LINE_FOR_SHOW_LAST_ERROR,
+                    True
+                )
+            await video_message_data.unpin()
             await asyncio.sleep(wait_time)
 
         except (OSError, IOError) as e:
             print(f"File system error: {str(e)}")
+            await video_message_data.unpin()
+            await define_label(video.message_id_reference, TYPE_CANCELLED)
             await add_line_to_text(video.message_id_reference, t('file_system_error', str(e)),
                                    LINE_FOR_SHOW_LAST_ERROR)
             break
 
         except Exception as error:  # pylint: disable=broad-exception-caught
             print(f"Unexpected error: {str(error)}")
+            await video_message_data.unpin()
+            await define_label(video.message_id_reference, TYPE_CANCELLED)
             await add_line_to_text(video.message_id_reference, f"Unexpected error: {str(error)}",
                                    LINE_FOR_SHOW_LAST_ERROR)
             break
@@ -345,9 +382,7 @@ async def attempt_message(error_message, attempt, retry_attempts, video):
     :return:
     """
     wait_time = 10  # Add a buffer time for safety
-    if isinstance(error_message, FloodWaitError):
-        wait_time = error_message.seconds
-    elif isinstance(error_message, (RPCError, FloodError)):
+    if isinstance(error_message, CustomFloodError):
         message = error_message.message
         if message is not None:
             wait_time = int(
@@ -420,6 +455,33 @@ async def fetch_all_messages(chat_id):
     :return:
     """
     from func.main import client
+
+
+# OopCompanion:suppressRename
+
+
+# OopCompanion:suppressRename
+
+
+# OopCompanion:suppressRename
+
+
+# OopCompanion:suppressRename
+
+
+# OopCompanion:suppressRename
+
+
+# OopCompanion:suppressRename
+
+
+# OopCompanion:suppressRename
+
+
+# OopCompanion:suppressRename
+
+
+# OopCompanion:suppressRename
     all_messages = []
 
     async for message in client.iter_messages(chat_id):

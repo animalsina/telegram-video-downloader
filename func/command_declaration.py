@@ -34,7 +34,7 @@ async def command_declaration():
         reply_message = await client.get_messages(
             PERSONAL_CHAT_ID,
             ids=message.reply_to.reply_to_msg_id)
-        _, video_object = get_video_object_by_message_id_reference(reply_message.id)
+        video_object = get_video_object_by_message_id_reference(reply_message.id)
         await add_line_to_text(
             reply_message.id,
             new_name,
@@ -44,7 +44,7 @@ async def command_declaration():
         save_video_data({'video_name': new_name,
                          'video_name_cleaned': video_name_cleaned},
                         video_object,
-                        ['video_name'])
+                        ['video_name', 'video_name_cleaned'])
         video_object.video_name = new_name
         await message.delete()
 
@@ -69,14 +69,14 @@ async def command_declaration():
         callback=set_download_stop
     )
     command_handler.add_command(
-        ["download:pin", "dl:pin"],
+        ["download:pin", "dl:pin", "pin"],
         t('command_download_pin'),
         args={
             'needs_reply': True
         },
     )
     command_handler.add_command(
-        ["download:unpin", "dl:unpin"],
+        ["download:unpin", "dl:unpin", "unpin"],
         t('command_download_unpin'),
         args={
             'needs_reply': True

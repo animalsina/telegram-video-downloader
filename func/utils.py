@@ -178,14 +178,15 @@ async def compress_video_h265(input_file: Path, output_file: Path, crf=28,
         print(f"Error during the compression: {str(exception)}")
         return False
 
-def get_video_object_by_message_id_reference(message_id_reference: str):
+def get_video_object_by_message_id_reference(message_id_reference: str) -> ObjectData | None:
     """
     Get video object by message id reference.
     """
     from func.main import operation_status
     for video in operation_status.videos_data:
-        if message_id_reference == video[1].message_id_reference:
-            return video
+        if video is not None:
+            if message_id_reference == video[1].message_id_reference:
+                return video[1]
     return None
 
 async def download_complete_action(video: ObjectData) -> None:
@@ -265,15 +266,20 @@ async def download_complete_action(video: ObjectData) -> None:
     await move_file(file_path_source, file_path_dest, cb_move_file)
 
 
-def remove_video_data(video: ObjectData):
+def remove_video_data(video_object: ObjectData) -> None:
     """
     Remove the video data file based on the video object.
     """
-    if video is None:
+    from func.main import operation_status
+    if video_object is None:
         return
-    if os.path.isfile(get_video_data_full_path(video)):
-        os.remove(str(get_video_data_full_path(video)))
-
+    if os.path.isfile(get_video_data_full_path(video_object)):
+        os.remove(str(get_video_data_full_path(video_object)))
+        # Removes from videos_data
+        videos_data = operation_status.videos_data
+        operation_status.videos_data = [
+            (file_name, obj_data) for file_name, obj_data in videos_data if obj_data.id != video_object.id
+        ]
 
 def remove_video_data_by_video_id(video_id: str):
     """
@@ -534,35 +540,36 @@ def serialize(obj: ObjectData):
     raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
-def default_video_message(video: ObjectData):
+def default_video_message(video_object: ObjectData):
     """
     Generate the default message for a video.
 
     Args:
-        video (ObjectData): The video data object.
+        video_object (ObjectData): The video data object.
 
     Returns:
         str: The default message for the video.
+        :param video_object:
     """
-    video_text = remove_markdown("".join(video.video_name.splitlines()))[:40]
-    file_name = remove_markdown("".join(video.file_name.splitlines()))[:40]
+    video_text = remove_markdown("".join(video_object.video_name.splitlines()))[:40]
+    file_name = remove_markdown("".join(video_object.file_name.splitlines()))[:40]
 
-    if video.is_forward_chat_protected is True:
+    if video_object.is_forward_chat_protected is True:
         video_text = f"{video_text} (**Forward Chat Protected**)"
 
     builder = StringBuilder()
     builder.edit_in_line(f'🎥 **{video_text}**', LINE_FOR_VIDEO_NAME)
     builder.edit_in_line(f'🗃 {file_name}', LINE_FOR_FILE_NAME)
-    video_media = getattr(video, 'video_media', None)
+    video_media = getattr(video_object, 'video_media', None)
     if video_media is not None:
         builder.edit_in_line(f'⚖️ {format_bytes(video_media.document.size)}', LINE_FOR_FILE_SIZE)
     builder.define_label(TYPE_ACQUIRED)
-    video_attribute = getattr(video, 'video_attribute', None)
+    video_attribute = getattr(video_object, 'video_attribute', None)
     if video_attribute is not None and hasattr(video_attribute, 'w') and hasattr(video_attribute, 'h'):
         builder.edit_in_line(
             f'{video_attribute.w}x{video_attribute.h}',
             LINE_FOR_FILE_DIMENSION, True)
-    builder.edit_in_line(f'📌 {video.pinned}', LINE_FOR_PINNED_VIDEO)
+    builder.edit_in_line(f'📌 {video_object.pinned}', LINE_FOR_PINNED_VIDEO)
 
     return builder.string
 

@@ -36,7 +36,7 @@ async def run(  # pylint: disable=unused-argument
         await start(extra_args.get('source_message'), callback)
     elif subcommand in ('off', 'stop'):
         await stop(extra_args.get('source_message'), callback)
-    elif subcommand in ('rename', 'rn') or command == 'rename':
+    elif subcommand in ('rename', 'rn') or command in ('rn', 'rename'):
         await rename(extra_args.get('source_message'), text_input, callback)
     elif subcommand in ('source_message', 'dir', 'destination'):
         await target_to_download(
