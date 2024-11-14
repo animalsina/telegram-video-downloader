@@ -10,7 +10,7 @@ from pathlib import Path
 from xmlrpc.client import MAXINT
 
 from telethon import TelegramClient
-from telethon.errors import FloodWaitError, RPCError, FloodError
+from telethon.errors import FloodError
 from telethon.tl.patched import Message
 from tqdm import tqdm
 
@@ -122,7 +122,14 @@ async def progress_tracking(
                    f" {video.video_name_cleaned}",
               unit='B', unit_scale=True, unit_divisor=1024) as pbar:
         # Download the media to the temp file using iter_download
-        await download_with_rate_limit(pbar, video, progress, file_size, temp_file_path, attempt, retry_attempts)
+        await download_with_rate_limit(
+            pbar,
+            video,
+            progress,
+            file_size,
+            temp_file_path,
+            attempt,
+            retry_attempts)
 
 
 async def progress_callback(
@@ -216,8 +223,8 @@ async def download_with_rate_limit(
 
     try:
         download_iter = client.iter_download(
-                video.video_media, offset=progress,
-                request_size=kb_download * 1024)
+            video.video_media, offset=progress,
+            request_size=kb_download * 1024)
         if operation_status.interrupt is True:
             return
 
@@ -240,16 +247,18 @@ async def download_with_rate_limit(
             await asyncio.sleep(5)
     except FloodError as e:
         print(e)
-        raise CustomFloodError(e.message)
+        raise CustomFloodError(e.message) from e
     except Exception as e:  # pylint: disable=broad-except
         print(e)
         raise
+
 
 async def get_user_id():
     """
     Get user id
     """
     return (await get_user_data()).id
+
 
 async def get_user_data():
     """
@@ -273,7 +282,7 @@ def is_interrupted():
             operation_status.start_download is not True)
 
 
-async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 20):
+async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 20): # pylint: disable=too-many-statements
     """Download a file with retry attempts in case of failure."""
     from run import PERSONAL_CHAT_ID
 
@@ -299,19 +308,18 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
 
     while attempt < retry_attempts:
         try:
+            # Start to pin the message
+            await video_message_data.pin()
             if os.path.exists(temp_file_path):
                 progress = os.path.getsize(temp_file_path)
 
-            await video_message_data.pin()
             # Download the file with progress tracking
             await progress_tracking(progress, file_size, video, temp_file_path, attempt, retry_attempts)
-            await video_message_data.unpin()
             # Wait 3 seconds before to get temp file size
             await asyncio.sleep(3)
 
             if is_interrupted() is True:
                 print(t('download_stopped'))
-                await video_message_data.unpin()
                 await add_line_to_text(video.message_id_reference,
                                        t('download_stopped', video.file_name),
                                        LINE_FOR_INFO_DATA, True)
@@ -456,32 +464,23 @@ async def fetch_all_messages(chat_id):
     """
     from func.main import client
 
+    # OopCompanion:suppressRename
 
-# OopCompanion:suppressRename
+    # OopCompanion:suppressRename
 
+    # OopCompanion:suppressRename
 
-# OopCompanion:suppressRename
+    # OopCompanion:suppressRename
 
+    # OopCompanion:suppressRename
 
-# OopCompanion:suppressRename
+    # OopCompanion:suppressRename
 
+    # OopCompanion:suppressRename
 
-# OopCompanion:suppressRename
+    # OopCompanion:suppressRename
 
-
-# OopCompanion:suppressRename
-
-
-# OopCompanion:suppressRename
-
-
-# OopCompanion:suppressRename
-
-
-# OopCompanion:suppressRename
-
-
-# OopCompanion:suppressRename
+    # OopCompanion:suppressRename
     all_messages = []
 
     async for message in client.iter_messages(chat_id):

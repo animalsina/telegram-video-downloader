@@ -178,7 +178,7 @@ async def compress_video_h265(input_file: Path, output_file: Path, crf=28,
         print(f"Error during the compression: {str(exception)}")
         return False
 
-def get_video_object_by_message_id_reference(message_id_reference: str) -> ObjectData | None:
+def get_inlist_video_object_by_message_id_reference(message_id_reference: str) -> ObjectData | None:
     """
     Get video object by message id reference.
     """
@@ -264,6 +264,11 @@ async def download_complete_action(video: ObjectData) -> None:
             await define_label(video.message_id_reference, TYPE_ERROR)
 
     await move_file(file_path_source, file_path_dest, cb_move_file)
+    # Unpin message on complete
+    from func.main import client
+    video_message = await client.get_messages(PERSONAL_CHAT_ID, ids=video.message_id_reference)
+    if video_message is not None:
+        await video_message.unpin()
 
 
 def remove_video_data(video_object: ObjectData) -> None:

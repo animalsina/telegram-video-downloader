@@ -35,8 +35,7 @@ from classes.string_builder import (
     LINE_FOR_SHOW_LAST_ERROR)
 from func.utils import (
     add_line_to_text, save_video_data,
-    remove_video_data,
-    get_video_object_by_message_id_reference)
+    remove_video_data, get_inlist_video_object_by_message_id_reference)
 
 configuration = load_configuration()
 
@@ -275,7 +274,7 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
                     await send_service_message(PERSONAL_CHAT_ID, t('rule_deleted', rule_data.file_name))
 
             for message_id in event.deleted_ids:
-                remove_video_data(get_video_object_by_message_id_reference(message_id))
+                remove_video_data(get_inlist_video_object_by_message_id_reference(message_id))
                 await remove_rules(message_id)
 
         async def tg_new_message_handler(event: NewMessage.Event):

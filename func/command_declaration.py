@@ -3,7 +3,7 @@ Command declaration
 """
 from classes.string_builder import LINE_FOR_VIDEO_NAME
 from func.messages import t
-from func.utils import add_line_to_text, save_video_data, get_video_object_by_message_id_reference
+from func.utils import add_line_to_text, save_video_data, get_inlist_video_object_by_message_id_reference
 
 
 async def command_declaration():
@@ -34,7 +34,7 @@ async def command_declaration():
         reply_message = await client.get_messages(
             PERSONAL_CHAT_ID,
             ids=message.reply_to.reply_to_msg_id)
-        video_object = get_video_object_by_message_id_reference(reply_message.id)
+        video_object = get_inlist_video_object_by_message_id_reference(reply_message.id)
         await add_line_to_text(
             reply_message.id,
             new_name,
