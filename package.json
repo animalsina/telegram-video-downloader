@@ -1,0 +1,11 @@
+{
+  "devDependencies": {
+    "husky": "^9.1.6"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "lint": "eslint .",
+    "test": "jest",
+    "format": "prettier --write ."
+  }
+}
