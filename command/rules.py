@@ -4,6 +4,7 @@ Command rules
 import asyncio
 import os
 
+from classes.rules_message_object import RulesMessageObject
 from func.main import rules_object, operation_status
 from func.messages import t
 from func.telegram_client import send_service_message, edit_service_message
@@ -117,12 +118,11 @@ async def add(message, text):
     with open(path, 'w', encoding='utf-8') as file:
         file.write(t('rule_start_text', rule_name))
     await edit_service_message(message, t('rule_created', rule_name))
-    await send_service_message(PERSONAL_CHAT_ID, t('rule_start_text', rule_name), 300)
-    operation_status.rules_registered[message.id] = {
-        'message': {
+    rule_message = await send_service_message(PERSONAL_CHAT_ID, t('rule_start_text', rule_name), 300)
+    operation_status.rules_registered[rule_message.id] = RulesMessageObject({
             'file_name': path
-        }
-    }
+    })
+    rules_object.reload_rules()
 
 
 async def reload(message):

@@ -10,5 +10,6 @@ class OperationStatusObject:
         self.start_download = True
         self.quit_program = False
         self.message = None
+        self.rules_registered = {}
         for key, value in config_dict.items():
             setattr(self, key, value)

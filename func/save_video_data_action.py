@@ -59,6 +59,9 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]) -> Tuple[
         if video_data["is_forward_chat_protected"] is not True:
             await video.delete()
 
+    if video_data is None:
+        return None
+
     return get_file_name_from_message(video), ObjectData(**video_data)
 
 
