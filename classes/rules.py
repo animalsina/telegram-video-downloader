@@ -188,6 +188,8 @@ class Rules:
             if rule_chat_title is not None and rule_chat_title != chat_title:
                 continue
             action = rule.translate
+            if pattern.message is None:
+                continue
             match = re.match(pattern.message, input_value)
             if match:
                 if self.rule_item_ids.get(rule.id) is None:
