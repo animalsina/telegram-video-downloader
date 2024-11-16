@@ -41,11 +41,17 @@ def check_folder_permissions(folder_path: str):
     or if it lacks write permissions, an exception will be raised.
     """
     if not os.path.exists(folder_path):
-        os.makedirs(folder_path)
+        try:
+            os.makedirs(folder_path)
+        except OSError:
+            print(f"Failed to create directory: {folder_path}")
+            return False
     if not os.path.isdir(folder_path):
         raise PermissionError(f"{folder_path} is not a directory.")
     if not os.access(folder_path, os.W_OK):
         raise PermissionError(f"Permission denied: {folder_path}")
+
+    return True
 
 
 def is_video_file(file_name: str) -> bool:

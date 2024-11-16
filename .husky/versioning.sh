@@ -24,10 +24,6 @@ increment_version() {
     PATCH=0  # Reset patch version
   elif echo "$COMMIT_MSG" | grep -iq "fix"; then
     PATCH=$((PATCH + 1))
-  elif echo "$COMMIT_MSG" | grep -iq "breaking"; then
-    MAJOR=$((MAJOR + 1))
-    MINOR=0  # Reset minor version
-    PATCH=0  # Reset patch version
   else
     echo "Commit type not detected, defaulting to PATCH increment."
     PATCH=$((PATCH + 1))
