@@ -1,25 +1,25 @@
 """
 Class for storing string data.
 """
-LINE_FOR_VIDEO_NAME = 1
-LINE_FOR_FILE_NAME = 2
-LINE_FOR_FILE_SIZE = 3
-LINE_FOR_FILE_DIMENSION = 4
-LINE_FOR_PINNED_VIDEO = 5
-LINE_FOR_LABEL = 6
-LINE_FOR_INFO_DATA = 7
+LINE_FOR_INFO_DATA = 1
+LINE_FOR_LABEL = 2
+LINE_FOR_VIDEO_NAME = 3
+LINE_FOR_FILE_NAME = 4
+LINE_FOR_FILE_SIZE = 5
+LINE_FOR_FILE_DIMENSION = 6
+LINE_FOR_PINNED_VIDEO = 7
 LINE_FOR_TARGET_FOLDER = 8
 LINE_FOR_SHOW_LAST_ERROR = 10
 
 ICON_FOR_LINE_ID = {
-    "1": "🎥",
-    "2": "🗃",
-    "3": "⚖️",
-    "4": "↕️",
-    "5": "📌",
-    "7": "⬇️",
-    "8": "📂",
-    "10": "‼️",
+    LINE_FOR_VIDEO_NAME: "🎥",
+    LINE_FOR_FILE_NAME: "🗃",
+    LINE_FOR_FILE_SIZE: "⚖️",
+    LINE_FOR_FILE_DIMENSION: "↕️",
+    LINE_FOR_PINNED_VIDEO: "📌",
+    LINE_FOR_INFO_DATA: "⬇️",
+    LINE_FOR_TARGET_FOLDER: "📂",
+    LINE_FOR_SHOW_LAST_ERROR: "‼️",
 }
 
 TYPE_ACQUIRED = '🟢'
@@ -62,7 +62,7 @@ class StringBuilder:
         while len(self.lines) < line_number:
             self.lines.append("")
 
-        icon = ICON_FOR_LINE_ID.get(str(line_number), None)
+        icon = ICON_FOR_LINE_ID.get(line_number, None)
 
         if with_default_icon and icon:
             # Modifica la linea specificata
