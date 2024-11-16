@@ -295,9 +295,11 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
             await command_handler.exec(text, {'source_message': message}, is_personal_chat)
 
             if isinstance(message.media, MessageMediaDocument):
-                file_name, new_video_data = await acquire_video(message)
-                if new_video_data is not None:
-                    operation_status.videos_data.append((file_name, new_video_data))
+                acquire_data = await acquire_video(message)
+                if acquire_data is not None:
+                    file_name, new_video_data = acquire_data
+                    if new_video_data is not None:
+                        operation_status.videos_data.append((file_name, new_video_data))
             return
 
         for chat_name in configuration.group_chats:
