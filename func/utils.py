@@ -23,7 +23,8 @@ from classes.string_builder import (StringBuilder, LINE_FOR_INFO_DATA,
                                     LINE_FOR_SHOW_LAST_ERROR, TYPE_ACQUIRED,
                                     LINE_FOR_FILE_DIMENSION, LINE_FOR_PINNED_VIDEO,
                                     LINE_FOR_VIDEO_NAME,
-                                    LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE, TYPE_ERROR, TYPE_COMPLETED)
+                                    LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE, TYPE_ERROR, TYPE_COMPLETED,
+                                    LINE_FOR_TARGET_FOLDER)
 from func.messages import t
 from classes.object_data import ObjectData
 from run import PERSONAL_CHAT_ID
@@ -562,22 +563,60 @@ def default_video_message(video_object: ObjectData):
     if video_object.is_forward_chat_protected is True:
         video_text = f"{video_text} (**Forward Chat Protected**)"
 
+    from command.download import get_completed_task_folder_path
+    completed_folder_path = get_completed_task_folder_path(video_object)
+    reduced_path_name = reduce_path_action(completed_folder_path)
+
     builder = StringBuilder()
-    builder.edit_in_line(f'🎥 **{video_text}**', LINE_FOR_VIDEO_NAME)
-    builder.edit_in_line(f'🗃 {file_name}', LINE_FOR_FILE_NAME)
+    builder.edit_in_line(f'**{video_text}**', LINE_FOR_VIDEO_NAME, True)
+    builder.edit_in_line(file_name, LINE_FOR_FILE_NAME, True)
+    builder.edit_in_line(reduced_path_name, LINE_FOR_TARGET_FOLDER, True)
     video_media = getattr(video_object, 'video_media', None)
     if video_media is not None:
-        builder.edit_in_line(f'⚖️ {format_bytes(video_media.document.size)}', LINE_FOR_FILE_SIZE)
+        builder.edit_in_line(format_bytes(video_media.document.size), LINE_FOR_FILE_SIZE, True)
     builder.define_label(TYPE_ACQUIRED)
     video_attribute = getattr(video_object, 'video_attribute', None)
     if video_attribute is not None and hasattr(video_attribute, 'w') and hasattr(video_attribute, 'h'):
         builder.edit_in_line(
             f'{video_attribute.w}x{video_attribute.h}',
             LINE_FOR_FILE_DIMENSION, True)
-    builder.edit_in_line(f'📌 {video_object.pinned}', LINE_FOR_PINNED_VIDEO)
+    builder.edit_in_line(video_object.pinned, LINE_FOR_PINNED_VIDEO, True)
 
     return builder.string
 
+
+def reduce_path_action(path: str, max_length: int = 4) -> str:
+    """
+    Reduce the length of a path to a maximum length, keeping the final part intact.
+
+    Args:
+        path (str): The path to reduce.
+        max_length (int): The maximum length of the reduced path.
+
+    Returns:
+        str: The reduced path.
+    """
+    if len(path) <= max_length:
+        return path
+
+    # Suddividi il percorso in parti
+    parts = path.split(os.sep)
+
+    # L'ultima parte deve sempre essere inclusa
+    final_part = parts.pop()
+    total_length = len(final_part) + 4  # Include spazio per '...' e almeno un separatore
+
+    # Riduci le parti intermedie finché non si rispetta la lunghezza massima
+    reduced_parts = []
+    for part in parts:
+        if total_length + len(part) + len(reduced_parts) >= max_length:
+            reduced_parts.append('...')
+            break
+        reduced_parts.append(part)
+        total_length += len(part) + 1  # Aggiunge anche il separatore
+
+    # Combina le parti ridotte con la parte finale
+    return os.sep.join(reduced_parts + [final_part])
 
 def remove_markdown(text: str):
     """

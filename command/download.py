@@ -89,12 +89,18 @@ async def target_to_download(source_message, video_object: ObjectData):
     :param video_object:
     :return:
     """
-    from func.main import rules_object
-    completed_folder_mask = rules_object.apply_rules(
-        'completed_folder_mask',
-        video_object.video_name, message_id=video_object.video_id)
+    completed_folder_mask = get_completed_task_folder_path(video_object)
     await edit_service_message(source_message, completed_folder_mask or configuration.completed_folder)
 
+def get_completed_task_folder_path(video_object: ObjectData):
+    """
+    :param video_object:
+    :return:
+    """
+    from func.main import rules_object
+    return rules_object.apply_rules(
+        'completed_folder_mask',
+        video_object.video_name, message_id=video_object.video_id) or configuration.completed_folder
 
 async def set_pinned_message(source_message, video_object: ObjectData, pinned: bool):
     """

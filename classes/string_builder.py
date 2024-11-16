@@ -8,7 +8,8 @@ LINE_FOR_FILE_DIMENSION = 4
 LINE_FOR_PINNED_VIDEO = 5
 LINE_FOR_LABEL = 6
 LINE_FOR_INFO_DATA = 7
-LINE_FOR_SHOW_LAST_ERROR = 9
+LINE_FOR_TARGET_FOLDER = 8
+LINE_FOR_SHOW_LAST_ERROR = 10
 
 ICON_FOR_LINE_ID = {
     "1": "🎥",
@@ -17,7 +18,8 @@ ICON_FOR_LINE_ID = {
     "4": "↕️",
     "5": "📌",
     "7": "⬇️",
-    "8": "‼️",
+    "8": "📂",
+    "10": "‼️",
 }
 
 TYPE_ACQUIRED = '🟢'
