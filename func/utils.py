@@ -568,6 +568,7 @@ def default_video_message(video_object: ObjectData):
     reduced_path_name = reduce_path_action(completed_folder_path)
 
     builder = StringBuilder()
+    builder.edit_in_line('---', LINE_FOR_INFO_DATA)
     builder.edit_in_line(f'**{video_text}**', LINE_FOR_VIDEO_NAME, True)
     builder.edit_in_line(file_name, LINE_FOR_FILE_NAME, True)
     builder.edit_in_line(reduced_path_name, LINE_FOR_TARGET_FOLDER, True)
