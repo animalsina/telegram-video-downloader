@@ -33,3 +33,10 @@ class ObjectData:
 
     def __repr__(self):
         return f"<ObjectData {vars(self)}>"
+
+    def to_string(self) -> str:
+        """
+        Returns a string representation of the object.
+        :return:
+        """
+        return "\n".join([f"{key}: {value}" for key, value in vars(self).items()])
