@@ -17,7 +17,7 @@ from tqdm import tqdm
 from classes.attribute_object import AttributeObject
 from classes.custom_flood_error import CustomFloodError
 from classes.object_data import ObjectData
-from classes.string_builder import TYPE_CANCELLED
+from classes.string_builder import TYPE_CANCELLED, TYPE_ACQUIRED
 from classes.tqdm_object import TqdmObject
 from func.messages import t
 from func.utils import (
@@ -316,6 +316,7 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
         try:
             # Start to pin the message
             await video_message_data.pin()
+            await define_label(video.message_id_reference, TYPE_ACQUIRED)
             if os.path.exists(temp_file_path):
                 progress = os.path.getsize(temp_file_path)
 
