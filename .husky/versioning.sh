@@ -50,7 +50,4 @@ fi
 git tag "$NEW_VERSION"
 echo "Tag $NEW_VERSION created."
 
-git add .
-git commit --no-verify --amend
-
 echo "Commit with tag $NEW_VERSION created."
