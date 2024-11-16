@@ -23,10 +23,7 @@ from func.messages import t
 from func.utils import (
     is_file_corrupted, \
     download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA, \
-    LINE_FOR_SHOW_LAST_ERROR, get_video_data_path, define_label)
-
-# Buffer to store speed data samples
-speed_samples = collections.deque(maxlen=20)  # Keep only the last 20 samples
+    LINE_FOR_SHOW_LAST_ERROR, get_video_data_path, define_label)  # Keep only the last 20 samples
 
 
 def calculate_download_speed(current: int, time_elapsed: float, last_current: int):
@@ -137,6 +134,7 @@ async def progress_callback(
         pbar: tqdm,
         current: int,
         total: int,
+        speed_samples: collections.deque
 ):
     """
     Callback function to update the progress bar and status message.
@@ -144,6 +142,7 @@ async def progress_callback(
     :param pbar:
     :param current:
     :param total:
+    :param speed_samples:
     :return:
     """
 
@@ -221,6 +220,9 @@ async def download_with_rate_limit(
         kb_download = configuration.max_download_size_request_limit_kb \
             if configuration.max_download_size_request_limit_kb != -1 else MAXINT
 
+    # Buffer to store speed data samples
+    speed_samples = collections.deque(maxlen=20)
+
     try:
         download_iter = client.iter_download(
             video.video_media, offset=progress,
@@ -240,7 +242,7 @@ async def download_with_rate_limit(
                 if operation_status.interrupt is True:
                     return
                 f.write(chunk)
-                await progress_callback(video, pbar, f.tell(), file_size)
+                await progress_callback(video, pbar, f.tell(), file_size, speed_samples)
                 sleep_time = 0.5 + (2 - 0.5) * (min(1 - attempt, 0) / retry_attempts)
                 await asyncio.sleep(sleep_time)
 
@@ -282,12 +284,16 @@ def is_interrupted():
             operation_status.start_download is not True)
 
 
-async def download_with_retry(client: TelegramClient, video: ObjectData, retry_attempts: int = 20): # pylint: disable=too-many-statements
+async def download_with_retry(client: TelegramClient, video: ObjectData,
+                              retry_attempts: int = 20):  # pylint: disable=too-many-statements
     """Download a file with retry attempts in case of failure."""
     from run import PERSONAL_CHAT_ID
 
     # Here checks for video data, because if video is stored during the iteration, it will expire
-    video_message_data = await client.get_messages(PERSONAL_CHAT_ID, ids=video.message_id_reference)
+    video_message_data = await client.get_messages(
+        PERSONAL_CHAT_ID,
+        ids=video.message_id_reference
+    )  # type: Message
 
     if video_message_data is None:
         print(t('download_stopped'))
@@ -325,30 +331,8 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
                                        LINE_FOR_INFO_DATA, True)
                 break
 
-            temp_file_size = os.path.getsize(temp_file_path)
-
-            tolerance = 0  # Tolerance in bytes, adjust as needed
-
-            # Check if the temp file is complete and then move it to the final path
-            if abs(temp_file_size - file_size) <= tolerance:
-                os.rename(temp_file_path, video.file_path)
-                print(f"Downloaded video to: {video.file_path}")
-
-                if os.path.exists(video.file_path):
-                    if not is_file_corrupted(video.file_path, file_size):
-                        await download_complete_action(video)
-                        return
-                    await add_line_to_text(video.message_id_reference,
-                                           t('corrupted_file', video.file_name),
-                                           LINE_FOR_SHOW_LAST_ERROR)
-                    print(t('corrupted_file', video.file_name))
-                return
-            await add_line_to_text(video.message_id_reference,
-                                   t('file_mismatch_error', video.video_name),
-                                   LINE_FOR_SHOW_LAST_ERROR)
-            raise Exception(  # pylint: disable=broad-exception-raised
-                f"File {video.video_name} size mismatch - I will retry again later."
-            )
+            if await validate_download(temp_file_path, file_size, video):
+                break
 
         except CustomFloodError as e:
             attempt += 1
@@ -379,6 +363,34 @@ async def download_with_retry(client: TelegramClient, video: ObjectData, retry_a
             await add_line_to_text(video.message_id_reference, f"Unexpected error: {str(error)}",
                                    LINE_FOR_SHOW_LAST_ERROR)
             break
+
+
+async def validate_download(temp_file_path, file_size, video):
+    """
+    :param temp_file_path:
+    :param file_size:
+    :param video:
+    :return:
+    """
+    tolerance = 0  # bytes
+    temp_file_size = os.path.getsize(temp_file_path)
+
+    if abs(temp_file_size - file_size) <= tolerance:
+        os.rename(temp_file_path, video.file_path)
+        print(f"Downloaded video to: {video.file_path}")
+        if os.path.exists(video.file_path) and not is_file_corrupted(video.file_path, file_size):
+            await download_complete_action(video)
+            return True
+        await add_line_to_text(
+            video.message_id_reference,
+            t('corrupted_file', video.file_name), LINE_FOR_SHOW_LAST_ERROR)
+        print(t('corrupted_file', video.file_name))
+        return False
+
+    await add_line_to_text(
+        video.message_id_reference,
+        t('file_mismatch_error', video.video_name), LINE_FOR_SHOW_LAST_ERROR)
+    raise Exception(f"File {video.video_name} size mismatch - I will retry again later.") # pylint: disable=broad-exception-raised
 
 
 async def attempt_message(error_message, attempt, retry_attempts, video):
