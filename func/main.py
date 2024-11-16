@@ -117,6 +117,7 @@ async def download_with_limit(video: ObjectData):
 
     return True
 
+
 async def client_data():
     """
     Client data
@@ -268,10 +269,13 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
                                 rule_data.file_name + '.deleted')  # Move the file to a deleted folder
                     rules_object.reload_rules()
                     operation_status.can_delete_rules = False
-                    await client.delete_messages(PERSONAL_CHAT_ID,
-                                                 message_ids=list(operation_status.rules_registered.keys()))
-                    await send_service_message(PERSONAL_CHAT_ID, t('rules_reloaded'))
-                    await send_service_message(PERSONAL_CHAT_ID, t('rule_deleted', rule_data.file_name))
+                    await client.delete_messages(
+                        PERSONAL_CHAT_ID,
+                        message_ids=list(operation_status.rules_registered.keys()))
+                    await send_service_message(
+                        PERSONAL_CHAT_ID, t('rules_reloaded'))
+                    await send_service_message(
+                        PERSONAL_CHAT_ID, t('rule_deleted', rule_data.file_name))
 
             for message_id in event.deleted_ids:
                 remove_video_data(get_inlist_video_object_by_message_id_reference(message_id))
