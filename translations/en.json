@@ -65,6 +65,7 @@
     "pinned_message": "Pinned message",
     "unpinned_message": "Unpinned message",
     "completed_video_cleaned": "All completed videos was remove",
-    "download_error": "Error during download"
+    "download_error": "Error during download",
+    "folder_not_exist": "Folder {} not exist"
 }
 

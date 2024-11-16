@@ -151,9 +151,9 @@ async def progress_callback(
         if is_interrupted() is True:
             print(t('download_stopped'))
             await add_line_to_text(video.message_id_reference,
-                                   t('download_stopped', video.file_name),
+                                   t('download_stopped'),
                                    LINE_FOR_INFO_DATA, True)
-            raise KeyboardInterrupt(t('download_stopped', video.file_name))
+            raise KeyboardInterrupt(t('download_stopped'))
 
         percent_complete: float = (current / total) * 100
         current_time: float = time.time()
@@ -284,6 +284,29 @@ def is_interrupted():
             operation_status.start_download is not True)
 
 
+async def check_completed_folder_exist(video):
+    """
+    Check completed folder exist for video, if it doesn't exist, it will generate an exception
+    and adds an error message in the video caption
+    :param video:
+    :return:
+    """
+    from command.download import get_completed_task_folder_path
+    if get_completed_task_folder_path(video) is not None:
+        if os.path.exists(get_completed_task_folder_path(video)) is False:
+            await add_line_to_text(
+                video.message_id_reference,
+                t('folder_not_exist', video.file_name),
+                LINE_FOR_SHOW_LAST_ERROR,
+                True)
+            raise Exception(  # pylint: disable=broad-exception-raised
+                t(
+                    'folder_not_exist',
+                    get_completed_task_folder_path(video)
+                )
+            )
+
+
 async def download_with_retry(client: TelegramClient, video: ObjectData,
                               retry_attempts: int = 20):  # pylint: disable=too-many-statements
     """Download a file with retry attempts in case of failure."""
@@ -302,7 +325,8 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
     if video.is_forward_chat_protected is not True:
         video.video_media = video_message_data.media
     else:
-        video_data = await client.get_messages(video.chat_name, ids=video.video_id)
+        video_data = \
+            await client.get_messages(video.chat_name, ids=video.video_id)  # type: Message
         video.video_media = video_data.media
 
     attempt = 0
@@ -314,6 +338,8 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
 
     while attempt < retry_attempts:
         try:
+            # At this point the folder must be existed
+            await check_completed_folder_exist(video)
             # Start to pin the message
             await video_message_data.pin()
             await define_label(video.message_id_reference, TYPE_ACQUIRED)
@@ -391,7 +417,8 @@ async def validate_download(temp_file_path, file_size, video):
     await add_line_to_text(
         video.message_id_reference,
         t('file_mismatch_error', video.video_name), LINE_FOR_SHOW_LAST_ERROR)
-    raise Exception(f"File {video.video_name} size mismatch - I will retry again later.") # pylint: disable=broad-exception-raised
+    raise Exception(  # pylint: disable=broad-exception-raised
+        f"File {video.video_name} size mismatch - I will retry again later.")
 
 
 async def attempt_message(error_message, attempt, retry_attempts, video):

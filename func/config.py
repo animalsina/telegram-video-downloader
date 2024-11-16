@@ -8,6 +8,7 @@ from xmlrpc.client import MAXINT
 
 from func.utils import check_folder_permissions, load_config
 
+
 def load_configuration():
     """
     Carica e restituisce la configurazione come un dizionario.
@@ -15,6 +16,7 @@ def load_configuration():
 
     import run
 
+    lock_download = False
     # Usa il nome del file di configurazione passato o il valore di default
     if len(sys.argv) > 1:
         config_file_name = sys.argv[1]
@@ -46,7 +48,8 @@ def load_configuration():
 
     # Verifica le cartelle di download
     check_folder_permissions(download_folder)
-    check_folder_permissions(completed_folder)
+    if check_folder_permissions(completed_folder) is False:
+        lock_download = True
 
     # Restituisce tutti gli elementi come dizionario
     return Config({
@@ -61,6 +64,7 @@ def load_configuration():
         'enable_video_compression': enable_video_compression,
         'compression_ratio': compression_ratio,
         'group_chats': group_chats,
+        'lock_download': lock_download
     })
 
 class Config:
@@ -79,5 +83,6 @@ class Config:
         self.compression_ratio = 28
         self.group_chats = []
         self.download_folder = None
+        self.lock_download = False
         for key, value in config_dict.items():
             setattr(self, key, value)

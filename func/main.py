@@ -258,8 +258,11 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
                 return
 
         @client.on(events.MessageDeleted)
-        async def tg_deleted_message_handler(event):  # pylint: disable=unused-argument
-            """Deleted Message Handler"""
+        async def tg_deleted_message_handler(event) -> None:  # pylint: disable=unused-argument
+            """Deleted Message Handler
+            :param event:
+            :return:
+            """
 
             async def remove_rules(del_message_id):
                 """Remove rules"""
@@ -331,6 +334,11 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
                 # Execute all queued tasks concurrently
                 try:
                     await asyncio.gather(*tasks, return_exceptions=True)
+                    if configuration.lock_download is True:
+                        operation_status.start_download = False
+                        operation_status.interrupt = True
+                        await send_service_message(PERSONAL_CHAT_ID, t('download_stopped'))
+
                 except CancelledError:
                     print(t('cancel_download'))
             await asyncio.sleep(CHECK_INTERVAL)
