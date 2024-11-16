@@ -1,2 +1,2 @@
-npx --no -- commitlint --edit .git/COMMIT_EDITMSG
+npx --no -- commitlint --edit "$1"
 sh .husky/check_pylint.sh
