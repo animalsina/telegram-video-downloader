@@ -34,8 +34,10 @@ from classes.string_builder import (
     LINE_FOR_INFO_DATA,
     LINE_FOR_SHOW_LAST_ERROR)
 from func.utils import (
-    add_line_to_text, save_video_data,
-    remove_video_data, get_inlist_video_object_by_message_id_reference)
+    add_line_to_text,
+    get_inlist_video_object_by_message_id_reference,
+    remove_video_data
+)
 
 configuration = load_configuration()
 
@@ -178,7 +180,6 @@ async def get_video_task(video_object: ObjectData):
             return False
 
     rules_object.assign_rule_by_video_data(video_object.original_video_name, video_object)
-    save_video_data({"pinned": reference_message.pinned}, video_object, ["pinned"])
 
     try:
         if LOG_IN_PERSONAL_CHAT is True:
