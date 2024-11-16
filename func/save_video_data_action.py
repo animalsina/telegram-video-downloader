@@ -52,8 +52,7 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]) -> Tuple[
     if message.text and contains_link is True:  # Ignore already acquired videos
         return None
 
-    chat_name = getattr(video, 'chat_name') if hasattr(video, 'chat_name') else None
-    video_data = await process_video(video, chat_name)
+    video_data = await process_video(video)
     if video_data and save_video_data(video_data, ObjectData(**video_data), get_video_data_keys()):
         print(f"Video saved: {video_data['original_video_name']}")
         if video_data["is_forward_chat_protected"] is not True:
@@ -96,13 +95,13 @@ def get_file_name_from_message(message: Union[MessageMediaDocument, Message]) ->
     return None
 
 
-async def process_video(video: Union[Message, MessageMediaDocument], chat_name: str):
+async def process_video(video: Union[Message, MessageMediaDocument]):
     """
     Process a video message and return the video data dictionary.
     Will recreate the video message and save the video data to a JSON file.
     """
     from func.main import rules_object
-    video_data = initialize_video_data(video, chat_name)
+    video_data = initialize_video_data(video)
 
     video_name = await get_video_name(video)
     if video_name is None:
@@ -134,8 +133,9 @@ async def process_video(video: Union[Message, MessageMediaDocument], chat_name: 
         }))
     video_data["video_name"] = video_name
     video_data["video_name_cleaned"] = sanitize_video_name(video_name)
-    video_data["file_name"] = (await get_file_name(video, True)
-                               or sanitize_filename(video_name) + ".mp4")
+    video_data["file_name"] = (
+            await get_file_name(video, True)
+            or sanitize_filename(video_name) + ".mp4")
 
     if video.forward is not None:
         video_data['chat_name'] = chat_name
@@ -162,7 +162,7 @@ async def process_video(video: Union[Message, MessageMediaDocument], chat_name: 
     return video_data
 
 
-def initialize_video_data(video: Union[Message, MessageMediaDocument], chat_name: str):
+def initialize_video_data(video: Union[Message, MessageMediaDocument]):
     """ Initialize a dictionary to hold video data. """
     return {
         "id": video.id,
@@ -185,6 +185,9 @@ async def get_video_name(video):
 
     if video_name is None:
         video_name = await get_video_name_from_text(video)
+
+    if video_name is None:
+        video_name = await get_file_name(video)
 
     return remove_markdown(video_name) if video_name else None
 
@@ -254,7 +257,8 @@ async def send_video_to_chat(video_data: dict | ObjectData, video: Union[Message
         if hasattr(video_data, 'video_media') is False or video_data.video_media is None:
             video_data.video_media = video.media
         if (hasattr(video_data, 'video_attribute') and
-                isinstance(video_data.video_attribute, AttributeObject) is False):
+                isinstance(video_data.video_attribute, AttributeObject) is False and
+                isinstance(video_data.video_attribute, dict)):
             video_data.video_attribute = AttributeObject(**video_data.video_attribute)
 
     try:
