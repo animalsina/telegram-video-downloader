@@ -587,11 +587,11 @@ def default_video_message(video_object: ObjectData):
 
 def reduce_path_action(path: str, max_length: int = 4) -> str:
     """
-    Reduce the length of a path to a maximum length, keeping the final part intact.
+    Reduce each part of a path to a maximum length, keeping the final part intact.
 
     Args:
         path (str): The path to reduce.
-        max_length (int): The maximum length of the reduced path.
+        max_length (int): The maximum length of each reduced part (except the final one).
 
     Returns:
         str: The reduced path.
@@ -599,24 +599,17 @@ def reduce_path_action(path: str, max_length: int = 4) -> str:
     if len(path) <= max_length:
         return path
 
-    # Suddividi il percorso in parti
-    parts = path.split(os.sep)
+    parts = [part for part in path.split(os.sep) if part]
+    final_part = parts.pop() if parts else ""
+    reduced_parts = [part[:max_length] + "..." if len(part) > max_length else part for part in parts]
+    reduced_path = os.sep.join(reduced_parts + [final_part])
 
-    # L'ultima parte deve sempre essere inclusa
-    final_part = parts.pop()
-    total_length = len(final_part) + 4  # Include spazio per '...' e almeno un separatore
+    if path.startswith(os.sep):
+        reduced_path = os.sep + reduced_path
+    if path.endswith(os.sep):
+        reduced_path += os.sep
 
-    # Riduci le parti intermedie finché non si rispetta la lunghezza massima
-    reduced_parts = []
-    for part in parts:
-        if total_length + len(part) + len(reduced_parts) >= max_length:
-            reduced_parts.append('...')
-            break
-        reduced_parts.append(part)
-        total_length += len(part) + 1  # Aggiunge anche il separatore
-
-    # Combina le parti ridotte con la parte finale
-    return os.sep.join(reduced_parts + [final_part])
+    return reduced_path
 
 def remove_markdown(text: str):
     """
