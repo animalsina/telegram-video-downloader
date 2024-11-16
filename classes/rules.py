@@ -11,8 +11,9 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import AnyStr, Optional
 
-from classes.config_object import ConfigObject
 from classes.object_data import ObjectData
+from classes.rules_message_object import RulesMessageObject
+from classes.rules_message_pattern_object import RulesMessagePatternObject
 
 
 class Rules:
@@ -56,7 +57,7 @@ class Rules:
         Set rules.
         """
         rule_id = hashlib.sha3_256(rule_file.encode('utf-8')).hexdigest()
-        pattern = ConfigObject({
+        pattern = RulesMessagePatternObject({
             'message': None,
             'folder': None,
             'chat_id': None,
@@ -64,7 +65,7 @@ class Rules:
             'chat_name': None,
             'use_filename': False,
         })
-        update_data = ConfigObject({
+        update_data = RulesMessageObject({
             'id': rule_id,
             'pattern': pattern,
             'translate': None,
