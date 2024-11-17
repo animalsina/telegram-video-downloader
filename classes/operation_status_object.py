@@ -6,6 +6,7 @@ class OperationStatusObject:
     Class for storing configuration data.
     """
     def __init__(self, config_dict):
+        self.can_delete_rules = False
         self.videos_data = []
         self.start_download = True
         self.quit_program = False

@@ -65,10 +65,11 @@ async def edit(message):
     await message.delete()
     await send_service_message(PERSONAL_CHAT_ID, t('rules_edit', 300), 300)
     for rule in rules_object.get_rules()['message'].values():
-        with open(rule.file_name, 'r', encoding='utf-8') as file:
-            contenuto = file.read()
-        message = await send_service_message(PERSONAL_CHAT_ID, contenuto, 300)
-        operation_status.rules_registered[message.id] = rule
+        if os.path.exists(rule.file_name):
+            with open(rule.file_name, 'r', encoding='utf-8') as file:
+                contenuto = file.read()
+            message = await send_service_message(PERSONAL_CHAT_ID, contenuto, 300)
+            operation_status.rules_registered[message.id] = rule
 
 
 async def delete(message):
@@ -78,18 +79,19 @@ async def delete(message):
     :return:
     """
     await message.delete()
-    await send_service_message(PERSONAL_CHAT_ID, t('rules_delete', 30), 30)
+    time_to_delete = 100
+    await send_service_message(PERSONAL_CHAT_ID, t('rules_delete', time_to_delete), time_to_delete)
 
     for rule in rules_object.get_rules()['message'].values():
-        message = await send_service_message(PERSONAL_CHAT_ID, rule.file_name, 30)
+        message = await send_service_message(PERSONAL_CHAT_ID, rule.file_name, time_to_delete)
         operation_status.rules_registered[message.id] = rule
     operation_status.can_delete_rules = True
 
     async def disable_delete_rules():
-        await asyncio.sleep(30)
+        await asyncio.sleep(time_to_delete)
         if operation_status.can_delete_rules is True:
             operation_status.can_delete_rules = False
-            await send_service_message(PERSONAL_CHAT_ID, t('rules_delete_canceled'), 30)
+            await send_service_message(PERSONAL_CHAT_ID, t('rules_delete_canceled'), 10)
 
     asyncio.create_task(disable_delete_rules())
 
