@@ -19,7 +19,9 @@ if echo "$PYTHON_VERSIONS" | grep -q "$INSTALLED_PYTHON_VERSION"; then
   exit_if_error
 else
   echo "Python $INSTALLED_PYTHON_VERSION is not in the allowed versions list ($PYTHON_VERSIONS), skipping. Or add the version in list and check if that is valid!"
-  exit 1
+  #exit 1
+  git ls-files '*.py' | xargs pylint
+  exit_if_error
 fi
 
 echo "Pylint check completed."

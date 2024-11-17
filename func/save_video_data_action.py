@@ -254,7 +254,8 @@ async def send_video_to_chat(video_data: dict | ObjectData, video: Union[Message
         if hasattr(video_data, 'video_media') is False or video_data.video_media is None:
             video_data.video_media = video.media
         if (hasattr(video_data, 'video_attribute') and
-                isinstance(video_data.video_attribute, AttributeObject) is False):
+                isinstance(video_data.video_attribute, AttributeObject) is False and
+		isinstance(video_data.video_attribute, dict) is True):
             video_data.video_attribute = AttributeObject(**video_data.video_attribute)
 
     try:
