@@ -97,7 +97,7 @@ async def command_declaration():
         callback=rename,
     )
     command_handler.add_command(
-        ["download:target", "download:destination", "dl:target", "dl:destination", "dl:dir", "target"],
+        ["download:info", "dl:info", "info"],
         t('command_stop'),
         args={
             'needs_reply': True

@@ -38,8 +38,8 @@ async def run(  # pylint: disable=unused-argument
         await stop(extra_args.get('source_message'), callback)
     elif subcommand in ('rename', 'rn') or command in ('rn', 'rename'):
         await rename(extra_args.get('source_message'), text_input, callback)
-    elif subcommand in ('source_message', 'dir', 'destination'):
-        await target_to_download(
+    elif subcommand == 'info' or command == 'info':
+        await download_info(
             extra_args.get('source_message'),
             extra_args.get('reply_message'))
     elif subcommand in ('pin', 'unpin') or command in ('pin', 'unpin'):
@@ -83,14 +83,13 @@ async def rename(source_message, text, callback):
     await callback(source_message, text)
 
 
-async def target_to_download(source_message, video_object: ObjectData):
+async def download_info(source_message, video_object: ObjectData):
     """
     :param source_message:
     :param video_object:
     :return:
     """
-    completed_folder_mask = get_completed_task_folder_path(video_object)
-    await edit_service_message(source_message, completed_folder_mask or configuration.completed_folder)
+    await edit_service_message(source_message, video_object.to_string(), 100)
 
 def get_completed_task_folder_path(video_object: ObjectData):
     """
