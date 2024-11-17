@@ -293,6 +293,10 @@ async def check_completed_folder_exist(video):
     """
     from command.download import get_completed_task_folder_path
     if get_completed_task_folder_path(video) is not None:
+        try:
+            os.makedirs(get_completed_task_folder_path(video), exist_ok=True)
+        except Exception: # pylint: disable=broad-exception-caught
+            pass
         if os.path.exists(get_completed_task_folder_path(video)) is False:
             await add_line_to_text(
                 video.message_id_reference,
@@ -504,23 +508,6 @@ async def fetch_all_messages(chat_id):
     """
     from func.main import client
 
-    # OopCompanion:suppressRename
-
-    # OopCompanion:suppressRename
-
-    # OopCompanion:suppressRename
-
-    # OopCompanion:suppressRename
-
-    # OopCompanion:suppressRename
-
-    # OopCompanion:suppressRename
-
-    # OopCompanion:suppressRename
-
-    # OopCompanion:suppressRename
-
-    # OopCompanion:suppressRename
     all_messages = []
 
     async for message in client.iter_messages(chat_id):
