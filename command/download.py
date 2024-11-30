@@ -89,7 +89,9 @@ async def download_info(source_message, video_object: ObjectData):
     :param video_object:
     :return:
     """
-    await edit_service_message(source_message, video_object.to_string(), 100)
+    video_data_object = video_object
+    video_data_object.completed_folder = get_completed_task_folder_path(video_object)
+    await edit_service_message(source_message, video_data_object.to_string(), 100)
 
 def get_completed_task_folder_path(video_object: ObjectData):
     """
