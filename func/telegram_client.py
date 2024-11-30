@@ -412,10 +412,12 @@ async def validate_download(temp_file_path, file_size, video):
         if os.path.exists(video.file_path) and not is_file_corrupted(video.file_path, file_size):
             await download_complete_action(video)
             return True
-        await add_line_to_text(
-            video.message_id_reference,
-            t('corrupted_file', video.file_name), LINE_FOR_SHOW_LAST_ERROR)
-        print(t('corrupted_file', video.file_name))
+        if temp_file_size > file_size:
+            os.remove(temp_file_path)
+            await add_line_to_text(
+                video.message_id_reference,
+                t('corrupted_file', video.file_name), LINE_FOR_SHOW_LAST_ERROR)
+            print(t('corrupted_file', video.file_name))
         return False
 
     await add_line_to_text(
