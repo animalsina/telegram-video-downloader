@@ -3,7 +3,8 @@ Command declaration
 """
 from classes.string_builder import LINE_FOR_VIDEO_NAME
 from func.messages import t
-from func.utils import add_line_to_text, save_video_data, get_inlist_video_object_by_message_id_reference
+from func.utils import add_line_to_text, save_video_data, get_inlist_video_object_by_message_id_reference, \
+    validate_and_check_path
 
 
 async def command_declaration():
@@ -25,6 +26,27 @@ async def command_declaration():
         from func.main import operation_status
         operation_status.start_download = False
         operation_status.interrupt = True
+
+    async def set_target_folder_cb(message,new_path):
+        from func.save_video_data_action import change_target_folder
+        from func.telegram_client import edit_service_message
+        from func.main import client
+        from run import PERSONAL_CHAT_ID
+        reply_message = await client.get_messages(
+            PERSONAL_CHAT_ID,
+            ids=message.reply_to.reply_to_msg_id)
+
+        check_folder_path_validation = validate_and_check_path(new_path)
+
+        if check_folder_path_validation["is_valid_format"] is False:
+            await edit_service_message(message, check_folder_path_validation["error"])
+            return
+        if check_folder_path_validation["exists"] is False:
+            await edit_service_message(message, t('folder_not_exist', new_path))
+            return
+
+        response = await change_target_folder(reply_message.id, new_path)
+        await edit_service_message(message, t('folder_changed', response['old_path'], response['new_path']))
 
     async def rename(message, new_name):
         from func.utils import sanitize_video_name
@@ -102,4 +124,12 @@ async def command_declaration():
         args={
             'needs_reply': True
         },
+    )
+    command_handler.add_command(
+        [ "download:settarget", "dl:settarget", "settarget"],
+        t('command_download_settarget'),
+        args={
+            'needs_reply': True
+        },
+        callback=set_target_folder_cb,
     )

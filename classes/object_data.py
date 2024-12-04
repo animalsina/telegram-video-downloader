@@ -10,6 +10,7 @@ class ObjectData:
     """
 
     def __init__(self, **kwargs):
+        self.video_completed_folder = None
         self.chat_title = None
         self.forward_message_id = None
         self.video_media = None
