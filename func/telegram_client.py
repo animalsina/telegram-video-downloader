@@ -355,9 +355,8 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
 
     while attempt < retry_attempts:
         try:
-            if temp_file_path >= file_size:
-                if await validate_download(temp_file_path, file_size, video):
-                    return
+            if await validate_download(temp_file_path, file_size, video):
+                break
 
             # At this point the folder must be existed
             await check_completed_folder_exist(video)
