@@ -148,10 +148,15 @@ class Rules:
                 match = re.match(pattern_folder, input_value)
                 completed_folder = None
                 if match is not None:
-                    for i, valore in enumerate(match.groups()):
+                    for i, value in enumerate(match.groups()):
                         if completed_folder is None:
                             completed_folder = completed_folder_mask
-                        completed_folder = completed_folder.replace(f'#{i}', valore.strip())
+                        stripped_values = value.strip()
+                        try:
+                            completed_folder = completed_folder.replace(f'#i#{i}', str(int(stripped_values)))
+                        except ValueError:
+                            completed_folder = completed_folder.replace(f'#i#{i}', stripped_values)
+                        completed_folder = completed_folder.replace(f'#{i}', stripped_values)
                     if completed_folder:
                         return completed_folder
         return None
