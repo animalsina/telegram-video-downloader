@@ -20,10 +20,10 @@ from classes.object_data import ObjectData
 from classes.string_builder import TYPE_CANCELLED, TYPE_ACQUIRED
 from classes.tqdm_object import TqdmObject
 from func.messages import t
+from func.save_video_data_action import change_target_folder
 from func.utils import (
-    is_file_corrupted, \
-    download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA, \
-    LINE_FOR_SHOW_LAST_ERROR, get_video_data_path, define_label)  # Keep only the last 20 samples
+    is_file_corrupted, download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA,
+    LINE_FOR_SHOW_LAST_ERROR, get_video_data_path, define_label)
 
 
 def calculate_download_speed(current: int, time_elapsed: float, last_current: int):
@@ -311,6 +311,16 @@ async def check_completed_folder_exist(video):
             )
 
 
+async def reassign_video_folder_completed(video_data: ObjectData):
+    """
+    Reassign the video to the completed folder
+    """
+    from command.download import get_completed_task_folder_path
+    video_completed_folder = get_completed_task_folder_path(video_data)
+    if video_completed_folder is not None:
+        await change_target_folder(video_data.message_id_reference, video_completed_folder)
+
+
 async def download_with_retry(client: TelegramClient, video: ObjectData,
                               retry_attempts: int = 20):  # pylint: disable=too-many-statements
     """Download a file with retry attempts in case of failure."""
@@ -339,6 +349,9 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
     tqdm_config.last_update_time = time.time()
     file_size = video.video_media.document.size
     temp_file_path = f"{video.file_path}.temp"
+
+    # Reassign the video folder
+    await reassign_video_folder_completed(video)
 
     while attempt < retry_attempts:
         try:
