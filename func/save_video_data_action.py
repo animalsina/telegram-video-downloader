@@ -11,7 +11,6 @@ from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo,
 from classes.attribute_object import AttributeObject
 from classes.object_data import ObjectData
 from classes.string_builder import ACQUIRED_TYPES, LINE_FOR_TARGET_FOLDER
-from func.telegram_client import get_video_data_by_message_id_reference
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
                         video_data_file_exists_by_ref_msg_id,
@@ -75,6 +74,7 @@ async def change_target_folder(message_id: int, path: str):
     :param path:
     :return:
     """
+    from func.telegram_client import get_video_data_by_message_id_reference
     video_object = get_video_data_by_message_id_reference(message_id)
     save_video_data({'video_completed_folder': path}, video_object, {"video_completed_folder"})
     await add_line_to_text(
