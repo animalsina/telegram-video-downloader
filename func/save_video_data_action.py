@@ -81,6 +81,7 @@ async def change_target_folder(message_id: int, path: str):
         message_id,
         reduce_path_action(path),
         LINE_FOR_TARGET_FOLDER,
+        True
     )
     old_path = video_object.video_completed_folder
     return {"old_path": old_path, "new_path": path}
