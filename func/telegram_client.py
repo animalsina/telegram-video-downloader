@@ -378,9 +378,6 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
                                        LINE_FOR_INFO_DATA, True)
                 break
 
-            if await validate_download(temp_file_path, file_size, video):
-                break
-
         except CustomFloodError as e:
             attempt += 1
             wait_time = await attempt_message(e, attempt, retry_attempts, video)
@@ -436,13 +433,7 @@ async def validate_download(temp_file_path, file_size, video):
             video.message_id_reference,
             t('corrupted_file', video.file_name), LINE_FOR_SHOW_LAST_ERROR)
         print(t('corrupted_file', video.file_name))
-    else:
-        await add_line_to_text(
-            video.message_id_reference,
-            t('file_mismatch_error', video.video_name), LINE_FOR_SHOW_LAST_ERROR)
-    raise Exception(  # pylint: disable=broad-exception-raised
-        f"File {video.video_name} size mismatch - I will retry again later.")
-
+    return False
 
 async def attempt_message(error_message, attempt, retry_attempts, video):
     """
