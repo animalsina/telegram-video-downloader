@@ -355,6 +355,10 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
 
     while attempt < retry_attempts:
         try:
+            if temp_file_path >= file_size:
+                if await validate_download(temp_file_path, file_size, video):
+                    return
+
             # At this point the folder must be existed
             await check_completed_folder_exist(video)
             # Start to pin the message
@@ -369,7 +373,7 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
             await asyncio.sleep(3)
 
             if is_interrupted() is True:
-                print(t('download_stopped'))
+                print(t('download_stopped', video.file_name))
                 await add_line_to_text(video.message_id_reference,
                                        t('download_stopped', video.file_name),
                                        LINE_FOR_INFO_DATA, True)
