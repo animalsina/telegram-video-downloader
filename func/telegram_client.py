@@ -417,7 +417,10 @@ async def validate_download(temp_file_path, file_size, video):
     :return:
     """
     tolerance = 0  # bytes
-    temp_file_size = os.path.getsize(temp_file_path)
+    if os.path.exists(temp_file_path):
+        temp_file_size = os.path.getsize(temp_file_path)
+    else:
+        temp_file_size = 0
 
     if abs(temp_file_size - file_size) <= tolerance:
         os.rename(temp_file_path, video.file_path)
