@@ -66,5 +66,6 @@
     "unpinned_message": "Messaggio senza priorità",
     "completed_video_cleaned": "Tutti i video completati sono stati rimossi",
     "download_error": "Errore durante il download",
-    "folder_not_exist": "Cartella {} non trovata"
+    "folder_not_exist": "Cartella {} non trovata",
+    "folder_changed": "Cartella cambiata da {0} a {1}"
 }

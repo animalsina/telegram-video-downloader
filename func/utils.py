@@ -201,18 +201,11 @@ async def download_complete_action(video: ObjectData) -> None:
     Download complete action.
     """
     from func.config import load_configuration
-    from func.main import rules_object
     config = load_configuration()
 
     mime_type, _ = mimetypes.guess_type(video.file_path)
     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
-    completed_folder_mask = rules_object.apply_rules(
-        'completed_folder_mask',
-        video.video_name, message_id=video.video_id)
-    completed_folder = config.completed_folder
-
-    if completed_folder_mask:
-        completed_folder = completed_folder_mask
+    completed_folder = video.video_completed_folder or config.completed_folder
 
     completed_file_path = os.path.join(completed_folder, video.video_name_cleaned + extension)
 
@@ -415,7 +408,7 @@ def safe_getattr(obj, attr, default=''):
 
 
 async def add_line_to_text(
-        message_id: str,
+        message_id: str|int,
         new_line: str,
         line_number: int,
         with_default_icon: bool = False
@@ -426,6 +419,8 @@ async def add_line_to_text(
     from run import LOG_IN_PERSONAL_CHAT
     from func.main import client
     # Divide il testo in righe
+    if isinstance(message_id, str):
+        message_id = int(message_id)
 
     message = await client.get_messages(PERSONAL_CHAT_ID, ids=message_id)  # get realtime info
     text = message.text
@@ -563,14 +558,14 @@ def default_video_message(video_object: ObjectData):
         str: The default message for the video.
         :param video_object:
     """
+    from func.main import configuration
     video_text = remove_markdown("".join(video_object.video_name.splitlines()))[:40]
     file_name = remove_markdown("".join(video_object.file_name.splitlines()))[:40]
 
     if video_object.is_forward_chat_protected is True:
         video_text = f"{video_text} (**Forward Chat Protected**)"
 
-    from command.download import get_completed_task_folder_path
-    completed_folder_path = get_completed_task_folder_path(video_object)
+    completed_folder_path = video_object.video_completed_folder or configuration.completed_folder
     reduced_path_name = reduce_path_action(completed_folder_path)
 
     builder = StringBuilder()
@@ -656,3 +651,36 @@ def format_bytes(size: int):
 
     # Restituisci la dimensione formattata
     return f"{size:.2f} {units[i]}"
+
+
+def validate_and_check_path(path):
+    """
+    Check if a path is valid and exists.
+
+    Args:
+        path (str): The path to check.
+
+    Returns:
+        dict: A dictionary containing the validation result.
+    """
+    result = {"is_valid_format": False, "exists": False, "error": None}
+
+    try:
+        if not isinstance(path, str) or path.strip() == "":
+            result["error"] = "Path is not a string or is empty."
+            return result
+
+        normalized_path = os.path.normpath(path)
+
+        if any(char in path for char in ['<', '>', ':', '"', '|', '?', '*']):
+            result["error"] = "Path contains invalid characters."
+            return result
+
+        result["is_valid_format"] = True
+
+        result["exists"] = os.path.exists(normalized_path)
+
+    except Exception as e: # pylint: disable=broad-exception-caught
+        result["error"] = f"Error validating and checking path: {str(e)}"
+
+    return result
