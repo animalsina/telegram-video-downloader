@@ -14,7 +14,6 @@ from func.telegram_client import edit_service_message, fetch_all_messages
 from func.utils import save_video_data, add_line_to_text, get_video_status_label
 from run import PERSONAL_CHAT_ID
 
-
 async def run(  # pylint: disable=unused-argument
         command: str,
         subcommand: str,
@@ -50,6 +49,12 @@ async def run(  # pylint: disable=unused-argument
     elif subcommand == 'clean' or command == 'clean':
         await clear_downloads(
             extra_args.get('source_message'),
+        )
+    elif subcommand == 'settarget' or command == 'settarget':
+        await set_target_folder(
+            extra_args.get('source_message'),
+            text_input,
+            callback
         )
 
 
@@ -90,7 +95,6 @@ async def download_info(source_message, video_object: ObjectData):
     :return:
     """
     video_data_object = video_object
-    video_data_object.completed_folder = get_completed_task_folder_path(video_object)
     await edit_service_message(source_message, video_data_object.to_string(), 100)
 
 def get_completed_task_folder_path(video_object: ObjectData):
@@ -134,3 +138,14 @@ async def clear_downloads(source_message: Union[Message, MessageMediaDocument]):
             await message.delete()
 
     await edit_service_message(source_message, t('completed_video_cleaned'), 5)
+
+
+async def set_target_folder(source_message: Union[Message, MessageMediaDocument], text, callback):
+    """
+    Set target folder
+    :param source_message:
+    :param text:
+    :param callback:
+    :return:
+    """
+    await callback(source_message, text)
