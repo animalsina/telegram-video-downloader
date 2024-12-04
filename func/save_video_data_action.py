@@ -10,11 +10,13 @@ from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo,
 
 from classes.attribute_object import AttributeObject
 from classes.object_data import ObjectData
-from classes.string_builder import ACQUIRED_TYPES
+from classes.string_builder import ACQUIRED_TYPES, LINE_FOR_TARGET_FOLDER
+from func.telegram_client import get_video_data_by_message_id_reference
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
                         video_data_file_exists_by_ref_msg_id,
-                        is_video_file, save_video_data, sanitize_video_name)
+                        is_video_file, save_video_data, sanitize_video_name,
+                        add_line_to_text, reduce_path_action)
 from run import LOG_IN_PERSONAL_CHAT, PERSONAL_CHAT_ID
 
 
@@ -61,7 +63,27 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]) -> Tuple[
     if video_data is None:
         return None
 
+    from command.download import get_completed_task_folder_path
+    video_data["video_completed_folder"] = get_completed_task_folder_path(ObjectData(**video_data))
+
     return get_file_name_from_message(video), ObjectData(**video_data)
+
+async def change_target_folder(message_id: int, path: str):
+    """
+    Change target folder
+    :param message_id:
+    :param path:
+    :return:
+    """
+    video_object = get_video_data_by_message_id_reference(message_id)
+    save_video_data({'video_completed_folder': path}, video_object, {"video_completed_folder"})
+    await add_line_to_text(
+        message_id,
+        reduce_path_action(path),
+        LINE_FOR_TARGET_FOLDER,
+    )
+    old_path = video_object.video_completed_folder
+    return {"old_path": old_path, "new_path": path}
 
 
 async def collect_videos() -> List[Union[MessageMediaDocument, Message]]:
