@@ -205,8 +205,10 @@ async def download_complete_action(video: ObjectData) -> None:
 
     mime_type, _ = mimetypes.guess_type(video.file_path)
     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
-    completed_folder = video.video_completed_folder or config.completed_folder
+    if video.video_completed_folder is None:
+        raise OSError(t('error_video_completed_folder_none'), video.message_id_reference)
 
+    completed_folder = video.video_completed_folder
     completed_file_path = os.path.join(completed_folder, video.video_name_cleaned + extension)
 
     file_path_source = Path(str(video.file_path))
