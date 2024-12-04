@@ -20,7 +20,7 @@
 12. **rules:add** – Adds a new rule - `rules:add <filename>`.
 13. **rules:reload** – Reloads the rules to be recognized by the program.
 14. **download:rename**, **download:rn**, **dl:rn**, **dl:rename**, **rename**, **rn** – Renames the download (the video must be included in the reply).
-15. **download:target**, **download:destination**, **dl:target**, **dl:destination**, **dl:dir**, **target** – Sets the download destination (the video must be included in the reply).
+15. **download:settarget**, **settarget** – Sets the download destination (the video must be included in the reply).
 
 
 # == ITA
@@ -41,4 +41,4 @@
 12. **rules:add** – Aggiungi una nuova regola - rules:add <nome file>.
 13. **rules:reload** – Ricarica le regole per essere riconosciute dal programma.
 14. **download:rename**, **download:rn**, **dl:rn**, **dl:rename**, **rename**, **rn** – Rinomina il download (il video deve essere messo in risposta).
-15. **download:target**, **download:destination**, **dl:target**, **dl:destination**, **dl:dir**, **target** – Imposta la destinazione del download (il video deve essere messo in risposta).
+15. **download:settarget**, **settarget** – Imposta la destinazione del download (il video deve essere messo in risposta).
