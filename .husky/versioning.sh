@@ -61,7 +61,7 @@ if $NEW_VERSION != "$CURRENT_VERSION"; then
   sed -i "s/^version:.*/version: $NEW_VERSION/" .last_version
   echo "Updated .last_version file with the new version: $NEW_VERSION"
   git add .last_version
-  git commit -m "Update .last_version file with the new version: $NEW_VERSION"
+  git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
   git push --no-verify
 
 else
