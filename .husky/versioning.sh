@@ -51,6 +51,19 @@ fi
 git tag "$NEW_VERSION"
 echo "Tag $NEW_VERSION created."
 
-# Push dei tag senza innescare Husky
-git push --tags --no-verify
-echo "Tags pushed without triggering Husky."
+if $NEW_VERSION != "$CURRENT_VERSION"; then
+  # Push dei tag senza innescare Husky
+  git push --tags --no-verify
+  echo "Tags pushed without triggering Husky."
+
+
+  # Aggiorna la versione nel file tg-config.txt
+  sed -i "s/^version:.*/version: $NEW_VERSION/" .last_version
+  echo "Updated .last_version file with the new version: $NEW_VERSION"
+  git add .last_version
+  git commit -m "Update .last_version file with the new version: $NEW_VERSION"
+  git push --no-verify
+
+else
+  echo "New version is the same as the current version, skipping tag push."
+fi
