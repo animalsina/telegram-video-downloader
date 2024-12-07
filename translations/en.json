@@ -67,6 +67,16 @@
     "completed_video_cleaned": "All completed videos was remove",
     "download_error": "Error during download",
     "folder_not_exist": "Folder {} not exist",
-    "folder_changed": "Folder changed from {0} to {1}"
+    "folder_changed": "Folder changed from {0} to {1}",
+    "command_rules_help": "Show help for rules",
+    "rules_help": "**Rules commands:**\n{}",
+    "use_message_filename_example": "Boolean | Use the file name in the message",
+    "on_message_pattern_example": "Regex | Use a pattern for the message text",
+    "action_message_translate_example": "String | Use a pattern for the message text",
+    "on_folder_pattern_example": "Regex | Use a pattern for the folder",
+    "set_chat_id_example": "Int | Use the chat id",
+    "set_chat_title_example": "String | Use the chat title",
+    "set_chat_name_example": "String | Use the chat name",
+    "action_folder_completed_example": "String | Use a pattern for the folder indicate the values captured by the regex with #0, #1, #..., you can use #i#0, #i#1, #i#... to cast the value as an integer"
 }
 

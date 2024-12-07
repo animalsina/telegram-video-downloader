@@ -67,5 +67,15 @@
     "completed_video_cleaned": "Tutti i video completati sono stati rimossi",
     "download_error": "Errore durante il download",
     "folder_not_exist": "Cartella {} non trovata",
-    "folder_changed": "Cartella cambiata da {0} a {1}"
+    "folder_changed": "Cartella cambiata da {0} a {1}",
+    "command_rules_help": "Mostra l'aiuto per le regole",
+    "rules_help": "**Comandi per le regole:**\n\n{}",
+    "use_message_filename_example": "Boolean | Usare il nome del file nel messaggio",
+    "on_message_pattern_example": "Regex | Usa un pattern per il testo del messaggio",
+    "action_message_translate_example": "Stringa | Usa un pattern per il testo del messaggio",
+    "on_folder_pattern_example": "Regex | Usa un pattern per la cartella",
+    "set_chat_id_example": "Int | Usa l'id della chat",
+    "set_chat_title_example": "Stringa | Usa il titolo della chat",
+    "set_chat_name_example": "Stringa | Usa il nome della chat",
+    "action_folder_completed_example": "Stringa | Usa un pattern per la cartella indica i valori catturati dal regex con #0, #1, #... puoi utilizzare #i#0, #i#1, #i#... per castare il valore come intero"
 }

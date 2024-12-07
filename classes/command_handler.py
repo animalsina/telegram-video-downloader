@@ -102,7 +102,7 @@ class CommandHandler:
         :return:
         """
         command_list = "\n".join(
-            f"{key}: {value['description']}" for key, value in self.commands.items()
+            f"`{key}`: {value['description']}" for key, value in self.commands.items()
         )
         return command_list
 
