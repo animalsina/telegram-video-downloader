@@ -51,12 +51,13 @@ if ! echo "$NEW_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
 fi
 
 # Controlla se il tag esiste già nel repository remoto
-if git show-ref --tags | grep -q "refs/tags/$NEW_VERSION"; then
-  echo "Tag $NEW_VERSION already exists. Exiting."
+# Qui stiamo eseguendo il controllo se il tag è presente nel repository remoto
+if git ls-remote --tags | grep -q "refs/tags/$NEW_VERSION"; then
+  echo "Tag $NEW_VERSION already exists in the remote. Exiting."
   exit 0
 fi
 
-# Push del branch prima del tagging
+# Pusha il branch prima del tagging
 BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
 echo "Pushing branch $BRANCH_NAME..."
 git push origin "$BRANCH_NAME"
@@ -64,6 +65,6 @@ git push origin "$BRANCH_NAME"
 # Crea il tag
 git tag "$NEW_VERSION"
 
-# Push di tutti i tag
+# Pusha tutti i tag
 git push --tags
 echo "Tag $NEW_VERSION pushed."
