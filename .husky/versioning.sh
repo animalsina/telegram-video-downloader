@@ -33,6 +33,15 @@ increment_version() {
   echo "v$MAJOR.$MINOR.$PATCH"
 }
 
+# Ottieni il nome del branch corrente
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+# Controlla se il branch corrente è 'V2'
+if [ "$CURRENT_BRANCH" != "V2" ]; then
+  echo "Not on V2 branch. Skipping version increment and tag push."
+  exit 0
+fi
+
 # Ottieni la versione attuale
 CURRENT_VERSION=$(get_current_version)
 echo "Current version: $CURRENT_VERSION"
@@ -47,23 +56,22 @@ if ! echo "$NEW_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
   exit 1
 fi
 
-# Crea il tag
-git tag "$NEW_VERSION"
-echo "Tag $NEW_VERSION created."
 
-if $NEW_VERSION != "$CURRENT_VERSION"; then
+if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+  # Crea il tag
+  git tag "$NEW_VERSION"
+  echo "Tag $NEW_VERSION created."
+
   # Push dei tag senza innescare Husky
   git push --tags --no-verify
   echo "Tags pushed without triggering Husky."
 
-
-  # Aggiorna la versione nel file tg-config.txt
+  # Aggiorna la versione nel file .last_version
   sed -i "s/^version:.*/version: $NEW_VERSION/" .last_version
   echo "Updated .last_version file with the new version: $NEW_VERSION"
   git add .last_version
   git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
   git push --no-verify
-
 else
   echo "New version is the same as the current version, skipping tag push."
 fi
