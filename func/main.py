@@ -29,14 +29,14 @@ from func.save_video_data_action import acquire_video
 from func.telegram_client import (
     create_telegram_client, download_with_retry,
     send_service_message, get_user_id,
-    get_video_data_by_message_id_reference, get_user_data)
+    get_video_data_by_message_id_reference, get_user_data, reassign_video_folder_completed)
 from classes.string_builder import (
     LINE_FOR_INFO_DATA,
     LINE_FOR_SHOW_LAST_ERROR)
 from func.utils import (
     add_line_to_text,
     get_inlist_video_object_by_message_id_reference,
-    remove_video_data
+    remove_video_data, save_video_data
 )
 
 configuration = load_configuration()
@@ -144,14 +144,31 @@ async def client_data():
         return
 
 
+def save_new_video_data_name(video_object):
+    """
+    Save new video data name
+    :param video_object:
+    :return:
+    """
+    from func.utils import sanitize_video_name
+    video_name = rules_object.apply_rules(
+        'translate',
+        video_object.video_name, video_object=video_object)
+    save_video_data({
+        "video_name": video_name,
+        "video_name_cleaned": sanitize_video_name(video_name)
+    }, video_object, ["video_name", "video_name_cleaned"])
+
+    video_object.video_name = video_name
+    video_object.video_name_cleaned = sanitize_video_name(video_name)
+
+
 async def get_video_task(video_object: ObjectData):
     """
     Get the video task
     """
     from run import PERSONAL_CHAT_ID, LOG_IN_PERSONAL_CHAT
-    from func.utils import (is_file_corrupted,
-                            download_complete_action,
-                            default_video_message,
+    from func.utils import (default_video_message,
                             remove_video_data_by_video_id)
 
     if video_object.message_id_reference is None:
@@ -181,38 +198,17 @@ async def get_video_task(video_object: ObjectData):
 
     rules_object.assign_rule_by_video_data(video_object.original_video_name, video_object)
 
+    if video_object.original_video_name == video_object.video_name:
+        save_new_video_data_name(video_object)
+
+    await reassign_video_folder_completed(video_object)
+
     try:
         if LOG_IN_PERSONAL_CHAT is True:
             await reference_message.edit(default_video_message(video_object))
     except telethon.errors.rpcerrorlist.MessageNotModifiedError:
         # Ignora l'errore se il messaggio non è stato modificato
         pass
-
-    document = getattr(video_object.video_media, 'document', None)
-
-    # Check if the file already exists
-    if os.path.exists(video_object.file_path):
-        await add_line_to_text(
-            reference_message.id,
-            t("ready_to_move", video_object.file_name),
-            LINE_FOR_INFO_DATA,
-        )
-        print(t("ready_to_move", video_object.file_name))
-
-        # Check if the file is corrupted before moving it
-        if not is_file_corrupted(
-                video_object.file_path, document.size
-        ):
-            return await download_complete_action(video_object)
-
-        await add_line_to_text(
-            reference_message.id,
-            t("corrupted_file", video_object.file_name),
-            LINE_FOR_SHOW_LAST_ERROR,
-        )
-        print(t("corrupted_file", video_object.file_name))
-        os.remove(video_object.file_path)
-        return False
 
     # Queue the download task with the limit on simultaneous downloads
     return video_object
