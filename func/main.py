@@ -293,6 +293,7 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
                 if acquire_data is not None:
                     file_name, new_video_data = acquire_data
                     if new_video_data is not None:
+                        await reassign_video_folder_completed(new_video_data)
                         operation_status.videos_data.append((file_name, new_video_data))
             return
 
