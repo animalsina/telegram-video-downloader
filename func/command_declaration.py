@@ -110,6 +110,7 @@ async def command_declaration():
     command_handler.add_command("rules:delete", t('command_rules_delete'))
     command_handler.add_command("rules:add", t('command_rules_add'))
     command_handler.add_command("rules:reload", t('command_rules_reload'))
+    command_handler.add_command("rules:help", t('command_rules_help'))
     command_handler.add_command(
         ["download:rename", "download:rn", "dl:rn", "dl:rename", "rename", "rn"],
         t('command_rename'),

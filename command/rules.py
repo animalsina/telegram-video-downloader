@@ -38,6 +38,8 @@ async def run(  # pylint: disable=unused-argument
         await add(extra_args.get('source_message'), text_input)
     elif subcommand == 'reload':
         await reload(extra_args.get('source_message'))
+    elif subcommand == 'help':
+        await rules_help(extra_args.get('source_message'))
 
 
 async def show(message):
@@ -135,3 +137,25 @@ async def reload(message):
     """
     rules_object.reload_rules()
     await edit_service_message(message, t('rules_reloaded'))
+
+
+async def rules_help(message):
+    """
+    Show help
+    :param message:
+    :return:
+    """
+    await message.delete()
+    rules_examples = {
+        'use:message:filename': t('use_message_filename_example'),
+        'on:message:pattern': t('on_message_pattern_example'),
+        'action:message:translate': t('action_message_translate_example'),
+        'on:folder:pattern': t('on_folder_pattern_example'),
+        'set:chat:id': t('set_chat_id_example'),
+        'set:chat:title': t('set_chat_title_example'),
+        'set:chat:name': t('set_chat_name_example'),
+        'action:folder:completed': t('action_folder_completed_example'),
+    }
+    rules_text = '\n'.join([f"`{key}`: {value}" for key, value in rules_examples.items()])
+
+    await send_service_message(PERSONAL_CHAT_ID, t('rules_help', rules_text), 100)
