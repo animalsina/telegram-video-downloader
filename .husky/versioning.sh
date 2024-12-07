@@ -50,9 +50,6 @@ fi
 git tag "$NEW_VERSION"
 echo "Tag $NEW_VERSION created."
 
-# Aggiungi una variabile di ambiente per evitare loop
-if [ "$GIT_PUSH_TAG" != "true" ]; then
-  git push --tags
-  echo "Tags pushed."
-  export GIT_PUSH_TAG=true
-fi
+# Push dei tag senza innescare Husky
+git push --tags --no-verify
+echo "Tags pushed without triggering Husky."
