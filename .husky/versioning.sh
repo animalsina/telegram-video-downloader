@@ -10,7 +10,7 @@ get_current_version() {
   echo "$VERSION"
 }
 
-# Funzione per calcolare la nuova versione
+# Funzione per calcolare la nuova versione basata sull'ultimo commit
 increment_version() {
   VERSION_NO_V=$(echo "$1" | sed 's/^v//')
 
@@ -18,16 +18,17 @@ increment_version() {
   MINOR=$(echo "$VERSION_NO_V" | cut -d '.' -f 2)
   PATCH=$(echo "$VERSION_NO_V" | cut -d '.' -f 3)
 
-  COMMITS=$(git log --oneline --no-merges)
-  FEAT_COUNT=$(echo "$COMMITS" | grep -i "feat:" | wc -l)
-  FIX_COUNT=$(echo "$COMMITS" | grep -i "fix:" | wc -l)
+  # Ottieni l'ultimo commit
+  LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
 
-  if [ "$FEAT_COUNT" -gt 0 ]; then
+  # Incrementa il PATCH se c'è un fix
+  if echo "$LAST_COMMIT_MSG" | grep -iq "fix:"; then
+    PATCH=$((PATCH + 1))
+  # Incrementa il MINOR se c'è una nuova feature
+  elif echo "$LAST_COMMIT_MSG" | grep -iq "feat:"; then
     MINOR=$((MINOR + 1))
-    PATCH=0  # Resetta la patch se aumenta il minor
+    PATCH=0  # Reset il PATCH se si aumenta il MINOR
   fi
-
-  PATCH=$((PATCH + FIX_COUNT))
 
   echo "v$MAJOR.$MINOR.$PATCH"
 }
