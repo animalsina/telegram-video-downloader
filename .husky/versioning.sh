@@ -58,6 +58,15 @@ fi
 
 # Se la nuova versione è diversa da quella attuale, aggiorna i file
 if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+  # Sincronizza il branch locale con quello remoto
+  git fetch origin
+
+  # Verifica eventuali cambiamenti remoti prima del push
+  LOCAL_VS_REMOTE=$(git log HEAD..origin/V2 --oneline)
+  if [ -n "$LOCAL_VS_REMOTE" ]; then
+    echo "There are changes on the remote branch. Merging remote changes before pushing."
+    git merge origin/V2
+  fi
 
   # Aggiorna la versione nel file .last_version
   sed -i "s/^version:.*/version: $NEW_VERSION/" .last_version
@@ -70,8 +79,9 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
   # Aggiungi i cambiamenti
   git add .last_version README.md
   git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
-  git fetch origin
-  git push --no-verify
+
+  # Push dei cambiamenti
+  git push origin V2 --no-verify
 
   # Controlla se il tag esiste già
   if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
@@ -82,7 +92,6 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
     echo "Tag $NEW_VERSION created."
 
     # Push dei tag senza innescare Husky
-    git fetch origin
     git push --tags --no-verify
     echo "Tags pushed without triggering Husky."
   fi
