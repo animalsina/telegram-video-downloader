@@ -51,7 +51,7 @@ if ! echo "$NEW_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
 fi
 
 # Controlla se il tag esiste già nel repository remoto
-if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
+if git show-ref --tags | grep -q "refs/tags/$NEW_VERSION"; then
   echo "Tag $NEW_VERSION already exists. Exiting."
   exit 0
 fi
