@@ -2,6 +2,9 @@
 
 # Funzione per ottenere la versione attuale
 get_current_version() {
+  # Aggiorna i tag locali prima di determinare la versione
+  git fetch --tags
+
   VERSION=$(git describe --tags --abbrev=0 2>/dev/null)
 
   if [ -z "$VERSION" ]; then
@@ -51,7 +54,6 @@ if ! echo "$NEW_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
 fi
 
 # Controlla se il tag esiste già nel repository remoto
-# Qui stiamo eseguendo il controllo se il tag è presente nel repository remoto
 if git ls-remote --tags | grep -q "refs/tags/$NEW_VERSION"; then
   echo "Tag $NEW_VERSION already exists in the remote. Exiting."
   exit 0
