@@ -70,6 +70,7 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
   # Aggiungi i cambiamenti
   git add .last_version README.md
   git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
+  git fetch origin
   git push --no-verify
 
   # Controlla se il tag esiste già
@@ -81,6 +82,7 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
     echo "Tag $NEW_VERSION created."
 
     # Push dei tag senza innescare Husky
+    git fetch origin
     git push --tags --no-verify
     echo "Tags pushed without triggering Husky."
   fi
