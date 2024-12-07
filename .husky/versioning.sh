@@ -39,6 +39,12 @@ increment_version() {
   echo "v$MAJOR.$MINOR.$PATCH"
 }
 
+# Controlla se lo script è stato eseguito da Husky
+if [ -n "$HUSKY_GIT_PARAMS" ]; then
+  echo "Husky is executing, skipping tag push"
+  exit 0
+fi
+
 # Ottieni la versione attuale
 CURRENT_VERSION=$(get_current_version)
 echo "Current version: $CURRENT_VERSION"
