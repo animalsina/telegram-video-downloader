@@ -56,26 +56,34 @@ if ! echo "$NEW_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
   exit 1
 fi
 
-
+# Se la nuova versione è diversa da quella attuale, aggiorna i file
 if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
-  # Crea il tag
-  git tag "$NEW_VERSION"
-  echo "Tag $NEW_VERSION created."
-
-  # Push dei tag senza innescare Husky
-  git push --tags --no-verify
-  echo "Tags pushed without triggering Husky."
 
   # Aggiorna la versione nel file .last_version
   sed -i "s/^version:.*/version: $NEW_VERSION/" .last_version
   echo "Updated .last_version file with the new version: $NEW_VERSION"
 
-  sed -i "s/V \d+\.\d+\.\d+/V $NEW_VERSION/" README.md
+  # Aggiorna la versione nel README.md (correzione della sintassi del sed)
+  sed -i "s/V [0-9]\+\.[0-9]\+\.[0-9]\+/V $NEW_VERSION/" README.md
   echo "Updated README.md with the new version: $NEW_VERSION"
 
+  # Aggiungi i cambiamenti
   git add .last_version README.md
   git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
   git push --no-verify
+
+  # Controlla se il tag esiste già
+  if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
+    echo "Tag $NEW_VERSION already exists, skipping tag creation."
+  else
+    # Crea il tag se non esiste
+    git tag "$NEW_VERSION"
+    echo "Tag $NEW_VERSION created."
+
+    # Push dei tag senza innescare Husky
+    git push --tags --no-verify
+    echo "Tags pushed without triggering Husky."
+  fi
 else
   echo "New version is the same as the current version, skipping tag push."
 fi
