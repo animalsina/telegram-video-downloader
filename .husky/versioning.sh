@@ -69,7 +69,11 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
   # Aggiorna la versione nel file .last_version
   sed -i "s/^version:.*/version: $NEW_VERSION/" .last_version
   echo "Updated .last_version file with the new version: $NEW_VERSION"
-  git add .last_version
+
+  sed -i "s/V \d+\.\d+\.\d+/V $NEW_VERSION/" README.md
+  echo "Updated README.md with the new version: $NEW_VERSION"
+
+  git add .last_version README.md
   git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
   git push --no-verify
 else
