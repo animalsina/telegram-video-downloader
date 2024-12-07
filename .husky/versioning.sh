@@ -1,15 +1,17 @@
 #!/bin/sh
 
+# Funzione per ottenere la versione attuale
 get_current_version() {
   VERSION=$(git describe --tags --abbrev=0 2>/dev/null)
 
   if [ -z "$VERSION" ]; then
-    VERSION="v2.0.0" # Default version to start
+    VERSION="v2.0.0" # Versione di default
   fi
 
   echo "$VERSION"
 }
 
+# Funzione per calcolare la nuova versione
 increment_version() {
   VERSION_NO_V=$(echo "$1" | sed 's/^v//')
 
@@ -17,33 +19,43 @@ increment_version() {
   MINOR=$(echo "$VERSION_NO_V" | cut -d '.' -f 2)
   PATCH=$(echo "$VERSION_NO_V" | cut -d '.' -f 3)
 
-  COMMIT_MSG=$(git log -1 --pretty=%B)
+  # Ottieni i commit nel branch
+  COMMITS=$(git log --oneline --no-merges)
 
-  if echo "$COMMIT_MSG" | grep -iq "feat"; then
+  # Conta `feat:` e `fix:`
+  FEAT_COUNT=$(echo "$COMMITS" | grep -i "feat:" | wc -l)
+  FIX_COUNT=$(echo "$COMMITS" | grep -i "fix:" | wc -l)
+
+  if [ "$FEAT_COUNT" -gt 0 ]; then
     MINOR=$((MINOR + 1))
-    PATCH=0  # Reset patch version
-  elif echo "$COMMIT_MSG" | grep -iq "fix"; then
-    PATCH=$((PATCH + 1))
-  else
-    echo "Commit type not detected, defaulting to PATCH increment."
-    PATCH=$((PATCH + 1))
+    PATCH=0 # Resetta la patch se aumenta il minor
   fi
+
+  PATCH=$((PATCH + FIX_COUNT))
 
   echo "v$MAJOR.$MINOR.$PATCH"
 }
 
+# Ottieni la versione attuale
 CURRENT_VERSION=$(get_current_version)
 echo "Current version: $CURRENT_VERSION"
 
+# Calcola la nuova versione
 NEW_VERSION=$(increment_version "$CURRENT_VERSION")
 echo "New version: $NEW_VERSION"
 
+# Controlla il formato della versione
 if ! echo "$NEW_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
   echo "Invalid version format: $NEW_VERSION, exiting."
   exit 1
 fi
 
-git tag "$NEW_VERSION"
-echo "Tag $NEW_VERSION created."
+# Push del branch prima del tagging
+BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
+echo "Pushing branch $BRANCH_NAME..."
+git push origin "$BRANCH_NAME"
 
-echo "Commit with tag $NEW_VERSION created."
+# Crea il tag e pushalo
+git tag "$NEW_VERSION"
+git push origin "$NEW_VERSION"
+echo "Tag $NEW_VERSION pushed."
