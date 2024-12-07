@@ -2,15 +2,11 @@
 
 # Funzione per ottenere la versione attuale
 get_current_version() {
-  # Aggiorna i tag locali prima di determinare la versione
   git fetch --tags
-
   VERSION=$(git describe --tags --abbrev=0 2>/dev/null)
-
   if [ -z "$VERSION" ]; then
-    VERSION="v2.0.0" # Versione di default
+    VERSION="v2.0.0"  # Versione di default
   fi
-
   echo "$VERSION"
 }
 
@@ -22,28 +18,19 @@ increment_version() {
   MINOR=$(echo "$VERSION_NO_V" | cut -d '.' -f 2)
   PATCH=$(echo "$VERSION_NO_V" | cut -d '.' -f 3)
 
-  # Ottieni i commit nel branch
   COMMITS=$(git log --oneline --no-merges)
-
-  # Conta `feat:` e `fix:`
   FEAT_COUNT=$(echo "$COMMITS" | grep -i "feat:" | wc -l)
   FIX_COUNT=$(echo "$COMMITS" | grep -i "fix:" | wc -l)
 
   if [ "$FEAT_COUNT" -gt 0 ]; then
     MINOR=$((MINOR + 1))
-    PATCH=0 # Resetta la patch se aumenta il minor
+    PATCH=0  # Resetta la patch se aumenta il minor
   fi
 
   PATCH=$((PATCH + FIX_COUNT))
 
   echo "v$MAJOR.$MINOR.$PATCH"
 }
-
-# Controlla se lo script è stato eseguito da Husky
-if [ -n "$HUSKY_GIT_PARAMS" ]; then
-  echo "Husky is executing, skipping tag push"
-  exit 0
-fi
 
 # Ottieni la versione attuale
 CURRENT_VERSION=$(get_current_version)
@@ -59,20 +46,13 @@ if ! echo "$NEW_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
   exit 1
 fi
 
-# Controlla se il tag esiste già nel repository remoto
-if git ls-remote --tags | grep -q "refs/tags/$NEW_VERSION"; then
-  echo "Tag $NEW_VERSION already exists in the remote. Exiting."
-  exit 0
-fi
-
-# Pusha il branch prima del tagging
-BRANCH_NAME=$(git rev-parse --abbrev-ref HEAD)
-echo "Pushing branch $BRANCH_NAME..."
-git push origin "$BRANCH_NAME"
-
 # Crea il tag
 git tag "$NEW_VERSION"
+echo "Tag $NEW_VERSION created."
 
-# Pusha tutti i tag
-git push --tags
-echo "Tag $NEW_VERSION pushed."
+# Aggiungi una variabile di ambiente per evitare loop
+if [ "$GIT_PUSH_TAG" != "true" ]; then
+  git push --tags
+  echo "Tags pushed."
+  export GIT_PUSH_TAG=true
+fi
