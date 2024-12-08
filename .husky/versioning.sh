@@ -36,6 +36,12 @@ push_tag() {
   if git ls-remote --tags origin "$tag_name" | grep -q "$tag_name"; then
     echo "Tag $tag_name already exists on the remote. Forcing push."
 
+    echo "Deleting tag: $tag_name"
+    git tag -d "$tag_name"
+    git push --delete origin "$tag_name"
+
+    git tag "$tag_name"
+
     # Force push the updated tag to the remote (dangerous operation, use with caution)
     git push origin "$tag_name" --force --no-verify
     echo "Tag $tag_name forced pushed to the remote repository without triggering Husky."
@@ -90,8 +96,6 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
     # Generate tag if it does not exist
     git tag "$NEW_VERSION"
     echo "Tag $NEW_VERSION created."
-
-    # Push tags without triggering Husky
   fi
 
 else
