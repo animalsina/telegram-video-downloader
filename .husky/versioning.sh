@@ -38,7 +38,7 @@ push_tag() {
 
     echo "Deleting tag: $tag_name"
     git tag -d "$tag_name"
-    git push --delete origin "$tag_name"
+    git push --delete origin "$tag_name" --no-verify --force
 
     git tag "$tag_name"
 
