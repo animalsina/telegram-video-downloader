@@ -76,7 +76,7 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
 
     # Push tags without triggering Husky
     git push --tags --no-verify
-    echo "Tags pushed without triggering Husky."
+    echo "Tags pushed without triggering Husky.."
   fi
 else
   echo "New version is the same as the current version, skipping tag push."
