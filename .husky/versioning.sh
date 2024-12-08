@@ -82,8 +82,6 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
 
   git add .last_version README.md
   git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
-  git push --no-verify
-  git fetch origin
 
    # Check if the tag already exists
   if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
