@@ -18,9 +18,9 @@ increment_version() {
 
   LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
 
-  if echo "$LAST_COMMIT_MSG" | grep -iq "fix:"; then
+  if echo "$LAST_COMMIT_MSG" | grep -iq "fix:" || echo "$LAST_COMMIT_MSG" | grep -iq "patch:"; then
     PATCH=$((PATCH + 1))
-  elif echo "$LAST_COMMIT_MSG" | grep -iq "feat:" || echo "$LAST_COMMIT_MSG" | grep -iq "patch:"; then
+  elif echo "$LAST_COMMIT_MSG" | grep -iq "feat:"; then
     MINOR=$((MINOR + 1))
     PATCH=0
   fi
