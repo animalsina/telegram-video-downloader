@@ -64,8 +64,6 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
   git add .last_version README.md
   git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
 
-  git push origin V2 --no-verify
-
   # Check if the tag already exists
   if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
     echo "Tag $NEW_VERSION already exists, skipping tag creation."
