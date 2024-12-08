@@ -83,7 +83,7 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
   sed -i "s/^version:.*/version: $NEW_VERSION/" .last_version
   echo "Updated .last_version file with the new version: $NEW_VERSION"
 
-  sed -i "s/Telegram Video Downloader [0-9]\+\.[0-9]\+\.[0-9]\+/Telegram Video Downloader $NEW_VERSION/" README.md
+  sed -i "s/Telegram Video Downloader v[0-9]\+\.[0-9]\+\.[0-9]\+/Telegram Video Downloader $NEW_VERSION/" README.md
   echo "Updated README.md with the new version: $NEW_VERSION"
 
   git add .last_version README.md
