@@ -47,7 +47,7 @@ async def run(  # pylint: disable=unused-argument
             extra_args.get('reply_message'),
             subcommand == 'pin' or command == 'pin')
     elif subcommand == 'clean' or command == 'clean':
-        await clear_downloads(
+        await clean_downloads(
             extra_args.get('source_message'),
         )
     elif subcommand == 'settarget' or command == 'settarget':
@@ -125,19 +125,25 @@ async def set_pinned_message(source_message, video_object: ObjectData, pinned: b
         str(pinned),
         LINE_FOR_PINNED_VIDEO, True)
 
-async def clear_downloads(source_message: Union[Message, MessageMediaDocument]):
+async def clean_downloads(source_message: Union[Message, MessageMediaDocument]):
     """
     Clear completed downloads from the chat.
     :param source_message:
     :return:
     """
     messages = await fetch_all_messages(PERSONAL_CHAT_ID)
+    download_cleaned = 0
 
     for message in messages:
         if await get_video_status_label(message) == TYPE_COMPLETED:
+            download_cleaned += 1
             await message.delete()
 
-    await edit_service_message(source_message, t('completed_video_cleaned'), 5)
+    if download_cleaned == 0:
+        await edit_service_message(source_message, t('no_completed_video'), 5)
+        return
+
+    await edit_service_message(source_message, t('completed_video_cleaned', download_cleaned), 5)
 
 
 async def set_target_folder(source_message: Union[Message, MessageMediaDocument], text, callback):

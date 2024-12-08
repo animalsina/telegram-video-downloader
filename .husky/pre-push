@@ -1,6 +1,5 @@
 #!/bin/sh
 
-# Controlla se ci sono commit locali da spingere
 if git log origin/$(git rev-parse --abbrev-ref HEAD)..HEAD --oneline | grep -q .; then
   sh .husky/versioning.sh
 fi
