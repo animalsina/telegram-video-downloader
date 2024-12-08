@@ -689,6 +689,20 @@ def validate_and_check_path(path):
     return result
 
 
+def is_valid_folder(path):
+    """
+    Check if a path is a valid folder.
+    Args:
+        path (str): The path to check.
+
+    Returns:
+        bool: True if the path is a valid folder, False otherwise.
+    """
+    base_name = os.path.basename(path)
+    _, extension = os.path.splitext(base_name)
+
+    return extension == ""
+
 def detect_remaining_size_in_disk_by_path(path, file_size, threshold_percentage=10):
     """
     Detect the remaining size in disk by path, considering the size of a file, and analyze its usage.
@@ -707,7 +721,13 @@ def detect_remaining_size_in_disk_by_path(path, file_size, threshold_percentage=
             - can_fit_file (bool): True if the file can fit in the remaining space.
     """
     if not os.path.exists(path):
-        os.mkdir(path)
+        return {
+            "free_space_bytes": 0,
+            "free_space_format": "0 B",
+            "free_space_percentage": 0,
+            "exceeds_threshold": False,
+            "can_fit_file": False,
+        }
     total, _, free = shutil.disk_usage(path)
 
     # Calcola lo spazio libero considerando il file

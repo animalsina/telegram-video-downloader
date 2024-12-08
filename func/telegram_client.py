@@ -376,7 +376,7 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
             if await check_valid_disk_space_limit(
                     video,
                     file_size,
-                    temp_file_path) is False:
+                    os.path.dirname(video.file_path)) is False:
                 break
 
             # Download the file with progress tracking
@@ -433,6 +433,11 @@ async def check_valid_disk_space_limit(video: ObjectData, file_size: int, target
     :return:
     """
     from func.main import configuration
+    from func.utils import is_valid_folder
+
+    if not os.path.exists(target_folder_path) and is_valid_folder(target_folder_path) is True:
+        os.mkdir(target_folder_path)
+
     disk_info_target = detect_remaining_size_in_disk_by_path(
         target_folder_path,
         file_size,
