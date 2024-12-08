@@ -17,7 +17,7 @@ from tqdm import tqdm
 from classes.attribute_object import AttributeObject
 from classes.custom_flood_error import CustomFloodError
 from classes.object_data import ObjectData
-from classes.string_builder import TYPE_CANCELLED, TYPE_ACQUIRED
+from classes.string_builder import TYPE_CANCELLED, TYPE_ACQUIRED, TYPE_DOWNLOADING
 from classes.tqdm_object import TqdmObject
 from func.messages import t
 from func.save_video_data_action import change_target_folder
@@ -362,14 +362,15 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
             await check_completed_folder_exist(video)
             # Start to pin the message
             await video_message_data.pin()
-            await define_label(video.message_id_reference, TYPE_ACQUIRED)
             if os.path.exists(temp_file_path):
                 progress = os.path.getsize(temp_file_path)
 
             # Download the file with progress tracking
+            await define_label(video.message_id_reference, TYPE_DOWNLOADING)
             await progress_tracking(progress, file_size, video, temp_file_path, attempt, retry_attempts)
             # Wait 3 seconds before to get temp file size
             await asyncio.sleep(3)
+            await define_label(video.message_id_reference, TYPE_ACQUIRED)
 
             if is_interrupted() is True:
                 print(t('download_stopped', video.file_name))

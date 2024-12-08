@@ -78,5 +78,7 @@
     "set_chat_id_example": "Int | Usa l'id della chat",
     "set_chat_title_example": "Stringa | Usa il titolo della chat",
     "set_chat_name_example": "Stringa | Usa il nome della chat",
-    "action_folder_completed_example": "Stringa | Usa un pattern per la cartella indica i valori catturati dal regex con #0, #1, #... puoi utilizzare #i#0, #i#1, #i#... per castare il valore come intero"
+    "action_folder_completed_example": "Stringa | Usa un pattern per la cartella indica i valori catturati dal regex con #0, #1, #... puoi utilizzare #i#0, #i#1, #i#... per castare il valore come intero",
+    "command_count": "Mostra lo stato dei download presenti nella chat",
+    "download_count": "**Video totali: {3}**\n\n- Video in corso: {1}\n- Video completati: {0}\n- Video in attesa: {4}\n- Video in errore: {2}"
 }

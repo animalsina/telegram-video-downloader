@@ -7,12 +7,14 @@ from telethon.tl.patched import Message
 from telethon.tl.types import MessageMediaDocument
 
 from classes.object_data import ObjectData
-from classes.string_builder import LINE_FOR_PINNED_VIDEO, TYPE_COMPLETED
+from classes.string_builder import LINE_FOR_PINNED_VIDEO, TYPE_COMPLETED, TYPE_ACQUIRED, \
+    TYPE_DOWNLOADING, TYPE_DELETED, ACQUIRED_TYPES
 from func.main import configuration
 from func.messages import t
 from func.telegram_client import edit_service_message, fetch_all_messages
 from func.utils import save_video_data, add_line_to_text, get_video_status_label
 from run import PERSONAL_CHAT_ID
+
 
 async def run(  # pylint: disable=unused-argument
         command: str,
@@ -56,6 +58,10 @@ async def run(  # pylint: disable=unused-argument
             text_input,
             callback
         )
+    elif subcommand == 'count' or command == 'count':
+        await count(extra_args.get('source_message'))
+    elif subcommand == 'help' or command == 'help':
+        await help(extra_args.get('source_message'))
 
 
 async def start(message, callback):
@@ -97,6 +103,7 @@ async def download_info(source_message, video_object: ObjectData):
     video_data_object = video_object
     await edit_service_message(source_message, video_data_object.to_string(), 100)
 
+
 def get_completed_task_folder_path(video_object: ObjectData):
     """
     :param video_object:
@@ -106,6 +113,7 @@ def get_completed_task_folder_path(video_object: ObjectData):
     return rules_object.apply_rules(
         'completed_folder_mask',
         video_object.video_name, message_id=video_object.video_id) or configuration.completed_folder
+
 
 async def set_pinned_message(source_message, video_object: ObjectData, pinned: bool):
     """
@@ -124,6 +132,7 @@ async def set_pinned_message(source_message, video_object: ObjectData, pinned: b
         video_object.message_id_reference,
         str(pinned),
         LINE_FOR_PINNED_VIDEO, True)
+
 
 async def clean_downloads(source_message: Union[Message, MessageMediaDocument]):
     """
@@ -155,3 +164,39 @@ async def set_target_folder(source_message: Union[Message, MessageMediaDocument]
     :return:
     """
     await callback(source_message, text)
+
+
+async def count(source_message: Union[Message, MessageMediaDocument]):
+    """
+    Get download counts
+    :param source_message:
+    :param callback:
+    :return:
+    """
+    messages = await fetch_all_messages(PERSONAL_CHAT_ID)
+    download_completed = 0
+    download_in_progress = 0
+    download_error = 0
+    download_queue = 0
+    download_total = 0
+
+    for message in messages:
+        if await get_video_status_label(message) == TYPE_COMPLETED:
+            download_completed += 1
+        elif await get_video_status_label(message) == TYPE_DOWNLOADING:
+            download_in_progress += 1
+        elif await get_video_status_label(message) == TYPE_DELETED:
+            download_error += 1
+        elif await get_video_status_label(message) == TYPE_ACQUIRED:
+            download_queue += 1
+        elif await get_video_status_label(message) in ACQUIRED_TYPES:
+            download_total += 1
+
+
+    await edit_service_message(source_message,
+                               t('download_count',
+                                 download_completed,
+                                 download_in_progress,
+                                 download_error,
+                                 download_total,
+                                 download_queue), 15)

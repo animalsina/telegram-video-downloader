@@ -78,6 +78,8 @@
     "set_chat_id_example": "Int | Use the chat id",
     "set_chat_title_example": "String | Use the chat title",
     "set_chat_name_example": "String | Use the chat name",
-    "action_folder_completed_example": "String | Use a pattern for the folder indicate the values captured by the regex with #0, #1, #..., you can use #i#0, #i#1, #i#... to cast the value as an integer"
+    "action_folder_completed_example": "String | Use a pattern for the folder indicate the values captured by the regex with #0, #1, #..., you can use #i#0, #i#1, #i#... to cast the value as an integer",
+    "command_count": "Show the download status in the chat",
+    "download_count": "**Total videos: {3}**\n\n- Video(s) in progress: {1}\n- Video(s) completed: {0}\n- Video(s) in waiting: {4}\n- Video(s) in error: {2}"
 }
 

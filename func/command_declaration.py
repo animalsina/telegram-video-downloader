@@ -127,6 +127,10 @@ async def command_declaration():
         },
     )
     command_handler.add_command(
+        ["download:count", "dl:count", "count"],
+        t('command_count'),
+    )
+    command_handler.add_command(
         [ "download:settarget", "dl:settarget", "settarget"],
         t('command_download_settarget'),
         args={
