@@ -92,4 +92,17 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
 
 else
   echo "New version is the same as the current version, skipping tag push."
+
+  # Delete the existing tag locally
+  git tag -d "$NEW_VERSION"
+  echo "Deleted the local tag $NEW_VERSION."
+
+  # Create the tag again, pointing to the latest commit (HEAD)
+  git tag "$NEW_VERSION" HEAD
+  echo "Tag $NEW_VERSION associated with the latest commit."
+
+  # Push the updated tag without triggering Husky
+  git push origin "$NEW_VERSION" --no-verify
+  echo "Updated tag $NEW_VERSION pushed to the remote repository without triggering Husky."
+
 fi
