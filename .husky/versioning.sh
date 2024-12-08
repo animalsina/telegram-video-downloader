@@ -4,7 +4,7 @@ get_current_version() {
   git fetch --tags
   VERSION=$(git describe --tags --abbrev=0 2>/dev/null)
   if [ -z "$VERSION" ]; then
-    VERSION="v2.0.0"  # Versione di default
+    VERSION="v2.0.0"  # default version for V2
   fi
   echo "$VERSION"
 }
@@ -20,9 +20,9 @@ increment_version() {
 
   if echo "$LAST_COMMIT_MSG" | grep -iq "fix:"; then
     PATCH=$((PATCH + 1))
-  elif echo "$LAST_COMMIT_MSG" | grep -iq "feat:"; then
+  elif echo "$LAST_COMMIT_MSG" | grep -iq "feat:" || echo "$LAST_COMMIT_MSG" | grep -iq "patch:"; then
     MINOR=$((MINOR + 1))
-    PATCH=0  # Reset il PATCH se si aumenta il MINOR
+    PATCH=0
   fi
 
   echo "v$MAJOR.$MINOR.$PATCH"
