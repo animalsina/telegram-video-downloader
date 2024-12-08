@@ -64,18 +64,32 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
   git add .last_version README.md
   git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
 
-  # Check if the tag already exists
+   # Check if the tag already exists
   if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
-    echo "Tag $NEW_VERSION already exists, skipping tag creation."
+    echo "Tag $NEW_VERSION already exists. Associating it with the latest commit."
+
+    # Delete the existing tag locally
+    git tag -d "$NEW_VERSION"
+    echo "Deleted the local tag $NEW_VERSION."
+
+    # Create the tag again, pointing to the latest commit (HEAD)
+    git tag "$NEW_VERSION" HEAD
+    echo "Tag $NEW_VERSION associated with the latest commit."
+
+    # Push the updated tag without triggering Husky
+    git push origin "$NEW_VERSION" --no-verify
+    echo "Updated tag $NEW_VERSION pushed to the remote repository without triggering Husky."
+
   else
-    # Generate tag
+    # Generate tag if it does not exist
     git tag "$NEW_VERSION"
     echo "Tag $NEW_VERSION created."
 
     # Push tags without triggering Husky
     git push --tags --no-verify
-    echo "Tags pushed without triggering Husky.."
+    echo "Tags pushed without triggering Husky."
   fi
+
 else
   echo "New version is the same as the current version, skipping tag push."
 fi

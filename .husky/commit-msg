@@ -1,2 +1,16 @@
-npx --no -- commitlint --edit "$1"
-sh .husky/check_pylint.sh
+#!/bin/sh
+
+# Check if there are any .py files staged for commit
+if git diff --cached --name-only | grep -q '\.py$'; then
+  # If .py files are present, run commitlint and check_pylint.sh
+  echo "Python files modified. Running Pylint check."
+
+  # Run commitlint to check the commit message
+  npx --no -- commitlint --edit "$1"
+
+  # Run the pylint check script
+  sh .husky/check_pylint.sh
+else
+  # If there are no .py files, skip pylint check
+  echo "No Python files modified. Skipping Pylint check."
+fi
