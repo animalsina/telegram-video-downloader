@@ -23,7 +23,7 @@ from func.messages import t
 from func.save_video_data_action import change_target_folder
 from func.utils import (
     is_file_corrupted, download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA,
-    LINE_FOR_SHOW_LAST_ERROR, get_video_data_path, define_label)
+    LINE_FOR_SHOW_LAST_ERROR, get_video_data_path, define_label, detect_remaining_size_in_disk_by_path)
 
 
 def calculate_download_speed(current: int, time_elapsed: float, last_current: int):
@@ -295,7 +295,7 @@ async def check_completed_folder_exist(video):
     if get_completed_task_folder_path(video) is not None:
         try:
             os.makedirs(get_completed_task_folder_path(video), exist_ok=True)
-        except Exception: # pylint: disable=broad-exception-caught
+        except Exception:  # pylint: disable=broad-exception-caught
             pass
         if os.path.exists(get_completed_task_folder_path(video)) is False:
             await add_line_to_text(
@@ -320,7 +320,7 @@ async def reassign_video_folder_completed(video_data: ObjectData):
     if video_completed_folder is not None:
         await change_target_folder(video_data.message_id_reference, video_completed_folder)
 
-
+# pylint: disable=too-many-statements
 async def download_with_retry(client: TelegramClient, video: ObjectData,
                               retry_attempts: int = 20):  # pylint: disable=too-many-statements
     """Download a file with retry attempts in case of failure."""
@@ -364,6 +364,20 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
             await video_message_data.pin()
             if os.path.exists(temp_file_path):
                 progress = os.path.getsize(temp_file_path)
+
+            # Check if the disk space limit is exceeded for the completed folder
+            if await check_valid_disk_space_limit(
+                    video,
+                    file_size,
+                    video.video_completed_folder) is False:
+                break
+
+            # Check if the disk space limit is exceeded for the temp file
+            if await check_valid_disk_space_limit(
+                    video,
+                    file_size,
+                    temp_file_path) is False:
+                break
 
             # Download the file with progress tracking
             await define_label(video.message_id_reference, TYPE_DOWNLOADING)
@@ -410,6 +424,39 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
             break
 
 
+async def check_valid_disk_space_limit(video: ObjectData, file_size: int, target_folder_path: str) -> bool:
+    """
+    Check if the disk space limit is exceeded
+    :param video:
+    :param file_size:
+    :param target_folder_path:
+    :return:
+    """
+    from func.main import configuration
+    disk_info_target = detect_remaining_size_in_disk_by_path(
+        target_folder_path,
+        file_size,
+        configuration.disk_space_limit_percentage)
+    if disk_info_target['exceeds_threshold'] is True:
+        await define_label(video.message_id_reference, TYPE_CANCELLED)
+        await add_line_to_text(
+            video.message_id_reference,
+            t('download_blocked_by_disk_space_limit',
+              disk_info_target['free_space_percentage'],
+              100 - configuration.disk_space_limit_percentage,
+              target_folder_path,
+              disk_info_target['free_space_format']),
+            LINE_FOR_SHOW_LAST_ERROR,
+            True
+        )
+        from func.main import operation_status
+        operation_status.start_download = False
+        operation_status.interrupt = True
+        return False
+
+    return True
+
+
 async def validate_download(temp_file_path, file_size, video):
     """
     :param temp_file_path:
@@ -438,6 +485,7 @@ async def validate_download(temp_file_path, file_size, video):
             t('corrupted_file', video.file_name), LINE_FOR_SHOW_LAST_ERROR)
         print(t('corrupted_file', video.file_name))
     return False
+
 
 async def attempt_message(error_message, attempt, retry_attempts, video):
     """

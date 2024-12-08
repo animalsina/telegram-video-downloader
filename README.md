@@ -34,6 +34,9 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     session_name=YOUR_SESSION_NAME
     max_simultaneous_file_to_download=2
     max_download_size_request_limit_kb=8388608
+    enable_video_compression=0
+    compression_ratio=10
+    disk_space_limit_percentage=90
 
     [groups]
     # Key = ChannelID
@@ -51,6 +54,9 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     session_name=session_name
     max_simultaneous_file_to_download=1
     max_download_size_request_limit_kb=8388608
+    enable_video_compression=0
+    compression_ratio=28
+    disk_space_limit_percentage=90
 
     [groups]
     # Key = ChannelID
@@ -66,6 +72,9 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
    - `session_name`: The name of the session file used for Telegram login.
    - `max_simultaneous_file_to_download`: The maximum number of files to download simultaneously.
    - `max_download_size_request_limit_kb`: The maximum limit size in kilobytes for the download request.
+   - `enable_video_compression`: Enable video compression \[BETA\].
+   - `compression_ratio`: The compression ratio used for video compression.
+   - `disk_space_limit_percentage`: The percentage of disk space to use for the download folder, after which the download will be blocked.
 
 ## Usage
 1. Ensure you have created and configured the `tg-config.txt` file as described above. [Link MyTelegram App](https://my.telegram.org/apps)
@@ -122,6 +131,9 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     session_name=YOUR_SESSION_NAME
     max_simultaneous_file_to_download=2
     max_download_size_request_limit_kb=8388608
+    enable_video_compression=0
+    compression_ratio=28
+    disk_space_limit_percentage=90
 
     [groups]
     # Key = ChannelID
@@ -139,6 +151,9 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     session_name=session_name
     max_simultaneous_file_to_download=1
     max_download_size_request_limit_kb=8388608
+    enable_video_compression=0
+    compression_ratio=28
+    disk_space_limit_percentage=90
 
     [groups]
     # Key = ChannelID
@@ -154,6 +169,9 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
    - `session_name`: Il nome del file di sessione utilizzato per il login su Telegram.
    - `max_simultaneous_file_to_download`: Il numero massimo di file da scaricare simultaneamente.
    - `max_download_size_request_limit_kb`: La dimensione massima per una richiesta di download in kilobytes.
+   - `enable_video_compression`: Attiva la compressione del video (0 per disattivare, 1 per attivare) \[BETA\].
+   - `compression_ratio`: La proporzione di compressione del video (valore da 1 a 100).
+   - `disk_space_limit_percentage`: La percentuale di spazio disponibile sul disco per il download dei video. Se lo spazio disponibile è inferiore a questa percentuale, il download verrà bloccato.
 
 ## Uso
 1. Assicurati di aver creato e configurato il file `tg-config.txt` come descritto sopra. [Link MyTelegram App](https://my.telegram.org/apps)

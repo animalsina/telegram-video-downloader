@@ -428,6 +428,7 @@ async def add_line_to_text(
     text = message.text
 
     builder = StringBuilder(text)
+    new_line = new_line.replace('\n', ' ')
     builder.edit_in_line(new_line, line_number, with_default_icon)
 
     # Unisce di nuovo le righe in una singola stringa
@@ -686,3 +687,40 @@ def validate_and_check_path(path):
         result["error"] = f"Error validating and checking path: {str(e)}"
 
     return result
+
+
+def detect_remaining_size_in_disk_by_path(path, file_size, threshold_percentage=10):
+    """
+    Detect the remaining size in disk by path, considering the size of a file, and analyze its usage.
+
+    Args:
+        path (str): The path to detect the remaining size in disk.
+        file_size (int): The size of the file to consider in bytes.
+        threshold_percentage (float): The percentage threshold to evaluate space availability.
+
+    Returns:
+        dict: A dictionary containing:
+            - free_space_bytes (int): The remaining size in disk in bytes after considering the file.
+            - free_space_percentage (float): The remaining size in percentage after considering the file.
+            - free_space_format (str): The remaining size in disk in a human-readable format.
+            - exceeds_threshold (bool): True if free space percentage is lower than or equal to the threshold.
+            - can_fit_file (bool): True if the file can fit in the remaining space.
+    """
+    if not os.path.exists(path):
+        os.mkdir(path)
+    total, _, free = shutil.disk_usage(path)
+
+    # Calcola lo spazio libero considerando il file
+    remaining_space = free - file_size
+    remaining_space_percentage = round((remaining_space / total) * 100, 2) if remaining_space > 0 else 0
+
+    exceeds_threshold = remaining_space_percentage <= 100 - threshold_percentage
+    can_fit_file = remaining_space >= 0
+
+    return {
+        "free_space_bytes": remaining_space,
+        "free_space_format": format_bytes(remaining_space),
+        "free_space_percentage": remaining_space_percentage,
+        "exceeds_threshold": exceeds_threshold,
+        "can_fit_file": can_fit_file,
+    }

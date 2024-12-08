@@ -6,8 +6,10 @@ phone=
 #completed_folder=./tg-video-completed
 session_name=session_name
 max_simultaneous_file_to_download=3
+max_download_size_request_limit_kb=8388608
 enable_video_compression=0
 compression_ratio=28
+disk_space_limit_percentage=95
 
 [groups]
 # Key = ChannelID(@channelId/@botId)

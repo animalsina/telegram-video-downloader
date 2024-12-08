@@ -44,6 +44,7 @@ def load_configuration():
     max_download_size_request_limit_kb = int(config.get('max_download_size_request_limit_kb', MAXINT))
     enable_video_compression = config.get('enable_video_compression', 0) == "1"
     compression_ratio = max(0, min(int(config.get('compression_ratio', 28)), 51))
+    disk_space_limit_percentage = max(0, min(int(config.get('disk_space_limit_percentage', 98)), 100))
     group_chats = config.get('group_chats', [])
 
     # Verifica le cartelle di download
@@ -64,7 +65,8 @@ def load_configuration():
         'enable_video_compression': enable_video_compression,
         'compression_ratio': compression_ratio,
         'group_chats': group_chats,
-        'lock_download': lock_download
+        'lock_download': lock_download,
+        'disk_space_limit_percentage': disk_space_limit_percentage
     })
 
 class Config:
@@ -72,6 +74,7 @@ class Config:
     Config
     """
     def __init__(self, config_dict):
+        self.disk_space_limit_percentage = 100
         self.max_simultaneous_file_to_download = None
         self.max_download_size_request_limit_kb = MAXINT
         self.session_name = None
