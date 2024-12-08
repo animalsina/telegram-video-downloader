@@ -189,7 +189,8 @@ async def count(source_message: Union[Message, MessageMediaDocument]):
             download_error += 1
         elif await get_video_status_label(message) == TYPE_ACQUIRED:
             download_queue += 1
-        elif await get_video_status_label(message) in ACQUIRED_TYPES:
+
+        if await get_video_status_label(message) in ACQUIRED_TYPES:
             download_total += 1
 
 
