@@ -1,6 +1,5 @@
 #!/bin/sh
 
-# Funzione per ottenere la versione attuale
 get_current_version() {
   git fetch --tags
   VERSION=$(git describe --tags --abbrev=0 2>/dev/null)
@@ -10,7 +9,6 @@ get_current_version() {
   echo "$VERSION"
 }
 
-# Funzione per calcolare la nuova versione basata sull'ultimo commit
 increment_version() {
   VERSION_NO_V=$(echo "$1" | sed 's/^v//')
 
@@ -18,13 +16,10 @@ increment_version() {
   MINOR=$(echo "$VERSION_NO_V" | cut -d '.' -f 2)
   PATCH=$(echo "$VERSION_NO_V" | cut -d '.' -f 3)
 
-  # Ottieni l'ultimo commit
   LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
 
-  # Incrementa il PATCH se c'è un fix
   if echo "$LAST_COMMIT_MSG" | grep -iq "fix:"; then
     PATCH=$((PATCH + 1))
-  # Incrementa il MINOR se c'è una nuova feature
   elif echo "$LAST_COMMIT_MSG" | grep -iq "feat:"; then
     MINOR=$((MINOR + 1))
     PATCH=0  # Reset il PATCH se si aumenta il MINOR
@@ -33,65 +28,53 @@ increment_version() {
   echo "v$MAJOR.$MINOR.$PATCH"
 }
 
-# Ottieni il nome del branch corrente
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-# Controlla se il branch corrente è 'V2'
 if [ "$CURRENT_BRANCH" != "V2" ]; then
   echo "Not on V2 branch. Skipping version increment and tag push."
   exit 0
 fi
 
-# Ottieni la versione attuale
 CURRENT_VERSION=$(get_current_version)
 echo "Current version: $CURRENT_VERSION"
 
-# Calcola la nuova versione
 NEW_VERSION=$(increment_version "$CURRENT_VERSION")
 echo "New version: $NEW_VERSION"
 
-# Controlla il formato della versione
 if ! echo "$NEW_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
   echo "Invalid version format: $NEW_VERSION, exiting."
   exit 1
 fi
 
-# Se la nuova versione è diversa da quella attuale, aggiorna i file
 if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
-  # Sincronizza il branch locale con quello remoto
   git fetch origin
 
-  # Verifica eventuali cambiamenti remoti prima del push
   LOCAL_VS_REMOTE=$(git log HEAD..origin/V2 --oneline)
   if [ -n "$LOCAL_VS_REMOTE" ]; then
     echo "There are changes on the remote branch. Merging remote changes before pushing."
     git merge origin/V2
   fi
 
-  # Aggiorna la versione nel file .last_version
   sed -i "s/^version:.*/version: $NEW_VERSION/" .last_version
   echo "Updated .last_version file with the new version: $NEW_VERSION"
 
-  # Aggiorna la versione nel README.md (correzione della sintassi del sed)
   sed -i "s/V [0-9]\+\.[0-9]\+\.[0-9]\+/V $NEW_VERSION/" README.md
   echo "Updated README.md with the new version: $NEW_VERSION"
 
-  # Aggiungi i cambiamenti
   git add .last_version README.md
   git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
 
-  # Push dei cambiamenti
   git push origin V2 --no-verify
 
-  # Controlla se il tag esiste già
+  # Check if the tag already exists
   if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
     echo "Tag $NEW_VERSION already exists, skipping tag creation."
   else
-    # Crea il tag se non esiste
+    # Generate tag
     git tag "$NEW_VERSION"
     echo "Tag $NEW_VERSION created."
 
-    # Push dei tag senza innescare Husky
+    # Push tags without triggering Husky
     git push --tags --no-verify
     echo "Tags pushed without triggering Husky."
   fi
