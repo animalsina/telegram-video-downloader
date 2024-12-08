@@ -28,6 +28,25 @@ increment_version() {
   echo "v$MAJOR.$MINOR.$PATCH"
 }
 
+# Function to push a tag, force pushing if it exists remotely
+push_tag() {
+  tag_name=$1
+
+  # Check if the tag exists remotely
+  if git ls-remote --tags origin "$tag_name" | grep -q "$tag_name"; then
+    echo "Tag $tag_name already exists on the remote. Forcing push."
+
+    # Force push the updated tag to the remote (dangerous operation, use with caution)
+    git push origin "$tag_name" --force --no-verify
+    echo "Tag $tag_name forced pushed to the remote repository without triggering Husky."
+
+  else
+    # Push the tag normally if it doesn't exist remotely
+    git push origin "$tag_name" --no-verify
+    echo "Tag $tag_name pushed to the remote repository without triggering Husky."
+  fi
+}
+
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 if [ "$CURRENT_BRANCH" != "V2" ]; then
@@ -68,17 +87,7 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
   if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
     echo "Tag $NEW_VERSION already exists. Associating it with the latest commit."
 
-    # Delete the existing tag locally
-    git tag -d "$NEW_VERSION"
-    echo "Deleted the local tag $NEW_VERSION."
-
-    # Create the tag again, pointing to the latest commit (HEAD)
-    git tag "$NEW_VERSION" HEAD
-    echo "Tag $NEW_VERSION associated with the latest commit."
-
-    # Push the updated tag without triggering Husky
-    git push origin "$NEW_VERSION" --no-verify
-    echo "Updated tag $NEW_VERSION pushed to the remote repository without triggering Husky."
+   push_tag "$NEW_VERSION"
 
   else
     # Generate tag if it does not exist
@@ -92,17 +101,5 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
 
 else
   echo "New version is the same as the current version, skipping tag push."
-
-  # Delete the existing tag locally
-  git tag -d "$NEW_VERSION"
-  echo "Deleted the local tag $NEW_VERSION."
-
-  # Create the tag again, pointing to the latest commit (HEAD)
-  git tag "$NEW_VERSION" HEAD
-  echo "Tag $NEW_VERSION associated with the latest commit."
-
-  # Push the updated tag without triggering Husky
-  git push origin "$NEW_VERSION" --no-verify
-  echo "Updated tag $NEW_VERSION pushed to the remote repository without triggering Husky."
-
+  push_tag "$NEW_VERSION"
 fi
