@@ -1,5 +1,6 @@
 #!/bin/sh
 
+# Funzione per ottenere la versione corrente dal repository
 get_current_version() {
   git fetch --tags
   VERSION=$(git describe --tags --abbrev=0 2>/dev/null)
@@ -9,6 +10,7 @@ get_current_version() {
   echo "$VERSION"
 }
 
+# Funzione per incrementare la versione in base ai commit (fix o feat)
 increment_version() {
   VERSION_NO_V=$(echo "$1" | sed 's/^v//')
 
@@ -28,25 +30,7 @@ increment_version() {
   echo "v$MAJOR.$MINOR.$PATCH"
 }
 
-# Function to push a tag, force pushing if it exists remotely
-push_tag() {
-  tag_name=$1
-
-  # Check if the tag exists remotely
-  if git ls-remote --tags origin "$tag_name" | grep -q "$tag_name"; then
-    echo "Tag $tag_name already exists on the remote. Forcing push."
-
-    # Force push the updated tag to the remote (dangerous operation, use with caution)
-    git push origin "$tag_name" --force --no-verify
-    echo "Tag $tag_name forced pushed to the remote repository without triggering Husky."
-
-  else
-    # Push the tag normally if it doesn't exist remotely
-    git push origin "$tag_name" --no-verify
-    echo "Tag $tag_name pushed to the remote repository without triggering Husky."
-  fi
-}
-
+# Controlla che la branch corrente sia "V2"
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
 if [ "$CURRENT_BRANCH" != "V2" ]; then
@@ -54,26 +38,31 @@ if [ "$CURRENT_BRANCH" != "V2" ]; then
   exit 0
 fi
 
+# Ottieni la versione corrente e incrementa la versione
 CURRENT_VERSION=$(get_current_version)
 echo "Current version: $CURRENT_VERSION"
 
 NEW_VERSION=$(increment_version "$CURRENT_VERSION")
 echo "New version: $NEW_VERSION"
 
+# Verifica che il formato della versione sia corretto
 if ! echo "$NEW_VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
   echo "Invalid version format: $NEW_VERSION, exiting."
   exit 1
 fi
 
+# Se la nuova versione è diversa da quella corrente
 if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
   git fetch origin
 
+  # Unisci i cambiamenti dal ramo remoto se ci sono modifiche
   LOCAL_VS_REMOTE=$(git log HEAD..origin/V2 --oneline)
   if [ -n "$LOCAL_VS_REMOTE" ]; then
-    echo "There are changes on the remote branch. Merging remote changes before pushing."
+    echo "There are changes on the remote branch. Merging remote changes before committing."
     git merge origin/V2
   fi
 
+  # Aggiorna i file .last_version e README.md con la nuova versione
   sed -i "s/^version:.*/version: $NEW_VERSION/" .last_version
   echo "Updated .last_version file with the new version: $NEW_VERSION"
 
@@ -83,23 +72,8 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
   git add .last_version README.md
   git commit -m "Version: $CURRENT_VERSION -> $NEW_VERSION"
 
-   # Check if the tag already exists
-  if git rev-parse "$NEW_VERSION" >/dev/null 2>&1; then
-    echo "Tag $NEW_VERSION already exists. Associating it with the latest commit."
-
-   push_tag "$NEW_VERSION"
-
-  else
-    # Generate tag if it does not exist
-    git tag "$NEW_VERSION"
-    echo "Tag $NEW_VERSION created."
-
-    # Push tags without triggering Husky
-    git push --tags --no-verify
-    echo "Tags pushed without triggering Husky."
-  fi
-
 else
   echo "New version is the same as the current version, skipping tag push."
-  push_tag "$NEW_VERSION"
 fi
+
+exit 0

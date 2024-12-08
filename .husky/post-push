@@ -1,0 +1,26 @@
+#!/bin/sh
+
+# Funzione per pushare il tag
+push_tag() {
+  tag_name=$1
+
+  # Verifica se il tag esiste già nel remoto
+  if git ls-remote --tags origin "$tag_name" | grep -q "$tag_name"; then
+    echo "Tag $tag_name already exists on the remote. Forcing push."
+
+    # Force push del tag aggiornato (operazione rischiosa, usare con cautela)
+    git push origin "$tag_name" --force --no-verify
+    echo "Tag $tag_name forced pushed to the remote repository without triggering Husky."
+
+  else
+    # Push normale del tag se non esiste nel remoto
+    git push origin "$tag_name" --no-verify
+    echo "Tag $tag_name pushed to the remote repository without triggering Husky."
+  fi
+}
+
+if [ -n "$NEW_VERSION" ]; then
+  push_tag "$NEW_VERSION"
+else
+  echo "No new version found. Skipping tag push."
+fi
