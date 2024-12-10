@@ -56,15 +56,16 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]) -> Tuple[
     video_data = await process_video(video)
 
     from command.download import get_completed_task_folder_path
+
+    if video_data is None:
+        return None
+
     video_data["video_completed_folder"] = get_completed_task_folder_path(ObjectData(**video_data))
 
     if video_data and save_video_data(video_data, ObjectData(**video_data), get_video_data_keys()):
         print(f"Video saved: {video_data['original_video_name']}")
         if video_data["is_forward_chat_protected"] is not True:
             await video.delete()
-
-    if video_data is None:
-        return None
 
     return get_file_name_from_message(video), ObjectData(**video_data)
 
