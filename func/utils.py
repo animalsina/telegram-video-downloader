@@ -2,7 +2,6 @@
 Utility functions for file handling, including permission checks, file moving,
 logging, and corruption checking.
 """
-import asyncio
 import glob
 import json
 import mimetypes
@@ -11,9 +10,8 @@ import shutil
 import re
 
 from pathlib import Path
-from typing import AnyStr, Union
+from typing import Union
 
-import ffmpeg
 from telethon.errors import MessageNotModifiedError
 from telethon.tl.patched import Message
 from telethon.tl.types import MessageMediaDocument
@@ -141,50 +139,6 @@ def is_file_corrupted(file_path: str, total_file_size: int) -> bool:
     return False
 
 
-async def compress_video_h265(input_file: Path, output_file: Path, crf=28,
-                              callback: callable(AnyStr | None) = None) -> bool:
-    """
-    Convert a video file from h264 to h265 using ffmpeg.
-    If the conversion is successful, return True. If an error occurs during the conversion,
-    print an error message and return False.
-    """
-    if os.path.exists(output_file):
-        os.remove(output_file)
-        print(f"Existing old file converted removed: {output_file}")
-    try:
-        process = (
-            ffmpeg
-            .input(str(input_file))
-            .output(str(output_file), vcodec='libx265', crf=crf,
-                    preset='slow', tune='zerolatency', progress='pipe')
-            .run_async(pipe_stdout=True, pipe_stderr=True)
-        )
-        while True:
-            # Leggi dall'output standard di errore
-            output = process.stderr.read(4096).decode('utf-8')
-            if output:  # Se c'è output
-                lines = output.splitlines()
-                last_line = lines[-1]
-                match = re.search(r'time=(\d{2}:\d{2}:\d{2}.\d{2})', last_line)
-                time_value = None
-                if match:
-                    time_value = match.group(1)
-                if time_value is not None:
-                    if callback and callable(callback):
-                        await callback(time_value)  # Chiamata al callback qui
-                    print(f"Progress: {time_value}")
-                else:
-                    await asyncio.sleep(0.1)  # Attendere un attimo prima di controllare di nuovo
-
-            if process.poll() is not None:  # Se il processo è terminato
-                break
-
-        print(f"Compression H.265 completed! File save {output_file}")
-        return True
-    except Exception as exception:  # pylint: disable=broad-exception-caught
-        print(f"Error during the compression: {str(exception)}")
-        return False
-
 def get_inlist_video_object_by_message_id_reference(message_id_reference: str) -> ObjectData | None:
     """
     Get video object by message id reference.
@@ -195,6 +149,7 @@ def get_inlist_video_object_by_message_id_reference(message_id_reference: str) -
             if message_id_reference == video[1].message_id_reference:
                 return video[1]
     return None
+
 
 async def download_complete_action(video: ObjectData) -> None:
     """
@@ -230,22 +185,37 @@ async def download_complete_action(video: ObjectData) -> None:
         file_path_c = Path(str(video.file_path))
         converted_file_path = file_path_c.with_name(
             file_path_c.stem + "_converted" + file_path_c.suffix)
-        if await compress_video_h265(
-                file_path_source, converted_file_path, config.compression_ratio,
-                compression_message):
-            file_path_source.unlink()
-            file_path_source = converted_file_path
+        from classes.compression import (
+            compress_video_h265,
+            COMPRESSION_STATE_COMPRESSED,
+            COMPRESSION_STATE_COMPRESSION_FAILED,
+            COMPRESSION_STATE_NOT_COMPRESSED
+        )
+        compressing_state = await compress_video_h265(
+                file_path_source,
+                converted_file_path,
+                config.compression_ratio,
+                config.compression_min_size_mb,
+                compression_message)
+        if compressing_state == COMPRESSION_STATE_COMPRESSED:
             print(t('complete_compress_file', file_path_source))
             await add_line_to_text(video.message_id_reference,
                                    t('complete_compress_file', str(file_path_source)[:44]),
                                    LINE_FOR_INFO_DATA)
-        else:
+            file_path_source.unlink()
+            file_path_source = converted_file_path
+        elif compressing_state == COMPRESSION_STATE_COMPRESSION_FAILED:
             print(t('cant_compress_file', file_path_source))
             await add_line_to_text(video.message_id_reference,
                                    t('cant_compress_file', str(file_path_source)[:44]),
                                    LINE_FOR_SHOW_LAST_ERROR)
             raise Exception(t('cant_compress_file',  # pylint: disable=broad-exception-raised
                               file_path_source))
+        elif compressing_state is COMPRESSION_STATE_NOT_COMPRESSED:
+            print(t('skip_compress_file', file_path_source))
+            await add_line_to_text(video.message_id_reference,
+                                   t('skip_compress_file', str(file_path_source)[:44]),
+                                   LINE_FOR_INFO_DATA)
 
     await add_line_to_text(video.message_id_reference, t('ready_to_move', str(file_path_dest)[:44]),
                            LINE_FOR_INFO_DATA)
@@ -287,6 +257,7 @@ def remove_video_data(video_object: ObjectData) -> None:
         operation_status.videos_data = [
             (file_name, obj_data) for file_name, obj_data in videos_data if obj_data.id != video_object.id
         ]
+
 
 def remove_video_data_by_video_id(video_id: str):
     """
@@ -410,7 +381,7 @@ def safe_getattr(obj, attr, default=''):
 
 
 async def add_line_to_text(
-        message_id: str|int,
+        message_id: str | int,
         new_line: str,
         line_number: int,
         with_default_icon: bool = False
@@ -459,6 +430,7 @@ async def define_label(message_id: str, label) -> None:
             await message.edit(builder.string)
         except (MessageNotModifiedError, PermissionError) as er:
             print(er.message)
+
 
 async def get_video_status_label(message_reference: int | Union[Message, MessageMediaDocument]):
     """
@@ -616,6 +588,7 @@ def reduce_path_action(path: str, max_length: int = 4) -> str:
 
     return reduced_path
 
+
 def remove_markdown(text: str):
     """
     Remove Markdown formatting from a string.
@@ -683,7 +656,7 @@ def validate_and_check_path(path):
 
         result["exists"] = os.path.exists(normalized_path)
 
-    except Exception as e: # pylint: disable=broad-exception-caught
+    except Exception as e:  # pylint: disable=broad-exception-caught
         result["error"] = f"Error validating and checking path: {str(e)}"
 
     return result
@@ -702,6 +675,7 @@ def is_valid_folder(path):
     _, extension = os.path.splitext(base_name)
 
     return extension == ""
+
 
 def detect_remaining_size_in_disk_by_path(path, file_size, threshold_percentage=10):
     """

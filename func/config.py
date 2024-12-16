@@ -77,6 +77,7 @@ class Config:
         self.disk_space_limit_percentage = 100
         self.max_simultaneous_file_to_download = None
         self.max_download_size_request_limit_kb = MAXINT
+        self.compression_min_size_mb = 0
         self.session_name = None
         self.api_id = None
         self.api_hash = None

@@ -81,6 +81,8 @@
     "action_folder_completed_example": "String | Use a pattern for the folder indicate the values captured by the regex with #0, #1, #..., you can use #i#0, #i#1, #i#... to cast the value as an integer",
     "command_count": "Show the download status in the chat",
     "download_count": "**Total videos: {3}**\n\n- Video(s) in progress: {1}\n- Video(s) completed: {0}\n- Video(s) in waiting: {4}\n- Video(s) in error: {2}",
-    "download_blocked_by_disk_space_limit": "Download blocked by disk space limit.\n\nAvailable space: {0}%\nRequired space: {1}%\n\n- Path: {2}\n- Disk space available: {3}"
+    "download_blocked_by_disk_space_limit": "Download blocked by disk space limit.\n\nAvailable space: {0}%\nRequired space: {1}%\n\n- Path: {2}\n- Disk space available: {3}",
+    "skip_compress_file": "Skip compress file",
+    "file_too_small":"File size ({0} MB) is below the minimum threshold ({1} MB). Skipping compression."
 }
 

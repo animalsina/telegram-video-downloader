@@ -284,7 +284,8 @@ async def send_video_to_chat(video_data: dict | ObjectData, video: Union[Message
         if (hasattr(video_data, 'video_attribute') and
                 isinstance(video_data.video_attribute, AttributeObject) is False and
                 isinstance(video_data.video_attribute, dict)):
-            video_data.video_attribute = AttributeObject(**video_data.video_attribute)
+            video_data.video_attribute = video_data.video_attribute if \
+                video_data.video_attribute else AttributeObject(**video_data.video_attribute)
 
     try:
         if LOG_IN_PERSONAL_CHAT:

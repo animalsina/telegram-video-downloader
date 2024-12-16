@@ -475,6 +475,10 @@ async def validate_download(temp_file_path, file_size, video):
     else:
         temp_file_size = 0
 
+    if os.path.exists(video.file_path) and not is_file_corrupted(video.file_path, file_size):
+        await download_complete_action(video)
+        return True
+
     if abs(temp_file_size - file_size) <= tolerance:
         os.rename(temp_file_path, video.file_path)
         print(f"Downloaded video to: {video.file_path}")

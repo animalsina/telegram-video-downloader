@@ -81,5 +81,7 @@
     "action_folder_completed_example": "Stringa | Usa un pattern per la cartella indica i valori catturati dal regex con #0, #1, #... puoi utilizzare #i#0, #i#1, #i#... per castare il valore come intero",
     "command_count": "Mostra lo stato dei download presenti nella chat",
     "download_count": "**Video totali: {3}**\n\n- Video in corso: {1}\n- Video completati: {0}\n- Video in attesa: {4}\n- Video in errore: {2}",
-    "download_blocked_by_disk_space_limit": "Download bloccato per superamento il limite di spazio disco.\n\nSpazio disponibile: {0}%\nSpazio necessario: {1}%\n\n- Path: {2}\n- Spazio nel disco disponibile: {3}"
+    "download_blocked_by_disk_space_limit": "Download bloccato per superamento il limite di spazio disco.\n\nSpazio disponibile: {0}%\nSpazio necessario: {1}%\n\n- Path: {2}\n- Spazio nel disco disponibile: {3}",
+    "skip_compress_file": "Compressione del file saltata",
+    "file_too_small":"Dimensione del file ({0} MB) e' inferiore alla soglia minima ({1} MB). Compressione saltata."
 }
