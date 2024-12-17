@@ -25,8 +25,8 @@
     "download_video": "🔔 Scaricamento video in corso...",
     "cant_compress_file": "Impossibile comprimere il file {}",
     "start_compress_file": "🗜️ Preparazione compressione del file {}",
-    "complete_compress_file": "✅ Completamento compressione del file {}",
-    "trace_compress_action": "🗜️ {1} - Tempo stimato: {0}",
+    "complete_compress_file": "✅ Completamento compressione del file {0} - {1}",
+    "trace_compress_action": "🗜️ Progresso: {0} - {1} - ⌚ {2}s",
     "download_stopped": "Download fermato",
     "program_start": "Programma pronto!",
     "download_enabled": "Download abilitato",
@@ -85,5 +85,6 @@
     "skip_compress_file": "Compressione del file saltata",
     "file_too_small":"Dimensione del file ({0} MB) e' inferiore alla soglia minima ({1} MB). Compressione saltata.",
     "old_compress_file": "Vecchio file presente durante il tentativo di compressione, {} verrà eliminato e riproposto al prossimo check.",
-    "exceed_compress_file": "Da un controllo il file {} non beneficia di alcuna compressione. Verrà salvato senza essere compresso."
+    "exceed_compress_file": "Da un controllo il file {} non beneficia di alcuna compressione. Verrà salvato senza essere compresso.",
+    "error_output_compress_file": "Errore durante il salvataggio del file compresso {}."
 }
