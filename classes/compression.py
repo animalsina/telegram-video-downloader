@@ -41,7 +41,7 @@ def remove_existing_output(output_file: Path) -> bool:
 def should_compress(file_size_mb: float, crf: int) -> bool:
     """Check if compression will actually reduce the file size."""
 
-    estimated_output_size_mb = file_size_mb * compression_ratio_calc(file_size_mb, crf)
+    estimated_output_size_mb = compression_ratio_calc(file_size_mb, crf)
 
     print(f"Estimated output size: {estimated_output_size_mb:.2f} MB")
     if estimated_output_size_mb >= file_size_mb:
