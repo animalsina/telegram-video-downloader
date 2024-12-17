@@ -24,9 +24,9 @@
     "no_message_found": "Nessun messaggio trovato",
     "download_video": "🔔 Scaricamento video in corso...",
     "cant_compress_file": "Impossibile comprimere il file {}",
-    "start_compress_file": "🗜️ Inizio compressione del file {}",
+    "start_compress_file": "🗜️ Preparazione compressione del file {}",
     "complete_compress_file": "✅ Completamento compressione del file {}",
-    "trace_compress_action": "🗜️ tempo mancante stimato per compressione: {}",
+    "trace_compress_action": "🗜️ {1} - Tempo stimato: {0}",
     "download_stopped": "Download fermato",
     "program_start": "Programma pronto!",
     "download_enabled": "Download abilitato",
@@ -83,5 +83,7 @@
     "download_count": "**Video totali: {3}**\n\n- Video in corso: {1}\n- Video completati: {0}\n- Video in attesa: {4}\n- Video in errore: {2}",
     "download_blocked_by_disk_space_limit": "Download bloccato per superamento il limite di spazio disco.\n\nSpazio disponibile: {0}%\nSpazio necessario: {1}%\n\n- Path: {2}\n- Spazio nel disco disponibile: {3}",
     "skip_compress_file": "Compressione del file saltata",
-    "file_too_small":"Dimensione del file ({0} MB) e' inferiore alla soglia minima ({1} MB). Compressione saltata."
+    "file_too_small":"Dimensione del file ({0} MB) e' inferiore alla soglia minima ({1} MB). Compressione saltata.",
+    "old_compress_file": "Vecchio file presente durante il tentativo di compressione, {} verrà eliminato e riproposto al prossimo check.",
+    "exceed_compress_file": "Da un controllo il file {} non beneficia di alcuna compressione. Verrà salvato senza essere compresso."
 }

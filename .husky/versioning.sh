@@ -80,6 +80,7 @@ if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
     git merge origin/V2
   fi
 
+  rm -f .last_version
   echo "$NEW_VERSION" >> .last_version
   echo "Updated .last_version file with the new version: $NEW_VERSION"
 

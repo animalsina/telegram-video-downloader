@@ -26,7 +26,7 @@
     "cant_compress_file": "Can't compress the file {}",
     "start_compress_file": "🗜️ Start compression of the file {}",
     "complete_compress_file": "✅ Complete compression of the file {}",
-    "trace_compress_action": "🗜️ estimated missing time to complete the compression: {}",
+    "trace_compress_action": "🗜️ {1} - estimated time {0}",
     "download_stopped": "Download stopped",
     "program_start": "Program is ready!",
     "download_enabled": "Download enabled",
@@ -83,6 +83,9 @@
     "download_count": "**Total videos: {3}**\n\n- Video(s) in progress: {1}\n- Video(s) completed: {0}\n- Video(s) in waiting: {4}\n- Video(s) in error: {2}",
     "download_blocked_by_disk_space_limit": "Download blocked by disk space limit.\n\nAvailable space: {0}%\nRequired space: {1}%\n\n- Path: {2}\n- Disk space available: {3}",
     "skip_compress_file": "Skip compress file",
-    "file_too_small":"File size ({0} MB) is below the minimum threshold ({1} MB). Skipping compression."
+    "file_too_small":"File size ({0} MB) is below the minimum threshold ({1} MB). Skipping compression.",
+    "old_compress_file": "Old file present during compression attempt, {} will be deleted and reprocessed at the next check.",
+    "exceed_compress_file": "After a check, the file {} does not benefit from any compression. It will be saved without being compressed."
+
 }
 

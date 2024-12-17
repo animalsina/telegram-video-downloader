@@ -14,6 +14,9 @@ from func.messages import t
 COMPRESSION_STATE_NOT_COMPRESSED = 0
 COMPRESSION_STATE_COMPRESSED = 1
 COMPRESSION_STATE_COMPRESSION_FAILED = 2
+COMPRESSION_STATE_COMPRESSION_FAILED_NOT_OUTPUT_FILE = 3
+COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE = 4
+COMPRESSION_STATE_COMPRESSION_FAILED_BAD_TRASH_FILE = 5
 
 def is_valid_input_file(input_file: Path, min_size_mb: int) -> bool:
     """Check if input file exists and is large enough to be compressed."""
@@ -41,7 +44,7 @@ def remove_existing_output(output_file: Path) -> bool:
 def should_compress(file_size_mb: float, crf: int) -> bool:
     """Check if compression will actually reduce the file size."""
 
-    estimated_output_size_mb = file_size_mb * compression_ratio_calc(file_size_mb, crf)
+    estimated_output_size_mb = compression_ratio_calc(file_size_mb, crf)
 
     print(f"Estimated output size: {estimated_output_size_mb:.2f} MB")
     if estimated_output_size_mb >= file_size_mb:
@@ -80,8 +83,18 @@ async def compress_video_h265(
     output_file: Path,
     crf: int = 28,
     min_size_mb: int = 50,
-    callback: Union[Callable[[AnyStr], None], Callable[[AnyStr], Awaitable[None]]] | None = None
-) -> COMPRESSION_STATE_COMPRESSION_FAILED | COMPRESSION_STATE_COMPRESSED | COMPRESSION_STATE_NOT_COMPRESSED:
+    callback: (
+            Union[Callable[[AnyStr, AnyStr], None],
+            Callable[[AnyStr, AnyStr], Awaitable[None]]])
+              | None = None
+) -> (
+        COMPRESSION_STATE_COMPRESSION_FAILED |
+        COMPRESSION_STATE_COMPRESSED |
+        COMPRESSION_STATE_NOT_COMPRESSED |
+        COMPRESSION_STATE_COMPRESSION_FAILED_NOT_OUTPUT_FILE |
+        COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE |
+        COMPRESSION_STATE_COMPRESSION_FAILED_BAD_TRASH_FILE
+):
     """
     Compress a video file from H.264 to H.265 using ffmpeg.
     """
@@ -93,11 +106,11 @@ async def compress_video_h265(
     # File size and compression check
     file_size_mb = input_file.stat().st_size / (1024 * 1024)
     if not should_compress(file_size_mb, crf):
-        return COMPRESSION_STATE_NOT_COMPRESSED
+        return COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE
 
     # Ensure output path is writable
     if not remove_existing_output(output_file):
-        return COMPRESSION_STATE_COMPRESSION_FAILED
+        return COMPRESSION_STATE_COMPRESSION_FAILED_BAD_TRASH_FILE
 
     try:
         process = (
@@ -108,6 +121,8 @@ async def compress_video_h265(
             .run_async(pipe_stdout=True, pipe_stderr=True)
         )
 
+        from func.utils import format_bytes
+
         # Handle process output and progress
         while True:
             output = await asyncio.to_thread(process.stderr.read, 4096)
@@ -117,14 +132,15 @@ async def compress_video_h265(
                 last_line = lines[-1]
                 match = re.search(r'time=(\d{2}:\d{2}:\d{2}\.\d{2})', last_line)
                 time_value = match.group(1) if match else None
-
+                output_size = os.path.getsize(output_file)
+                compressed_file_size = format_bytes(output_size)
                 if time_value is not None and callback:
                     if asyncio.iscoroutinefunction(callback):
-                        await callback(time_value)
+                        await callback(time_value, compressed_file_size)
                     else:
-                        callback(time_value)
-                elif time_value is not None:
-                    print(f"Progress: {time_value}")
+                        callback(time_value, compressed_file_size)
+                if time_value is not None:
+                    print(f"Progress: {time_value} - {compressed_file_size}")
 
             if process.poll() is not None:
                 break
@@ -135,7 +151,7 @@ async def compress_video_h265(
             return COMPRESSION_STATE_COMPRESSED
 
         print("Compression failed: Output file not created or is empty.")
-        return COMPRESSION_STATE_COMPRESSION_FAILED
+        return COMPRESSION_STATE_COMPRESSION_FAILED_NOT_OUTPUT_FILE
 
     except Exception as exception: # pylint: disable=broad-exception-caught
         print(f"Error during compression: {exception}")
