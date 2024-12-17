@@ -83,5 +83,7 @@
     "download_count": "**Video totali: {3}**\n\n- Video in corso: {1}\n- Video completati: {0}\n- Video in attesa: {4}\n- Video in errore: {2}",
     "download_blocked_by_disk_space_limit": "Download bloccato per superamento il limite di spazio disco.\n\nSpazio disponibile: {0}%\nSpazio necessario: {1}%\n\n- Path: {2}\n- Spazio nel disco disponibile: {3}",
     "skip_compress_file": "Compressione del file saltata",
-    "file_too_small":"Dimensione del file ({0} MB) e' inferiore alla soglia minima ({1} MB). Compressione saltata."
+    "file_too_small":"Dimensione del file ({0} MB) e' inferiore alla soglia minima ({1} MB). Compressione saltata.",
+    "old_compress_file": "Vecchio file presente durante il tentativo di compressione, {} verrà eliminato e riproposto al prossimo check.",
+    "exceed_compress_file": "Da un controllo il file {} non beneficia di alcuna compressione. Verrà salvato senza essere compresso."
 }

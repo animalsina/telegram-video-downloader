@@ -14,6 +14,9 @@ from func.messages import t
 COMPRESSION_STATE_NOT_COMPRESSED = 0
 COMPRESSION_STATE_COMPRESSED = 1
 COMPRESSION_STATE_COMPRESSION_FAILED = 2
+COMPRESSION_STATE_COMPRESSION_FAILED_NOT_OUTPUT_FILE = 3
+COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE = 4
+COMPRESSION_STATE_COMPRESSION_FAILED_BAD_TRASH_FILE = 5
 
 def is_valid_input_file(input_file: Path, min_size_mb: int) -> bool:
     """Check if input file exists and is large enough to be compressed."""
@@ -81,7 +84,14 @@ async def compress_video_h265(
     crf: int = 28,
     min_size_mb: int = 50,
     callback: Union[Callable[[AnyStr], None], Callable[[AnyStr], Awaitable[None]]] | None = None
-) -> COMPRESSION_STATE_COMPRESSION_FAILED | COMPRESSION_STATE_COMPRESSED | COMPRESSION_STATE_NOT_COMPRESSED:
+) -> (
+        COMPRESSION_STATE_COMPRESSION_FAILED |
+        COMPRESSION_STATE_COMPRESSED |
+        COMPRESSION_STATE_NOT_COMPRESSED |
+        COMPRESSION_STATE_COMPRESSION_FAILED_NOT_OUTPUT_FILE |
+        COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE |
+        COMPRESSION_STATE_COMPRESSION_FAILED_BAD_TRASH_FILE
+):
     """
     Compress a video file from H.264 to H.265 using ffmpeg.
     """
@@ -93,11 +103,11 @@ async def compress_video_h265(
     # File size and compression check
     file_size_mb = input_file.stat().st_size / (1024 * 1024)
     if not should_compress(file_size_mb, crf):
-        return COMPRESSION_STATE_NOT_COMPRESSED
+        return COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE
 
     # Ensure output path is writable
     if not remove_existing_output(output_file):
-        return COMPRESSION_STATE_COMPRESSION_FAILED
+        return COMPRESSION_STATE_COMPRESSION_FAILED_BAD_TRASH_FILE
 
     try:
         process = (
@@ -135,7 +145,7 @@ async def compress_video_h265(
             return COMPRESSION_STATE_COMPRESSED
 
         print("Compression failed: Output file not created or is empty.")
-        return COMPRESSION_STATE_COMPRESSION_FAILED
+        return COMPRESSION_STATE_COMPRESSION_FAILED_NOT_OUTPUT_FILE
 
     except Exception as exception: # pylint: disable=broad-exception-caught
         print(f"Error during compression: {exception}")

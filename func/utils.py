@@ -17,6 +17,8 @@ from telethon.tl.patched import Message
 from telethon.tl.types import MessageMediaDocument
 
 from classes.attribute_object import AttributeObject
+from func.compression import COMPRESSION_STATE_COMPRESSION_FAILED_BAD_TRASH_FILE, \
+    COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE
 from classes.string_builder import (StringBuilder, LINE_FOR_INFO_DATA,
                                     LINE_FOR_SHOW_LAST_ERROR, TYPE_ACQUIRED,
                                     LINE_FOR_FILE_DIMENSION, LINE_FOR_PINNED_VIDEO,
@@ -185,7 +187,7 @@ async def download_complete_action(video: ObjectData) -> None:
         file_path_c = Path(str(video.file_path))
         converted_file_path = file_path_c.with_name(
             file_path_c.stem + "_converted" + file_path_c.suffix)
-        from classes.compression import (
+        from func.compression import (
             compress_video_h265,
             COMPRESSION_STATE_COMPRESSED,
             COMPRESSION_STATE_COMPRESSION_FAILED,
@@ -205,6 +207,18 @@ async def download_complete_action(video: ObjectData) -> None:
                                    LINE_FOR_INFO_DATA)
             file_path_source.unlink()
             file_path_source = converted_file_path
+        elif compressing_state == COMPRESSION_STATE_COMPRESSION_FAILED_BAD_TRASH_FILE:
+            print(t('old_compress_file', file_path_source))
+            await add_line_to_text(video.message_id_reference,
+                               t('old_compress_file', str(file_path_source)[:44]),
+                               LINE_FOR_SHOW_LAST_ERROR)
+            raise Exception(t('old_compress_file',  # pylint: disable=broad-exception-raised
+                              file_path_source))
+        elif compressing_state == COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE:
+            print(t('exceed_compress_file', file_path_source))
+            await add_line_to_text(video.message_id_reference,
+                               t('exceed_compress_file', str(file_path_source)[:44]),
+                               LINE_FOR_SHOW_LAST_ERROR)
         elif compressing_state == COMPRESSION_STATE_COMPRESSION_FAILED:
             print(t('cant_compress_file', file_path_source))
             await add_line_to_text(video.message_id_reference,
@@ -553,11 +567,11 @@ def default_video_message(video_object: ObjectData):
     video_media = getattr(video_object, 'video_media', None)
     if video_media is not None:
         if configuration.enable_video_compression is True:
-            from classes.compression import compression_ratio_calc
+            from func.compression import compression_ratio_calc
             compression_size =\
                 compression_ratio_calc(video_media.document.size, configuration.compression_ratio)
             size_and_compression_size =\
-                f"{format_bytes(video_media.document.size)} ({format_bytes(compression_size)} bytes)"\
+                f"{format_bytes(video_media.document.size)} ({format_bytes(int(compression_size))})"\
                     if compression_size is not None\
                     else format_bytes(video_media.document.size)
             builder.edit_in_line(size_and_compression_size, LINE_FOR_FILE_SIZE, True)
