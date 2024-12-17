@@ -22,7 +22,7 @@ from classes.string_builder import (StringBuilder, LINE_FOR_INFO_DATA,
                                     LINE_FOR_FILE_DIMENSION, LINE_FOR_PINNED_VIDEO,
                                     LINE_FOR_VIDEO_NAME,
                                     LINE_FOR_FILE_NAME, LINE_FOR_FILE_SIZE, TYPE_ERROR, TYPE_COMPLETED,
-                                    LINE_FOR_TARGET_FOLDER)
+                                    LINE_FOR_TARGET_FOLDER, TYPE_COMPRESSING)
 from func.messages import t
 from classes.object_data import ObjectData
 from run import PERSONAL_CHAT_ID
@@ -191,6 +191,7 @@ async def download_complete_action(video: ObjectData) -> None:
             COMPRESSION_STATE_COMPRESSION_FAILED,
             COMPRESSION_STATE_NOT_COMPRESSED
         )
+        await define_label(video.message_id_reference, TYPE_COMPRESSING)
         compressing_state = await compress_video_h265(
                 file_path_source,
                 converted_file_path,
@@ -478,29 +479,30 @@ def save_video_data(data: dict, video: ObjectData, fields_to_compare=None) -> bo
                 existing_data_subset = ({field: getattr(existing_data, field, None)
                                          for field in fields_to_compare})
 
-                # Se i campi specificati sono identici, controlla anche per i campi non specificati
                 if data_subset == existing_data_subset:
-                    # Aggiorna i campi rimanenti anche se i campi specificati sono uguali
                     for field in data_keys:
                         if field not in fields_to_compare:
                             if getattr(data, field) is not None:
                                 setattr(existing_data, field, getattr(data, field))
                 else:
-                    # Se ci sono differenze nei campi specificati, aggiorna
                     for field in data_keys:
                         setattr(existing_data, field, getattr(data, field))
             else:
-                # Confronto di tutto l'oggetto se non sono stati specificati campi
                 if data == existing_data:
                     print("Nessuna differenza trovata, dati non salvati.")
                     return False
     else:
-        # Se il file non esiste, usa i nuovi dati
         existing_data = data
-    # Salva solo se ci sono differenze
-    with open(file_path, "wb") as f:
-        f.write(json.dumps(existing_data, default=serialize).encode('utf-8'))
-    return True
+    try:
+        with open(file_path, "wb") as f:
+            f.write(json.dumps(existing_data, default=serialize).encode('utf-8'))
+        return True
+    except PermissionError as e:
+        print(f"Errore di permessi per il file: {file_path}. Dettagli: {e}")
+        raise
+    except Exception as e:
+        print(f"Errore generico: {e}")
+        raise
 
 
 def serialize(obj: ObjectData):
@@ -550,7 +552,17 @@ def default_video_message(video_object: ObjectData):
     builder.edit_in_line(reduced_path_name, LINE_FOR_TARGET_FOLDER, True)
     video_media = getattr(video_object, 'video_media', None)
     if video_media is not None:
-        builder.edit_in_line(format_bytes(video_media.document.size), LINE_FOR_FILE_SIZE, True)
+        if configuration.enable_video_compression is True:
+            from classes.compression import compression_ratio_calc
+            compression_size =\
+                compression_ratio_calc(video_media.document.size, configuration.compression_ratio)
+            size_and_compression_size =\
+                f"{format_bytes(video_media.document.size)} ({format_bytes(compression_size)} bytes)"\
+                    if compression_size is not None\
+                    else format_bytes(video_media.document.size)
+            builder.edit_in_line(size_and_compression_size, LINE_FOR_FILE_SIZE, True)
+        else:
+            builder.edit_in_line(format_bytes(video_media.document.size), LINE_FOR_FILE_SIZE, True)
     builder.define_label(TYPE_ACQUIRED)
     video_attribute = getattr(video_object, 'video_attribute', None)
     if video_attribute is not None and hasattr(video_attribute, 'w') and hasattr(video_attribute, 'h'):

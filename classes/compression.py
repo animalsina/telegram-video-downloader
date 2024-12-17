@@ -41,6 +41,20 @@ def remove_existing_output(output_file: Path) -> bool:
 def should_compress(file_size_mb: float, crf: int) -> bool:
     """Check if compression will actually reduce the file size."""
 
+    estimated_output_size_mb = file_size_mb * compression_ratio_calc(file_size_mb, crf)
+
+    print(f"Estimated output size: {estimated_output_size_mb:.2f} MB")
+    if estimated_output_size_mb >= file_size_mb:
+        print("Compression would increase the file size. Skipping compression.")
+        return False
+    return True
+
+def compression_ratio(crf: int) -> float:
+    """
+    Calculate the compression ratio.
+    :param crf:
+    :return:
+    """
     if crf <= 18:
         compression_factor = 1.2
     elif crf <= 23:
@@ -50,13 +64,16 @@ def should_compress(file_size_mb: float, crf: int) -> bool:
     else:
         compression_factor = 0.5
 
-    estimated_output_size_mb = file_size_mb * compression_factor
+    return compression_factor
 
-    print(f"Estimated output size: {estimated_output_size_mb:.2f} MB")
-    if estimated_output_size_mb >= file_size_mb:
-        print("Compression would increase the file size. Skipping compression.")
-        return False
-    return True
+def compression_ratio_calc(file_size_mb: float, crf: int) -> float:
+    """
+    Calculate the compression ratio.
+    :param file_size_mb:
+    :param crf:
+    :return:
+    """
+    return file_size_mb * compression_ratio(crf)
 
 async def compress_video_h265(
     input_file: Path,
