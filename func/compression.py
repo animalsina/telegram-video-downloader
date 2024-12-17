@@ -83,7 +83,10 @@ async def compress_video_h265(
     output_file: Path,
     crf: int = 28,
     min_size_mb: int = 50,
-    callback: Union[Callable[[AnyStr], None], Callable[[AnyStr], Awaitable[None]]] | None = None
+    callback: (
+            Union[Callable[[AnyStr, AnyStr], None],
+            Callable[[AnyStr, AnyStr], Awaitable[None]]])
+              | None = None
 ) -> (
         COMPRESSION_STATE_COMPRESSION_FAILED |
         COMPRESSION_STATE_COMPRESSED |
@@ -118,6 +121,8 @@ async def compress_video_h265(
             .run_async(pipe_stdout=True, pipe_stderr=True)
         )
 
+        from func.utils import format_bytes
+
         # Handle process output and progress
         while True:
             output = await asyncio.to_thread(process.stderr.read, 4096)
@@ -127,14 +132,15 @@ async def compress_video_h265(
                 last_line = lines[-1]
                 match = re.search(r'time=(\d{2}:\d{2}:\d{2}\.\d{2})', last_line)
                 time_value = match.group(1) if match else None
-
+                output_size = os.path.getsize(output_file)
+                compressed_file_size = format_bytes(output_size)
                 if time_value is not None and callback:
                     if asyncio.iscoroutinefunction(callback):
-                        await callback(time_value)
+                        await callback(time_value, compressed_file_size)
                     else:
-                        callback(time_value)
-                elif time_value is not None:
-                    print(f"Progress: {time_value}")
+                        callback(time_value, compressed_file_size)
+                if time_value is not None:
+                    print(f"Progress: {time_value} - {compressed_file_size}")
 
             if process.poll() is not None:
                 break

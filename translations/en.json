@@ -26,7 +26,7 @@
     "cant_compress_file": "Can't compress the file {}",
     "start_compress_file": "🗜️ Start compression of the file {}",
     "complete_compress_file": "✅ Complete compression of the file {}",
-    "trace_compress_action": "🗜️ estimated missing time to complete the compression: {}",
+    "trace_compress_action": "🗜️ {1} - estimated time {0}",
     "download_stopped": "Download stopped",
     "program_start": "Program is ready!",
     "download_enabled": "Download enabled",

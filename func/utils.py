@@ -171,10 +171,10 @@ async def download_complete_action(video: ObjectData) -> None:
     file_path_source = Path(str(video.file_path))
     file_path_dest = Path(str(completed_file_path))
 
-    async def compression_message(time_info):
+    async def compression_message(time_info, compressed_file_size):
         await add_line_to_text(
             video.message_id_reference,
-            t('trace_compress_action', time_info),
+            t('trace_compress_action', time_info, compressed_file_size),
             LINE_FOR_INFO_DATA)
 
     if config.enable_video_compression:
