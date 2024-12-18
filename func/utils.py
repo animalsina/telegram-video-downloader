@@ -183,7 +183,7 @@ async def download_complete_action(video: ObjectData) -> None:
             t('trace_compress_action',
               progress_bar_display,
               compressed_file_size,
-              f"{remaining_time:.2f}"),
+              format_time(remaining_time)),
             LINE_FOR_INFO_DATA)
 
     if config.enable_video_compression:
@@ -236,6 +236,16 @@ async def download_complete_action(video: ObjectData) -> None:
     if video_message is not None:
         await video_message.unpin()
 
+def format_time(seconds):
+    """
+    Convert seconds into a readable format (days, hours, minutes, seconds).
+    :param seconds: Time in seconds
+    :return: Formatted time string
+    """
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    return f"{int(days):02}:{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
 
 async def compression_action(
         compressing_state,

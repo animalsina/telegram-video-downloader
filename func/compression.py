@@ -3,13 +3,12 @@ Module for compressing video files using ffmpeg.
 
 """
 import asyncio
-import re
+import subprocess
 import os
 import time
 
 from pathlib import Path
 from typing import Union, Callable, Awaitable
-import ffmpeg
 
 from func.messages import t
 
@@ -130,39 +129,57 @@ async def compress_video_h265(
         return COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE
 
     # Ensure output path is writable
-    if not remove_existing_output(output_file):
-        return COMPRESSION_STATE_COMPRESSION_FAILED_BAD_TRASH_FILE
+    #if not remove_existing_output(output_file):
+    #    return COMPRESSION_STATE_COMPRESSION_FAILED_BAD_TRASH_FILE
 
     try:
-        start_time = time.time()  # Tempo di inizio
+        start_time = time.time()  # Start time
+
+        # Calculate the estimated size of the compressed file
+        file_size_mb = get_file_size(input_file)
         estimated_size = compression_ratio_calc(file_size_mb, crf)
 
+        # Retrieve the current size of the compressed file
+        current_size = get_file_size(output_file)
+
+        # Determine the resumption point
+        if current_size > 0:
+            time_offset = calculate_offset(current_size, estimated_size, output_file)
+            print(f"Resuming compression from {time_offset:.2f} seconds...")
+        else:
+            time_offset = 0
+
+        process_completed = False
+
+        # Start the ffmpeg process
         process = (
-            ffmpeg
-            .input(str(input_file))
-            .output(str(output_file), vcodec='libx265', crf=crf,
-                    preset='slow', tune='zerolatency', progress='pipe')
-            .run_async(pipe_stdout=True, pipe_stderr=True)
+            subprocess.Popen(
+                [
+                    'ffmpeg', '-y', '-i', str(input_file),
+                    '-ss', str(time_offset),
+                    '-vcodec', 'libx265', '-crf', str(crf),
+                    '-preset', 'slow', '-tune', 'zerolatency',
+                    str(output_file)
+                ],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
         )
 
         last_value_is_same = 0
-        last_value = 0
-        # Handle process output and progress
+        last_value = get_file_size(output_file)
+
+        # Progress monitoring
         while True:
             output = await asyncio.to_thread(process.stderr.read, 4096)
             output = output.decode('utf-8') if output else ''
             if output:
-                from func.main import operation_status
-                # Calcola la dimensione attuale del file
+                # Get the current size of the file
                 current_size = get_file_size(output_file)
-                progress = progress_calc(output_file, estimated_size)
-                remaining_time_value = remaining_time(output_file, start_time, estimated_size)
+                progress = (current_size / estimated_size) * 100
+                remaining_time_value = (time.time() - start_time) / (progress / 100) if progress > 0 else 0
 
                 if last_value_is_same >= 30:
                     raise InterruptedError('Last value is same')
-
-                if operation_status.quit_program is True:
-                    raise InterruptedError('Stop Compression')
 
                 if last_value == current_size:
                     last_value_is_same += 1
@@ -170,6 +187,7 @@ async def compress_video_h265(
                     last_value = current_size
                     last_value_is_same = 0
 
+                # Callback to update status
                 if callback:
                     if asyncio.iscoroutinefunction(callback):
                         await callback(
@@ -182,39 +200,59 @@ async def compress_video_h265(
                             current_size,
                             remaining_time_value)
 
-                print('\r' + t('trace_compress_action',
-                               f"{progress:.2f}%",
-                               current_size, f"{remaining_time_value:.2f}"
-                               ), end='', flush=True)
+                print(
+                    f"\rProgress: {progress:.2f}%, Size: {current_size:.2f} MB, Remaining Time: {remaining_time_value:.2f}s",
+                    end='', flush=True)
 
-                if current_size / (1024 * 1024) >= estimated_size:
+                if current_size >= estimated_size:
                     return COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE
 
             if process.poll() is not None:
+                process_completed = True
                 break
 
-        current_size = get_file_size(output_file)
-        progress = progress_calc(output_file, estimated_size)
-        remaining_time_value = remaining_time(output_file, start_time, estimated_size)
-
-        if callback:
-            if asyncio.iscoroutinefunction(callback):
-                await callback(progress, current_size, remaining_time_value)
-            else:
-                callback(progress, current_size, remaining_time_value)
-
-        # Check if the output file was successfully created
-        if output_file.exists() and output_file.stat().st_size > 0:
-            print(f"Compression completed successfully! File saved: {output_file}")
+        # Verify the final file
+        if output_file.exists() and output_file.stat().st_size > 0 and process_completed:
+            print(f"Compression successfully completed! File saved: {output_file}")
             return COMPRESSION_STATE_COMPRESSED
 
         print("Compression failed: Output file not created or is empty.")
         return COMPRESSION_STATE_COMPRESSION_FAILED_NOT_OUTPUT_FILE
 
-    except Exception as exception:  # pylint: disable=broad-exception-caught
-        print(f"Error during compression: {exception}")
+    except Exception as e:
+        print(f"Error during compression: {e}")
         return COMPRESSION_STATE_COMPRESSION_FAILED
 
+def get_video_duration(input_file: Path) -> float:
+    """
+    Get the total duration of a video file in seconds using ffprobe.
+    :param input_file: Input video file
+    :return: Duration in seconds
+    """
+    try:
+        result = subprocess.run(
+            ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'format=duration',
+             '-of', 'default=noprint_wrappers=1:nokey=1', str(input_file)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
+        )
+        duration = float(result.stdout.decode().strip())
+        return duration
+    except Exception as e:
+        print(f"Error retrieving video duration: {e}")
+        return 0
+
+def calculate_offset(current_size, estimated_size, input_file):
+    """
+    Calculate the time offset (in seconds) based on the current compressed size.
+    :param current_size: Current size of the compressed file
+    :param estimated_size: Estimated size of the compressed file
+    :param input_file: Input video file
+    :return: Time offset (in seconds)
+    """
+    total_duration = get_video_duration(Path(input_file))
+    if estimated_size == 0:
+        return 0
+    return (current_size / estimated_size) * total_duration
 
 def progress_calc(output_file: Path, estimated_size: float) -> float:
     """ Calculate the progress of the compression. """

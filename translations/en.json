@@ -26,7 +26,7 @@
     "cant_compress_file": "Can't compress the file {}",
     "start_compress_file": "🗜️ Start compression of the file {}",
     "complete_compress_file": "✅ Complete compression of the file {0} - {1}",
-    "trace_compress_action": "🗜️ Progress: {0} - {1} - ⌚ {2}s",
+    "trace_compress_action": "🗜️ Progress: {0} - {1} - ⌚ {2}",
     "download_stopped": "Download stopped",
     "program_start": "Program is ready!",
     "download_enabled": "Download enabled",
