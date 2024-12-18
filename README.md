@@ -1,4 +1,4 @@
-# Telegram Video Downloader v2.5.11
+# Telegram Video Downloader v2.5.12
 
 
 # == ENG
