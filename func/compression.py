@@ -3,9 +3,9 @@ Module for compressing video files using ffmpeg.
 
 """
 import asyncio
+import re
 import os
 import time
-import subprocess
 
 from pathlib import Path
 from typing import Union, Callable, Awaitable
@@ -148,48 +148,52 @@ async def compress_video_h265(
         last_value_is_same = 0
         last_value = 0
         # Handle process output and progress
-        while process.poll() is None:
-            from func.main import operation_status
-            # Calcola la dimensione attuale del file
-            current_size = get_file_size(output_file)
-            progress = progress_calc(output_file, estimated_size)
-            remaining_time_value = remaining_time(output_file, start_time, estimated_size)
+        while True:
+            output = await asyncio.to_thread(process.stderr.read, 4096)
+            output = output.decode('utf-8') if output else ''
+            if output:
+                from func.main import operation_status
+                # Calcola la dimensione attuale del file
+                current_size = get_file_size(output_file)
+                progress = progress_calc(output_file, estimated_size)
+                remaining_time_value = remaining_time(output_file, start_time, estimated_size)
 
-            if last_value_is_same >= 30:
-                raise InterruptedError('Last value is same')
+                if last_value_is_same >= 30:
+                    raise InterruptedError('Last value is same')
 
-            if operation_status.quit_program is True:
-                raise InterruptedError('Stop Compression')
+                if operation_status.quit_program is True:
+                    raise InterruptedError('Stop Compression')
 
-            if last_value == current_size:
-                last_value_is_same += 1
-            else:
-                last_value = current_size
-                last_value_is_same = 0
-
-            if callback:
-                if asyncio.iscoroutinefunction(callback):
-                    await callback(
-                        progress,
-                        current_size,
-                        remaining_time_value)
+                if last_value == current_size:
+                    last_value_is_same += 1
                 else:
-                    callback(
-                        progress,
-                        current_size,
-                        remaining_time_value)
+                    last_value = current_size
+                    last_value_is_same = 0
 
-            print('\r' + t('trace_compress_action',
-                    f"{progress:.2f}%",
-                    current_size, f"{remaining_time_value:.2f}"
-                    ), end='', flush=True)
+                if callback:
+                    if asyncio.iscoroutinefunction(callback):
+                        await callback(
+                            progress,
+                            current_size,
+                            remaining_time_value)
+                    else:
+                        callback(
+                            progress,
+                            current_size,
+                            remaining_time_value)
 
-            if current_size / (1024 * 1024) >= estimated_size:
-                return COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE
+                print('\r' + t('trace_compress_action',
+                               f"{progress:.2f}%",
+                               current_size, f"{remaining_time_value:.2f}"
+                               ), end='', flush=True)
 
-            await asyncio.sleep(2)
+                if current_size / (1024 * 1024) >= estimated_size:
+                    return COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE
 
-        current_size = os.path.getsize(output_file)
+            if process.poll() is not None:
+                break
+
+        current_size = get_file_size(output_file)
         progress = progress_calc(output_file, estimated_size)
         remaining_time_value = remaining_time(output_file, start_time, estimated_size)
 
