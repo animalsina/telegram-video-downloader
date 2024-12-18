@@ -85,20 +85,18 @@ def compression_ratio_calc(file_size_mb: float, crf: int) -> float:
     """
     return file_size_mb * compression_ratio(crf)
 
+
 def get_file_size(file_path: Path) -> float:
     """
     Get the size of a file in MB.
     :param file_path:
-    :return:
+    :return: file size in MB, or 0 if there is an error
     """
-    result = subprocess.run(
-        ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'format=size', '-of',
-         'default=noprint_wrappers=1', str(file_path)],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
-    )
+    # Verifica che il file esista
+    if not file_path.exists():
+        return 0
 
-    size = result.stdout.decode().strip()
-    return int(size)
+    return file_path.stat().st_size
 
 # pylint: disable=all
 async def compress_video_h265(
