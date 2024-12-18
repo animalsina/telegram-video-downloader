@@ -5,6 +5,8 @@ Module for compressing video files using ffmpeg.
 import asyncio
 import os
 import time
+import subprocess
+
 from pathlib import Path
 from typing import Union, Callable, Awaitable
 import ffmpeg
@@ -83,7 +85,22 @@ def compression_ratio_calc(file_size_mb: float, crf: int) -> float:
     """
     return file_size_mb * compression_ratio(crf)
 
-# pylint: disable=too-many-return-statements
+def get_file_size(file_path: Path) -> float:
+    """
+    Get the size of a file in MB.
+    :param file_path:
+    :return:
+    """
+    result = subprocess.run(
+        ['ffprobe', '-v', 'error', '-select_streams', 'v:0', '-show_entries', 'format=size', '-of',
+         'default=noprint_wrappers=1', str(file_path)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True
+    )
+
+    size = result.stdout.decode().strip()
+    return int(size)
+
+# pylint: disable=all
 async def compress_video_h265(
         input_file: Path,
         output_file: Path,
@@ -130,12 +147,27 @@ async def compress_video_h265(
             .run_async(pipe_stdout=True, pipe_stderr=True)
         )
 
+        last_value_is_same = 0
+        last_value = 0
         # Handle process output and progress
         while process.poll() is None:
+            from func.main import operation_status
             # Calcola la dimensione attuale del file
-            current_size = os.path.getsize(output_file) if output_file.exists() else 0
+            current_size = get_file_size(output_file)
             progress = progress_calc(output_file, estimated_size)
             remaining_time_value = remaining_time(output_file, start_time, estimated_size)
+
+            if last_value_is_same >= 30:
+                raise InterruptedError('Last value is same')
+
+            if operation_status.quit_program is True:
+                raise InterruptedError('Stop Compression')
+
+            if last_value == current_size:
+                last_value_is_same += 1
+            else:
+                last_value = current_size
+                last_value_is_same = 0
 
             if callback:
                 if asyncio.iscoroutinefunction(callback):
@@ -184,7 +216,7 @@ async def compress_video_h265(
 
 def progress_calc(output_file: Path, estimated_size: float) -> float:
     """ Calculate the progress of the compression. """
-    current_size = os.path.getsize(output_file) if output_file.exists() else 0
+    current_size = get_file_size(output_file)
     current_size_mb = current_size / (1024 * 1024)
     return (current_size_mb / estimated_size) * 100
 
