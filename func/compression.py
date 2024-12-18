@@ -136,8 +136,8 @@ async def compress_video_h265(
         start_time = time.time()  # Start time
 
         # Calculate the estimated size of the compressed file
-        file_size_mb = get_file_size(input_file)
-        estimated_size = compression_ratio_calc(file_size_mb, crf)
+        file_size = get_file_size(input_file)
+        estimated_size = compression_ratio_calc(file_size, crf)
 
         # Retrieve the current size of the compressed file
         current_size = get_file_size(output_file)
@@ -204,7 +204,7 @@ async def compress_video_h265(
                     f"\rProgress: {progress:.2f}%, Size: {current_size:.2f} MB, Remaining Time: {remaining_time_value:.2f}s",
                     end='', flush=True)
 
-                if current_size >= estimated_size:
+                if current_size >= file_size:
                     return COMPRESSION_STATE_NOT_COMPRESSED_EXCEED_COMPRESSION_SIZE
 
             if process.poll() is not None:
