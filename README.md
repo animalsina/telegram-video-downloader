@@ -76,6 +76,22 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
    - `compression_ratio`: The compression ratio used for video compression.
    - `disk_space_limit_percentage`: The percentage of disk space to use for the download folder, after which the download will be blocked.
 
+# Optional
+Make a virtual environment
+   ```bash
+  python3 -m venv venv
+   ```
+
+Activates virtual environment
+```bash
+source venv/bin/activate
+```
+
+then you can deactivate:
+```bash
+deactivate
+```
+
 ## Usage
 1. Ensure you have created and configured the `tg-config.txt` file as described above. [Link MyTelegram App](https://my.telegram.org/apps)
 2. Run the script with the default configuration file:
@@ -172,6 +188,22 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
    - `enable_video_compression`: Attiva la compressione del video (0 per disattivare, 1 per attivare) \[BETA\].
    - `compression_ratio`: La proporzione di compressione del video (valore da 1 a 100).
    - `disk_space_limit_percentage`: La percentuale di spazio disponibile sul disco per il download dei video. Se lo spazio disponibile è inferiore a questa percentuale, il download verrà bloccato.
+
+# Opzionale
+Crea un ambiente virtuale
+   ```bash
+  python3 -m venv venv
+   ```
+
+Attiva l'ambiente virtuale
+   ```bash
+   source venv/bin/activate
+   ```
+
+infine puoi disattivare:
+```bash
+deactivate
+```
 
 ## Uso
 1. Assicurati di aver creato e configurato il file `tg-config.txt` come descritto sopra. [Link MyTelegram App](https://my.telegram.org/apps)
