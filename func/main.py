@@ -2,7 +2,7 @@
 Main module for run the program
 """
 
-# Moduli standard
+# Standard modules
 import asyncio
 import os
 import shutil
@@ -10,17 +10,19 @@ import traceback
 from asyncio import CancelledError, create_task
 from pathlib import Path
 from typing import List
+from dotenv import load_dotenv
 
-# Moduli di terze parti
+# Third-party modules
 import telethon
 from telethon import events
 from telethon.events import NewMessage
 from telethon.tl.types import Message, MessageMediaDocument
 
 from classes.command_handler import CommandHandler
-# Moduli locali
+# Local modules
 from classes.object_data import ObjectData
 from classes.operation_status_object import OperationStatusObject
+from classes.plugin_manager import PluginManager
 from func.command_declaration import command_declaration
 from func.config import load_configuration
 from func.messages import t
@@ -44,6 +46,9 @@ configuration = load_configuration()
 client = create_telegram_client(
     configuration.session_name, configuration.api_id, configuration.api_hash
 )
+
+load_dotenv()
+activate_plugin=os.getenv("ENABLE_PLUGINS", None)
 
 # Initialize rules
 rules_object = Rules()
@@ -218,6 +223,10 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
     """Main function to manage the Telegram client and download files."""
     from func.save_video_data_action import save_video_data_action
     from run import root_dir, PERSONAL_CHAT_ID
+
+    if activate_plugin is not None:
+        plugin = PluginManager()
+        plugin.init_plugins()
 
     rules_object.load_rules(Path(root_dir), True)
     operation_status.videos_data = []

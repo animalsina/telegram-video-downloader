@@ -180,3 +180,7 @@ rules/*.deleted
 !rules/hello-world.rule
 videos_data/*
 .stop
+storage/*
+!storage/.gitkeep
+plugins/*
+!plugins/example_of_plugin_with_gemini_service.py

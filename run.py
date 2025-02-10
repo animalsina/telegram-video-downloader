@@ -1,14 +1,12 @@
 """
 First module for run the program
 """
-
-# Moduli standard
 import asyncio
 import importlib
 import os
 import sys
 
-# Add the 'func' and 'class' directory to the system path to import custom modules
+# Add the 'func', 'command' and 'classes' directory to the system path to import custom modules
 sys.path.append(os.path.join(os.path.dirname(__file__), "func"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "command"))
 sys.path.append(os.path.join(os.path.dirname(__file__), "classes"))

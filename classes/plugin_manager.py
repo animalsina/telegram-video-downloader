@@ -23,6 +23,33 @@ class PluginManager:
         self.plugin_dir = plugin_dir
         self.filters = {}
 
+    def init_plugins(self, plugin_dir='plugins'):
+        """
+        Initialize plugins from the specified directory.
+
+        This function scans the given directory for Python files (.py),
+        loads each file as a module, and executes its 'init' function if available.
+        The function ensures that the directory exists, creating it if necessary.
+
+        Args:
+            plugin_dir (str): The directory containing the plugin files. Defaults to 'plugins'.
+        """
+        if not os.path.exists(plugin_dir):
+            os.makedirs(plugin_dir)
+
+        for plugin_file in os.listdir(plugin_dir):
+            if plugin_file.endswith('.py'):
+                plugin_name = plugin_file[:-3]
+                plugin_path = os.path.join(plugin_dir, plugin_file)
+                spec = importlib.util.spec_from_file_location(plugin_name, plugin_path)
+                plugin = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(plugin)
+                if hasattr(plugin, 'init'):
+                    try:
+                        plugin.init()
+                    except Exception as e: # pylint: disable=broad-exception-caught
+                        print(f"Error initializing plugin {plugin_name}: {e}")
+
     def load_plugin(self, plugin_name):
         """
         Load a plugin by its name.
@@ -60,10 +87,9 @@ class PluginManager:
         """
         for plugin_file in os.listdir(self.plugin_dir):
             if plugin_file.endswith('.py'):
-                plugin_name = plugin_file[:-3]  # Rimuovi l'estensione .py
+                plugin_name = plugin_file[:-3]
                 plugin = self.load_plugin(plugin_name)
                 if plugin and hasattr(plugin, function_name):
-                    # Se la funzione esiste nel plugin, applicala
                     filter_function = getattr(plugin, function_name)
                     value = filter_function(value)
         return value
