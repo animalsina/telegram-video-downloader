@@ -31,7 +31,7 @@ def init():
 
     if not os.path.exists(prompt_path):
         with open(prompt_path, "w", encoding="utf-8") as file:
-            file.write("# Example of prompt, variables is in {{variable_name}} format")
+            file.write("# Example of prompt, variables is in {{variable_name}} format\n")
             file.write("Return a correct title without special characters for this video: {{query}}")
 
     if active_plugin is None:
