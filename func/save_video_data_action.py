@@ -135,6 +135,10 @@ async def process_video(video: Union[Message, MessageMediaDocument]):
 
     video_data['original_video_name'] = video_name
 
+    # Plugin Manager filters the video name
+    plugin_manager_obj = plugin_manager.PluginManager()
+    video_name = plugin_manager_obj.apply_filters('parse_file_name', video_name)
+
     forward = video.forward
     chat_name = None
     chat_title = None
@@ -157,10 +161,6 @@ async def process_video(video: Union[Message, MessageMediaDocument]):
             'video_id': video_data["video_id"],
             'file_name': await get_file_name(video, False),
         }))
-
-    plugin_manager_obj = plugin_manager.PluginManager()
-
-    video_name = plugin_manager_obj.apply_filters('parse_file_name', video_name)
 
     video_data["video_name"] = video_name
     video_data["video_name_cleaned"] = sanitize_video_name(video_name)
