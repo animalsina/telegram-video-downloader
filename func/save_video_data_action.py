@@ -70,6 +70,17 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]) -> Tuple[
 
     return get_file_name_from_message(video), ObjectData(**video_data)
 
+async def reassign_video_folder_completed(video_data: ObjectData):
+    """
+    Reassign the video to the completed folder
+    """
+    from command.download import get_completed_task_folder_path
+    video_completed_folder = get_completed_task_folder_path(video_data)
+    if video_completed_folder is not None:
+        await change_target_folder(video_data.message_id_reference, video_completed_folder)
+
+
+
 async def change_target_folder(message_id: int, path: str):
     """
     Change target folder
@@ -79,7 +90,8 @@ async def change_target_folder(message_id: int, path: str):
     """
     from func.telegram_client import get_video_data_by_message_id_reference
     video_object = get_video_data_by_message_id_reference(message_id)
-    save_video_data({'video_completed_folder': path}, video_object, {"video_completed_folder"})
+    save_video_data({'video_completed_folder': path}, video_object, ["video_completed_folder"])
+
     await add_line_to_text(
         message_id,
         reduce_path_action(path),
@@ -128,6 +140,7 @@ async def process_video(video: Union[Message, MessageMediaDocument]):
     """
     from func.main import rules_object
     video_data = initialize_video_data(video)
+    file_name_no_ext = await get_file_name(video, False)
 
     video_name = await get_video_name(video)
     if video_name is None:
@@ -137,7 +150,9 @@ async def process_video(video: Union[Message, MessageMediaDocument]):
 
     # Plugin Manager filters the video name
     plugin_manager_obj = plugin_manager.PluginManager()
-    video_name = plugin_manager_obj.apply_filters('pre_rules_parse_video_name', video_name)
+    video_name = plugin_manager_obj.apply_filters(
+        'pre_rules_parse_video_name', video_name
+    )
 
     forward = video.forward
     chat_name = None
@@ -159,7 +174,7 @@ async def process_video(video: Union[Message, MessageMediaDocument]):
             'chat_name': chat_name,
             'chat_title': chat_title,
             'video_id': video_data["video_id"],
-            'file_name': await get_file_name(video, False),
+            'file_name': file_name_no_ext,
         }))
 
     video_name = plugin_manager_obj.apply_filters('post_rules_parse_video_name', video_name)

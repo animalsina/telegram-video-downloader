@@ -27,11 +27,11 @@ from func.command_declaration import command_declaration
 from func.config import load_configuration
 from func.messages import t
 from classes.rules import Rules
-from func.save_video_data_action import acquire_video
+from func.save_video_data_action import acquire_video, reassign_video_folder_completed
 from func.telegram_client import (
     create_telegram_client, download_with_retry,
     send_service_message, get_user_id,
-    get_video_data_by_message_id_reference, get_user_data, reassign_video_folder_completed)
+    get_video_data_by_message_id_reference, get_user_data)
 from classes.string_builder import (
     LINE_FOR_INFO_DATA,
     LINE_FOR_SHOW_LAST_ERROR)

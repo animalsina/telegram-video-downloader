@@ -706,6 +706,18 @@ def format_bytes(size: int):
     return f"{size:.2f} {units[i]}"
 
 
+def ensure_directory_exists(path):
+    """Crea la directory se non esiste, assicurandosi che l'ultima cartella esistente sia scrivibile."""
+    parent = path
+    while not os.path.exists(parent):
+        parent = os.path.dirname(parent)
+
+    if not os.access(parent, os.W_OK):
+        return {"success": False, "error": f"Non hai permessi di scrittura su {parent}"}
+
+    os.makedirs(path, exist_ok=True)
+    return {"success": True}
+
 def validate_and_check_path(path):
     """
     Check if a path is valid and exists.

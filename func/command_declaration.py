@@ -4,7 +4,7 @@ Command declaration
 from classes.string_builder import LINE_FOR_VIDEO_NAME
 from func.messages import t
 from func.utils import add_line_to_text, save_video_data, get_inlist_video_object_by_message_id_reference, \
-    validate_and_check_path
+    validate_and_check_path, ensure_directory_exists
 
 
 async def command_declaration():
@@ -27,7 +27,7 @@ async def command_declaration():
         operation_status.start_download = False
         operation_status.interrupt = True
 
-    async def set_target_folder_cb(message,new_path):
+    async def set_target_folder_cb(message, new_path):
         from func.save_video_data_action import change_target_folder
         from func.telegram_client import edit_service_message
         from func.main import client
@@ -41,9 +41,12 @@ async def command_declaration():
         if check_folder_path_validation["is_valid_format"] is False:
             await edit_service_message(message, check_folder_path_validation["error"])
             return
+
         if check_folder_path_validation["exists"] is False:
-            await edit_service_message(message, t('folder_not_exist', new_path))
-            return
+            create_result = ensure_directory_exists(new_path)
+            if not create_result["success"]:
+                await edit_service_message(message, create_result["error"])
+                return
 
         response = await change_target_folder(reply_message.id, new_path)
         await edit_service_message(message, t('folder_changed', response['old_path'], response['new_path']))
@@ -63,10 +66,15 @@ async def command_declaration():
             LINE_FOR_VIDEO_NAME,
             True
         )
-        save_video_data({'video_name': new_name,
+
+        save_video_data({'video_name': video_name_cleaned,
                          'video_name_cleaned': video_name_cleaned},
                         video_object,
                         ['video_name', 'video_name_cleaned'])
+
+        from func.save_video_data_action import reassign_video_folder_completed
+        await reassign_video_folder_completed(video_object)
+
         video_object.video_name = new_name
         await message.delete()
 
@@ -131,7 +139,7 @@ async def command_declaration():
         t('command_count'),
     )
     command_handler.add_command(
-        [ "download:settarget", "dl:settarget", "settarget"],
+        ["download:settarget", "dl:settarget", "settarget"],
         t('command_download_settarget'),
         args={
             'needs_reply': True
