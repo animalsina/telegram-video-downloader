@@ -150,6 +150,9 @@ async def process_video(video: Union[Message, MessageMediaDocument]):
 
     # Plugin Manager filters the video name
     plugin_manager_obj = plugin_manager.PluginManager()
+    video_name = await plugin_manager_obj.apply_filters_async(
+        'pre_rules_parse_video_name_async', video_name
+    )
     video_name = plugin_manager_obj.apply_filters(
         'pre_rules_parse_video_name', video_name
     )

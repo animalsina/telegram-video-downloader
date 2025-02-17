@@ -40,7 +40,7 @@ def init():
 # pre_rules_parse_video_name is the key of the plugin,
 # you can find the plugin's keys in the code with apply_filters(plugin_name) method
 # you can use multiple functions with plugin name in the same py file, it will be executed automatically
-def pre_rules_parse_video_name(video_name):  # pylint: disable=unused-argument
+async def pre_rules_parse_video_name_async(video_name):  # pylint: disable=unused-argument
     """
     Plugin to parse the video name and try to find the correct title of a movie/TV series.
     Uses the Gemini AI model to analyze the name and find the correct title.
@@ -50,13 +50,13 @@ def pre_rules_parse_video_name(video_name):  # pylint: disable=unused-argument
     if active_plugin is None or genai_api_key is None:
         return video_name
 
-    new_name = gemini_return_the_title(video_name)
+    new_name = await gemini_return_the_title(video_name)
     if new_name is None:
         return video_name
     return new_name
 
 
-def gemini_return_the_title(query: str) -> str | None:
+async def gemini_return_the_title(query: str) -> str | None:
     """
     Uses the Gemini AI model to analyze the name and find the correct title.
     If the title is not found, returns None.
@@ -90,7 +90,7 @@ def gemini_return_the_title(query: str) -> str | None:
 
     try:
         model = genai.GenerativeModel(gemini_model)
-        response = model.generate_content(prompt)
+        response = await model.generate_content_async(prompt)
         if response.text == 'false':
             return None
         return response.text
