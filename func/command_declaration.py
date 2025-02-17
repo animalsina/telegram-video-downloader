@@ -7,6 +7,7 @@ from func.utils import add_line_to_text, save_video_data, get_inlist_video_objec
     validate_and_check_path, ensure_directory_exists
 
 
+# pylint: disable=too-many-statements
 async def command_declaration():
     """
     Command declaration
@@ -48,7 +49,7 @@ async def command_declaration():
                 await edit_service_message(message, create_result["error"])
                 return
 
-        response = await change_target_folder(reply_message.id, new_path)
+        response = await change_target_folder(reply_message.id, new_path, True)
         await edit_service_message(message, t('folder_changed', response['old_path'], response['new_path']))
 
     async def rename(message, new_name):
@@ -77,6 +78,30 @@ async def command_declaration():
 
         video_object.video_name = new_name
         await message.delete()
+
+    async def re_target_folder_cb(message, new_path):
+        from func.save_video_data_action import change_target_folder
+        from func.telegram_client import edit_service_message
+        from func.main import client
+        from run import PERSONAL_CHAT_ID
+        reply_message = await client.get_messages(
+            PERSONAL_CHAT_ID,
+            ids=message.reply_to.reply_to_msg_id)
+
+        check_folder_path_validation = validate_and_check_path(new_path)
+
+        if check_folder_path_validation["is_valid_format"] is False:
+            await edit_service_message(message, check_folder_path_validation["error"])
+            return
+
+        if check_folder_path_validation["exists"] is False:
+            create_result = ensure_directory_exists(new_path)
+            if not create_result["success"]:
+                await edit_service_message(message, create_result["error"])
+                return
+
+        response = await change_target_folder(reply_message.id, new_path, False)
+        await edit_service_message(message, t('folder_changed', response['old_path'], response['new_path']))
 
     command_handler.add_command(["help", "command", "commands"], t('command_help'))
     command_handler.add_command(
@@ -145,4 +170,12 @@ async def command_declaration():
             'needs_reply': True
         },
         callback=set_target_folder_cb,
+    )
+    command_handler.add_command(
+        ["download:retarget", "dl:retarget", "retarget"],
+        t('command_download_retarget'),
+        args={
+            'needs_reply': True
+        },
+        callback=re_target_folder_cb,
     )

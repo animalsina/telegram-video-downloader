@@ -20,6 +20,7 @@ class ObjectData:
         self.video_id = None
         self.video_name = None
         self.video_name_cleaned = None
+        self.force_folder_rename = False
         self.video_attribute: Optional[dict] = None
         self.id = None
         self.chat_id = None

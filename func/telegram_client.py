@@ -20,7 +20,6 @@ from classes.object_data import ObjectData
 from classes.string_builder import TYPE_CANCELLED, TYPE_ACQUIRED, TYPE_DOWNLOADING
 from classes.tqdm_object import TqdmObject
 from func.messages import t
-from func.save_video_data_action import reassign_video_folder_completed
 from func.utils import (
     is_file_corrupted, download_complete_action, add_line_to_text, LINE_FOR_INFO_DATA,
     LINE_FOR_SHOW_LAST_ERROR, get_video_data_path, define_label, detect_remaining_size_in_disk_by_path)
@@ -134,7 +133,8 @@ async def progress_callback(
         pbar: tqdm,
         current: int,
         total: int,
-        speed_samples: collections.deque
+        speed_samples: collections.deque,
+        temp_file_path: str
 ):
     """
     Callback function to update the progress bar and status message.
@@ -143,6 +143,7 @@ async def progress_callback(
     :param current:
     :param total:
     :param speed_samples:
+    :param temp_file_path:
     :return:
     """
 
@@ -185,6 +186,8 @@ async def progress_callback(
                                           time_remaining_formatted)
             tqdm_config.last_update_time = current_time
             tqdm_config.last_current = current
+        if percent_complete >= 100:
+            await validate_download(temp_file_path, total, video)
 
         # Update the progress bar
         pbar.update(current - pbar.n)
@@ -242,7 +245,7 @@ async def download_with_rate_limit(
                 if operation_status.interrupt is True:
                     return
                 f.write(chunk)
-                await progress_callback(video, pbar, f.tell(), file_size, speed_samples)
+                await progress_callback(video, pbar, f.tell(), file_size, speed_samples, temp_file_path)
                 sleep_time = 0.5 + (2 - 0.5) * (min(1 - attempt, 0) / retry_attempts)
                 await asyncio.sleep(sleep_time)
 
@@ -339,9 +342,6 @@ async def download_with_retry(client: TelegramClient, video: ObjectData,
     tqdm_config.last_update_time = time.time()
     file_size = video.video_media.document.size
     temp_file_path = f"{video.file_path}.temp"
-
-    # Reassign the video folder
-    await reassign_video_folder_completed(video)
 
     while attempt < retry_attempts:
         try:

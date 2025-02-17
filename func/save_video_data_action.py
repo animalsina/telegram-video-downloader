@@ -70,6 +70,7 @@ async def acquire_video(message: Union[MessageMediaDocument, Message]) -> Tuple[
 
     return get_file_name_from_message(video), ObjectData(**video_data)
 
+
 async def reassign_video_folder_completed(video_data: ObjectData):
     """
     Reassign the video to the completed folder
@@ -77,20 +78,31 @@ async def reassign_video_folder_completed(video_data: ObjectData):
     from command.download import get_completed_task_folder_path
     video_completed_folder = get_completed_task_folder_path(video_data)
     if video_completed_folder is not None:
-        await change_target_folder(video_data.message_id_reference, video_completed_folder)
+        await change_target_folder(video_data.message_id_reference, video_completed_folder, False)
 
 
-
-async def change_target_folder(message_id: int, path: str):
+async def change_target_folder(message_id: int, path: str, forced_folder_change: bool = False):
     """
     Change target folder
     :param message_id:
     :param path:
     :return:
+
+    Args:
+        forced_folder_change:
     """
     from func.telegram_client import get_video_data_by_message_id_reference
     video_object = get_video_data_by_message_id_reference(message_id)
-    save_video_data({'video_completed_folder': path}, video_object, ["video_completed_folder"])
+    if video_object.force_folder_rename is True:
+        return {
+            "old_path": video_object.video_completed_folder,
+            "new_path": video_object.video_completed_folder
+        }
+
+    save_video_data({
+        'video_completed_folder': path,
+        'force_folder_rename': forced_folder_change
+    }, video_object, ["video_completed_folder", "force_folder_rename"])
 
     await add_line_to_text(
         message_id,

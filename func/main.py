@@ -206,8 +206,6 @@ async def get_video_task(video_object: ObjectData):
     if video_object.original_video_name == video_object.video_name:
         save_new_video_data_name(video_object)
 
-    await reassign_video_folder_completed(video_object)
-
     try:
         if LOG_IN_PERSONAL_CHAT is True:
             await reference_message.edit(default_video_message(video_object))

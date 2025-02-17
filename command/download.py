@@ -62,6 +62,12 @@ async def run(  # pylint: disable=unused-argument
         await count(extra_args.get('source_message'))
     elif subcommand == 'help' or command == 'help':
         await help(extra_args.get('source_message'))
+    elif subcommand == 'retarget' or command == 'retarget':
+        await re_target_folder(
+            extra_args.get('source_message'),
+            text_input,
+            callback
+        )
 
 
 async def start(message, callback):
@@ -110,6 +116,9 @@ def get_completed_task_folder_path(video_object: ObjectData):
     :return:
     """
     from func.main import rules_object
+    if video_object.force_folder_rename is True:
+        return video_object.video_completed_folder
+
     return rules_object.apply_rules(
         'completed_folder_mask',
         video_object.video_name, message_id=video_object.video_id) or configuration.completed_folder
@@ -158,6 +167,16 @@ async def clean_downloads(source_message: Union[Message, MessageMediaDocument]):
 async def set_target_folder(source_message: Union[Message, MessageMediaDocument], text, callback):
     """
     Set target folder
+    :param source_message:
+    :param text:
+    :param callback:
+    :return:
+    """
+    await callback(source_message, text)
+
+async def re_target_folder(source_message: Union[Message, MessageMediaDocument], text, callback):
+    """
+    Re-target folder
     :param source_message:
     :param text:
     :param callback:

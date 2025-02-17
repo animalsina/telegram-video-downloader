@@ -161,6 +161,11 @@ async def download_complete_action(video: ObjectData) -> None:
     from func.config import load_configuration
     config = load_configuration()
 
+    # Reassign the video folder
+    from func.save_video_data_action import reassign_video_folder_completed
+    await reassign_video_folder_completed(video)
+
+
     mime_type, _ = mimetypes.guess_type(video.file_path)
     extension = mimetypes.guess_extension(mime_type) if mime_type else ''
     if video.video_completed_folder is None:
@@ -533,6 +538,7 @@ def save_video_data(data: dict, video: ObjectData, fields_to_compare=None) -> bo
                 existing_data = json.load(f)
             except EOFError:
                 print(f"Errore nel caricamento di {file_path}: il file è vuoto o corrotto.")
+                os.remove(file_path)
                 existing_data = None
 
         if existing_data is None:
