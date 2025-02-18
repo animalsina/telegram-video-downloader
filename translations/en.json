@@ -86,6 +86,7 @@
     "file_too_small":"File size ({0} MB) is below the minimum threshold ({1} MB). Skipping compression.",
     "old_compress_file": "Old file present during compression attempt, {} will be deleted and reprocessed at the next check.",
     "exceed_compress_file": "After a check, the file {} does not benefit from any compression. It will be saved without being compressed.",
-    "error_output_compress_file": "Error during saving compressed file {}."
+    "error_output_compress_file": "Error during saving compressed file {}.",
+    "oversize_file": "File size exceeds 100%."
 }
 

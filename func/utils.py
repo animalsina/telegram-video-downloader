@@ -538,7 +538,7 @@ def save_video_data(data: dict, video: ObjectData, fields_to_compare=None) -> bo
                 existing_data = json.load(f)
             except EOFError:
                 print(f"Errore nel caricamento di {file_path}: il file è vuoto o corrotto.")
-                os.remove(file_path)
+                os.remove(video.file_path)
                 existing_data = None
 
         if existing_data is None:

@@ -133,8 +133,7 @@ async def progress_callback(
         pbar: tqdm,
         current: int,
         total: int,
-        speed_samples: collections.deque,
-        temp_file_path: str
+        speed_samples: collections.deque
 ):
     """
     Callback function to update the progress bar and status message.
@@ -143,7 +142,6 @@ async def progress_callback(
     :param current:
     :param total:
     :param speed_samples:
-    :param temp_file_path:
     :return:
     """
 
@@ -186,8 +184,8 @@ async def progress_callback(
                                           time_remaining_formatted)
             tqdm_config.last_update_time = current_time
             tqdm_config.last_current = current
-        if percent_complete >= 100:
-            await validate_download(temp_file_path, total, video)
+        if percent_complete >= 130: # for oversize
+            raise OSError(t('oversize_file'), video.message_id_reference)
 
         # Update the progress bar
         pbar.update(current - pbar.n)
@@ -245,7 +243,7 @@ async def download_with_rate_limit(
                 if operation_status.interrupt is True:
                     return
                 f.write(chunk)
-                await progress_callback(video, pbar, f.tell(), file_size, speed_samples, temp_file_path)
+                await progress_callback(video, pbar, f.tell(), file_size, speed_samples)
                 sleep_time = 0.5 + (2 - 0.5) * (min(1 - attempt, 0) / retry_attempts)
                 await asyncio.sleep(sleep_time)
 
