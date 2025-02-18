@@ -374,5 +374,6 @@ def get_video_data_keys():
         "message_id_reference",
         "video_name_cleaned",
         "is_forward_chat_protected",
-        "video_completed_folder"
+        "video_completed_folder",
+        "force_folder_rename"
     ]
