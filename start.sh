@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROJECT_DIR="./telegram-video-downloader"
+PROJECT_DIR="$(cd "$(dirname "$0")" && pwd)"
 VENV_DIR="$PROJECT_DIR/venv"
 
 if [ ! -d "$VENV_DIR" ]; then
@@ -8,7 +8,7 @@ if [ ! -d "$VENV_DIR" ]; then
     python3 -m venv "$VENV_DIR"
 fi
 
-source "$VENV_DIR/bin/activate"
+. "$VENV_DIR/bin/activate"
 
 if [ -f "$PROJECT_DIR/requirements.txt" ]; then
     echo "Check and installation of packages from requirements.txt..."
