@@ -87,5 +87,6 @@
     "old_compress_file": "Vecchio file presente durante il tentativo di compressione, {} verrà eliminato e riproposto al prossimo check.",
     "exceed_compress_file": "Da un controllo il file {} non beneficia di alcuna compressione. Verrà salvato senza essere compresso.",
     "error_output_compress_file": "Errore durante il salvataggio del file compresso {}.",
-    "oversize_file": "Dimensione del file superiore al 100%."
+    "oversize_file": "Dimensione del file superiore al 100%.",
+    "initializing_plugins": "Inizializzazione dei plugin:"
 }

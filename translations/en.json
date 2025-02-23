@@ -87,6 +87,7 @@
     "old_compress_file": "Old file present during compression attempt, {} will be deleted and reprocessed at the next check.",
     "exceed_compress_file": "After a check, the file {} does not benefit from any compression. It will be saved without being compressed.",
     "error_output_compress_file": "Error during saving compressed file {}.",
-    "oversize_file": "File size exceeds 100%."
+    "oversize_file": "File size exceeds 100%.",
+    "initializing_plugins": "Initializing plugins:"
 }
 

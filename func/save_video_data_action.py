@@ -11,7 +11,6 @@ from telethon.tl.types import DocumentAttributeFilename, DocumentAttributeVideo,
 from classes.attribute_object import AttributeObject
 from classes.object_data import ObjectData
 from classes.string_builder import ACQUIRED_TYPES, LINE_FOR_TARGET_FOLDER
-from classes import plugin_manager
 from func.utils import (sanitize_filename, default_video_message, remove_markdown,
                         video_data_file_exists_by_video_id,
                         video_data_file_exists_by_ref_msg_id,
@@ -161,11 +160,11 @@ async def process_video(video: Union[Message, MessageMediaDocument]):
     video_data['original_video_name'] = video_name
 
     # Plugin Manager filters the video name
-    plugin_manager_obj = plugin_manager.PluginManager()
-    video_name = await plugin_manager_obj.apply_filters_async(
+    from func.main import plugin_manager_object
+    video_name = await plugin_manager_object.apply_filters_async(
         'pre_rules_parse_video_name_async', video_name
     )
-    video_name = plugin_manager_obj.apply_filters(
+    video_name = plugin_manager_object.apply_filters(
         'pre_rules_parse_video_name', video_name
     )
 
@@ -192,7 +191,7 @@ async def process_video(video: Union[Message, MessageMediaDocument]):
             'file_name': file_name_no_ext,
         }))
 
-    video_name = plugin_manager_obj.apply_filters('post_rules_parse_video_name', video_name)
+    video_name = plugin_manager_object.apply_filters('post_rules_parse_video_name', video_name)
 
     video_data["video_name"] = video_name
     video_data["video_name_cleaned"] = sanitize_video_name(video_name)

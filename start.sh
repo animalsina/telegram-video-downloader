@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROJECT_DIR="~/telegram-video-downloader"
+PROJECT_DIR="./telegram-video-downloader"
 VENV_DIR="$PROJECT_DIR/venv"
 
 if [ ! -d "$VENV_DIR" ]; then

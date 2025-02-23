@@ -47,6 +47,8 @@ client = create_telegram_client(
     configuration.session_name, configuration.api_id, configuration.api_hash
 )
 
+plugin_manager_object = PluginManager()
+
 load_dotenv()
 activate_plugin=os.getenv("ENABLE_PLUGINS", None)
 
@@ -223,8 +225,8 @@ async def main():  # pylint: disable=unused-argument, too-many-statements
     from run import root_dir, PERSONAL_CHAT_ID
 
     if activate_plugin is not None:
-        plugin = PluginManager()
-        plugin.init_plugins()
+        print(t("initializing_plugins"))
+        plugin_manager_object.init_plugins()
 
     rules_object.load_rules(Path(root_dir), True)
     operation_status.videos_data = []

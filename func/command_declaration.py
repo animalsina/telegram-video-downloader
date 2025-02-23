@@ -6,7 +6,6 @@ from func.messages import t
 from func.utils import add_line_to_text, save_video_data, get_inlist_video_object_by_message_id_reference, \
     validate_and_check_path, ensure_directory_exists
 
-
 # pylint: disable=too-many-statements
 async def command_declaration():
     """
@@ -179,3 +178,6 @@ async def command_declaration():
         },
         callback=re_target_folder_cb,
     )
+
+    from func.main import plugin_manager_object
+    plugin_manager_object.apply_filters('command_handler', command_handler)
