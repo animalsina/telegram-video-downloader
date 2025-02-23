@@ -8,6 +8,7 @@ import mimetypes
 import os
 import shutil
 import re
+import unicodedata
 
 from pathlib import Path
 from typing import Union
@@ -71,6 +72,15 @@ def sanitize_filename(filename: str) -> str:
     sanitized_name = re.sub(r'[<>:"/\\|?*]', '', filename)
     sanitized_name = re.sub(r'[^\w\s.-]', '', sanitized_name)
     return sanitized_name.strip()
+
+
+def sanitize_foldername(filename: str) -> str:
+    """ Normalize Unicode characters and remove special characters """
+    normalized = unicodedata.normalize('NFKD', filename)
+    ascii_str = ''.join(c for c in normalized if not unicodedata.combining(c))
+    ascii_str = re.sub(r'[._]', ' ', ascii_str)
+    ascii_str = re.sub(r'-', '', ascii_str)
+    return re.sub(r'[^a-zA-Z0-9 ]', '', ascii_str)
 
 
 def sanitize_video_name(video_name: str) -> str:

@@ -12,7 +12,7 @@ from classes.string_builder import LINE_FOR_PINNED_VIDEO, TYPE_COMPLETED, TYPE_A
 from func.main import configuration
 from func.messages import t
 from func.telegram_client import edit_service_message, fetch_all_messages
-from func.utils import save_video_data, add_line_to_text, get_video_status_label
+from func.utils import save_video_data, add_line_to_text, get_video_status_label, sanitize_foldername
 from run import PERSONAL_CHAT_ID
 
 
@@ -119,9 +119,10 @@ def get_completed_task_folder_path(video_object: ObjectData):
     if video_object.force_folder_rename is True:
         return video_object.video_completed_folder
 
-    return rules_object.apply_rules(
-        'completed_folder_mask',
-        video_object.video_name, message_id=video_object.video_id) or configuration.completed_folder
+    return (rules_object.apply_rules(
+            'completed_folder_mask',
+            sanitize_foldername(video_object.video_name), message_id=video_object.video_id)
+            or configuration.completed_folder)
 
 
 async def set_pinned_message(source_message, video_object: ObjectData, pinned: bool):
