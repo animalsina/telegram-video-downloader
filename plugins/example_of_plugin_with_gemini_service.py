@@ -22,6 +22,7 @@ prompt_file = os.getenv("PLUGIN_GEMINI_PRE_PROMPT_FILE", "pre_video_name_gemini.
 gemini_model = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
 genai_api_key = os.getenv('GEMINI_API_KEY', None)
 active_gemini_plugin = os.getenv("ENABLE_GEMINI_PLUGIN", None)
+TEMPORARY_PROMPT = ''
 
 def init():
     """ Initialize the plugin. """
@@ -74,6 +75,11 @@ async def gemini_return_the_title(query: str) -> str | None:
     with open(os.path.join(prompt_dir, prompt_file), "r", encoding="utf-8") as file:
         lines = file.readlines()
         prompt = " ".join(line.strip() for line in lines if not line.strip().startswith("#"))
+
+        if TEMPORARY_PROMPT != '':
+            prompt += "\n"
+            prompt += TEMPORARY_PROMPT
+            prompt += "\n"
 
     def replace_variables(text, variables):
         """
@@ -129,6 +135,27 @@ def command_handler(command_handler_object: CommandHandler): # pylint: disable=u
         callback=start_gemini_service_plugin,
     )
 
+    command_handler_object.add_command(
+        ["plugin:gemini:add","gemini:add"],
+        "Add a temporary prompt for the gemini service plugin",
+        args={},
+        callback=add_temporary_prompt,
+    )
+
+    command_handler_object.add_command(
+        ["plugin:gemini:remove","gemini:remove"],
+        "Remove a temporary prompt for the gemini service plugin",
+        args={},
+        callback=remove_temporary_prompt,
+    )
+
+    command_handler_object.add_command(
+        ["plugin:gemini:read","gemini:read"],
+        "Read the temporary prompt",
+        args={},
+        callback=read_temporary_prompt,
+    )
+
 # pylint: disable=unused-argument
 async def stop_gemini_service_plugin(args, input_text, is_personal_chat):
     """ Stop the gemini service plugin. """
@@ -152,3 +179,29 @@ async def start_gemini_service_plugin(args, input_text, is_personal_chat):
         return
     await edit_service_message(source_message, "Gemini service plugin started")
     active_gemini_plugin = "1"
+
+async def add_temporary_prompt(args, input_text, is_personal_chat):
+    """ Add a temporary prompt. """
+    global TEMPORARY_PROMPT # pylint: disable=global-statement
+    source_message = args.get('source_message')
+    print("Adding gemini service plugin")
+    await edit_service_message(source_message, "Prompt: " + input_text)
+    TEMPORARY_PROMPT = input_text
+
+async def remove_temporary_prompt(args, input_text, is_personal_chat):
+    """ Remove the temporary prompt. """
+    global TEMPORARY_PROMPT # pylint: disable=global-statement
+    source_message = args.get('source_message')
+    print("Starting gemini service plugin")
+    await edit_service_message(source_message, "Prompt removed")
+    TEMPORARY_PROMPT = ''
+
+
+async def read_temporary_prompt(args, input_text, is_personal_chat):
+    """ Read the temporary prompt. """
+    source_message = args.get('source_message')
+    if TEMPORARY_PROMPT == '':
+        await edit_service_message(source_message, "Prompt is empty")
+        return
+    print("Temporary Prompt: " + TEMPORARY_PROMPT)
+    await edit_service_message(source_message, "Prompt: " + TEMPORARY_PROMPT)
