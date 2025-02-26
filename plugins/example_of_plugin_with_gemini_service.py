@@ -19,7 +19,7 @@ load_dotenv()
 
 prompt_dir = os.getenv("PROMPT_FILE_DIR", "storage/prompts")
 prompt_file = os.getenv("PLUGIN_GEMINI_PRE_PROMPT_FILE", "pre_video_name_gemini.prompt")
-gemini_model = os.getenv("GEMINI_MODEL", "gemini-pro")
+gemini_model = os.getenv("GEMINI_MODEL", "gemini-1.5-pro")
 genai_api_key = os.getenv('GEMINI_API_KEY', None)
 active_gemini_plugin = os.getenv("ENABLE_GEMINI_PLUGIN", None)
 
