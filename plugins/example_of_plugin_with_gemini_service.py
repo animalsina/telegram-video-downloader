@@ -59,7 +59,7 @@ async def pre_rules_parse_video_name_async(video_name):  # pylint: disable=unuse
         return video_name
 
     new_name = await gemini_return_the_title(video_name)
-    if new_name is None:
+    if new_name is None or new_name == 'false':
         return video_name
     return new_name
 

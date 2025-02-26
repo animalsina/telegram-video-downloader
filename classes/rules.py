@@ -129,6 +129,8 @@ class Rules:
         # Rules for messages
         if type_name == 'translate':
             return self.translate_string(input_value, video_object)
+        if type_name == 'use_filename':
+            return self.use_filename(input_value, video_object)
         if type_name == 'completed_folder_mask':
             return self.completed_task(input_value, message_id)
         return input_value
@@ -242,3 +244,16 @@ class Rules:
         Get rules
         """
         return self.rules
+
+    def use_filename(self, input_value, video_object):
+        """
+        Apply rules to input and returns edited output.
+        """
+        for rule in self.rules['message'].values():
+            pattern = rule.pattern
+            if (pattern.chat_id == video_object.chat_id or
+                    pattern.chat_title == video_object.chat_title or
+                    pattern.chat_name == video_object.chat_name):
+                if pattern.use_filename:
+                    return video_object.file_name
+        return input_value

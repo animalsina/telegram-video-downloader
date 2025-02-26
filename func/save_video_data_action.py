@@ -159,15 +159,6 @@ async def process_video(video: Union[Message, MessageMediaDocument]):
 
     video_data['original_video_name'] = video_name
 
-    # Plugin Manager filters the video name
-    from func.main import plugin_manager_object
-    video_name = await plugin_manager_object.apply_filters_async(
-        'pre_rules_parse_video_name_async', video_name
-    )
-    video_name = plugin_manager_object.apply_filters(
-        'pre_rules_parse_video_name', video_name
-    )
-
     forward = video.forward
     chat_name = None
     chat_title = None
@@ -181,6 +172,25 @@ async def process_video(video: Union[Message, MessageMediaDocument]):
         chat_name = forward.sender.username
         chat_title = forward.sender.first_name
         chat_id = forward.sender.id
+
+    video_name = rules_object.apply_rules(
+        'use_filename',
+        video_name, video_object=ObjectData(**{
+            'chat_id': chat_id,
+            'chat_name': chat_name,
+            'chat_title': chat_title,
+            'video_id': video_data["video_id"],
+            'file_name': file_name_no_ext,
+        }))
+
+    # Plugin Manager filters the video name
+    from func.main import plugin_manager_object
+    video_name = await plugin_manager_object.apply_filters_async(
+        'pre_rules_parse_video_name_async', video_name
+    )
+    video_name = plugin_manager_object.apply_filters(
+        'pre_rules_parse_video_name', video_name
+    )
 
     video_name = rules_object.apply_rules(
         'translate', video_name, video_object=ObjectData(**{
