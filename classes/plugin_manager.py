@@ -79,7 +79,9 @@ class PluginManager:
             The value after being processed by all applicable plugin functions.
         """
         if activate_plugin is None:
-            return value
+            if value is not None:
+                return value
+            return None
 
         for plugin in self.plugins.values():
             if hasattr(plugin, function_name):
@@ -103,7 +105,9 @@ class PluginManager:
             The value after being processed by all applicable plugin functions.
         """
         if activate_plugin is None:
-            return value
+            if value is not None:
+                return value
+            return None
 
         for plugin in self.plugins.values():
             if hasattr(plugin, function_name):

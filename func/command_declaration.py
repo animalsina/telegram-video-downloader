@@ -180,4 +180,5 @@ async def command_declaration():
     )
 
     from func.main import plugin_manager_object
-    plugin_manager_object.apply_filters('command_handler', command_handler)
+    if command_handler is not None:
+        plugin_manager_object.apply_filters('command_handler', command_handler)

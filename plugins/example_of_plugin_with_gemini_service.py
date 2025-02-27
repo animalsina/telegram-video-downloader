@@ -121,6 +121,8 @@ def command_handler(command_handler_object: CommandHandler): # pylint: disable=u
     Args:
         command_handler_object:
     """
+    if active_gemini_plugin is None:
+        return
     command_handler_object.add_command(
         ["plugin:gemini:stop", "gemini:stop"],
         "Stop the gemini service plugin",
