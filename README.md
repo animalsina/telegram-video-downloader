@@ -1,28 +1,76 @@
 # Telegram Video Downloader v2.7.1
 
+## Table of Contents / Indice
+- [ENG](#--eng)
+  - [Description](#description)
+  - [Features](#features)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+  - [Configuration](#configuration)
+  - [Usage](#usage)
+  - [Notes](#notes)
+  - [Useful Readme](#useful-readme)
+  - [License](#license)
+- [ITA](#--ita)
+  - [Descrizione](#descrizione)
+  - [Funzionalità](#funzionalità)
+  - [Requisiti](#requisiti)
+  - [Installazione](#installazione)
+  - [Configurazione](#configurazione)
+  - [Uso](#uso)
+  - [Note](#note)
+  - [Readme utili](#readme-utili)
+  - [Licenza](#licenza)
+
+---
 
 # == ENG
 
 ## Description
-This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) library to download videos from Telegram's "Saved Messages" and manage their download and relocation status. If the message containing the video lacks a name, the script will look for a name in the subsequent message. Additionally, the script handles folder permissions and uses a lock file to prevent simultaneous executions. The script now includes configurable options for file validation based on size, improved progress reporting, support for resuming interrupted downloads, and the ability to use a custom configuration file.
+Telegram Video Downloader is a Python script that automates the download and management of video files from your Telegram "Saved Messages" or custom groups/channels, using the [Telethon](https://github.com/LonamiWebs/Telethon) library. It is designed for reliability, flexibility, and ease of use, supporting features like simultaneous downloads, resuming interrupted downloads, file validation, and optional video compression.
+
+## Features
+- **Download videos** from "Saved Messages" or specified groups/channels.
+- **Automatic relocation** of completed downloads to a separate folder.
+- **Configurable minimum file size**: re-download corrupted/incomplete files.
+- **Simultaneous downloads**: control max concurrent downloads.
+- **Resume support**: continue partial downloads on restart.
+- **Optional video compression** (beta): save disk space.
+- **Disk space monitoring**: halt downloads if disk is nearly full.
+- **Progress updates**: real-time download percentage.
+- **Flexible configuration**: via `tg-config.txt`, supports multiple profiles.
+- **Command-line commands and rules**: see [Commands](/README-commands.md) and [Rules](/README-rules.md).
 
 ## Requirements
 - Python 3.9 or higher
-
-## Useful Readme
-- [Commands](/README-commands.md)
-- [Rules](/README-rules.md)
+- [Telethon](https://github.com/LonamiWebs/Telethon) (see `requirements.txt` for full dependencies)
 
 ## Installation
-1. Clone this repository:
+
+1. **Clone this repository:**
     ```bash
     git clone https://github.com/animalsina/telegram-video-downloader.git
     cd telegram-video-downloader
     ```
 
-2. Create an account and get the data to add to the config file: [Link MyTelegram App](https://my.telegram.org/apps)
+2. **(Recommended) Create and activate a virtual environment:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
 
-3. Create a configuration file `tg-config.txt` with the following information:
+3. **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+## Configuration
+
+1. **Get your Telegram API credentials:**  
+   Register your app at [my.telegram.org/apps](https://my.telegram.org/apps) to obtain `api_id` and `api_hash`.
+
+2. **Create a configuration file `tg-config.txt`** in the project root with the following format:
+
     ```ini
     [telegram]
     api_id=YOUR_API_ID
@@ -39,11 +87,11 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     disk_space_limit_percentage=90
 
     [groups]
-    # Key = ChannelID
+    # Key = ChannelID or nickname
     personal=me
     ```
 
-   Example configuration:
+   **Sample configuration:**
     ```ini
     [telegram]
     api_id=120398
@@ -51,6 +99,7 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     phone=123123123
     download_folder=tg-video
     completed_folder=tg-video-completed
+    min_valid_file_size_mb=10
     session_name=session_name
     max_simultaneous_file_to_download=1
     max_download_size_request_limit_kb=8388608
@@ -59,83 +108,102 @@ This Python script uses the [Telethon](https://github.com/LonamiWebs/Telethon) l
     disk_space_limit_percentage=90
 
     [groups]
-    # Key = ChannelID
     personal=me
+    movies_group=-1001234567890
     ```
 
-   - `api_id`: Your Telegram API ID.
-   - `api_hash`: Your Telegram API Hash.
-   - `phone`: Your phone number used for Telegram login.
-   - `download_folder`: The folder where videos will be initially saved.
-   - `completed_folder`: The folder where videos will be moved after successful download.
-   - `min_valid_file_size_mb`: The minimum file size in megabytes to consider a file valid. Files smaller than this size will be considered corrupted and re-downloaded.
-   - `session_name`: The name of the session file used for Telegram login.
-   - `max_simultaneous_file_to_download`: The maximum number of files to download simultaneously.
-   - `max_download_size_request_limit_kb`: The maximum limit size in kilobytes for the download request.
-   - `enable_video_compression`: Enable video compression \[BETA\].
-   - `compression_ratio`: The compression ratio used for video compression.
-   - `disk_space_limit_percentage`: The percentage of disk space to use for the download folder, after which the download will be blocked.
-
-# Optional
-Make a virtual environment
-   ```bash
-  python3 -m venv venv
-   ```
-
-Activates virtual environment
-```bash
-source venv/bin/activate
-```
-
-then you can deactivate:
-```bash
-deactivate
-```
+   **Parameter meanings:**
+   - `api_id`, `api_hash`, `phone`: Your Telegram app credentials and phone for login.
+   - `download_folder`: Where videos are saved initially.
+   - `completed_folder`: Where videos are moved after successful download.
+   - `min_valid_file_size_mb`: Minimum file size (MB) to consider a file valid.
+   - `session_name`: Name for Telethon session file.
+   - `max_simultaneous_file_to_download`: Max downloads at once (integer).
+   - `max_download_size_request_limit_kb`: Max size per download request (KB).
+   - `enable_video_compression`: 0 = off, 1 = on (beta).
+   - `compression_ratio`: Compression ratio for video (1-100).
+   - `disk_space_limit_percentage`: Max disk usage (%) for downloads.
+   - `[groups]`: Map a key to a Telegram channel/group ID or "me" for "Saved Messages".
 
 ## Usage
-1. Ensure you have created and configured the `tg-config.txt` file as described above. [Link MyTelegram App](https://my.telegram.org/apps)
-2. Run the script with the default configuration file:
+
+1. Ensure you've created and configured `tg-config.txt` as described above.
+2. Run the script (default config file):
     ```bash
     python run.py
     ```
-3. To use a custom configuration file, pass the filename as a parameter:
+3. To use a custom configuration file:
     ```bash
     python run.py tg-config-2.txt
     ```
 
 ## Notes
-- Videos are saved in the specified folder and moved to a completion folder once successfully downloaded.
-- If a message does not contain text, the script will attempt to get a name from the next message.
-- The script supports configurable minimum file size validation. Files smaller than the configured size will be flagged as corrupted and re-downloaded.
-- The script includes support for resuming interrupted downloads, ensuring that partial downloads can continue from where they left off.
-- To use a different configuration file, provide the filename as a parameter when running the script. If no parameter is given, `tg-config.txt` is used by default.
-- Progress updates are provided during downloads, showing the percentage of completion.
+
+- Videos are saved in the specified download folder, then moved to the completed folder after successful download.
+- If a message has no text, the script attempts to use the next message for a filename.
+- Supports configurable minimum file size: files below threshold are considered corrupted and re-downloaded.
+- Supports resuming interrupted downloads.
+- To use a different config file, supply it as an argument (`python run.py custom-config.txt`).
+- Progress bar shows download percentage.
+- Full command list and rules: [Commands](/README-commands.md), [Rules](/README-rules.md).
+- **Security:** Your Telegram credentials are required but not shared or uploaded anywhere.
+
+## Useful Readme
+- [Commands](/README-commands.md)
+- [Rules](/README-rules.md)
 
 ## License
 Distributed under the [MIT License](https://opensource.org/licenses/MIT).
 
+---
+
 # == ITA
 
 ## Descrizione
-Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWebs/Telethon) per scaricare video dai "Messaggi Salvati" di Telegram e gestire il loro stato di download e spostamento. Se il messaggio contenente il video non ha un nome, lo script cerca un nome nel messaggio successivo. Inoltre, lo script gestisce i permessi delle cartelle e utilizza un file di lock per prevenire esecuzioni simultanee. Lo script ora include opzioni configurabili per la validazione dei file basata sulla dimensione, un miglioramento nella segnalazione del progresso, il supporto per il resume dei download interrotti e la possibilità di utilizzare un file di configurazione personalizzato.
+Telegram Video Downloader è uno script Python che automatizza il download e la gestione di file video dai "Messaggi Salvati" di Telegram o da gruppi/canali personalizzati, utilizzando la libreria [Telethon](https://github.com/LonamiWebs/Telethon). Progettato per essere affidabile, flessibile e facile da usare, supporta download simultanei, resume, validazione file e compressione video opzionale.
+
+## Funzionalità
+- **Scarica video** da "Messaggi Salvati" o gruppi/canali specificati.
+- **Spostamento automatico** dei video scaricati in una cartella separata.
+- **Validazione configurabile** della dimensione minima del file: i file ritenuti corrotti vengono riscaricati.
+- **Download simultanei**: puoi impostare il numero massimo di download paralleli.
+- **Supporto resume**: riprende download interrotti.
+- **Compressione video opzionale** (beta): risparmia spazio su disco.
+- **Controllo spazio disco**: i download vengono bloccati se il disco è quasi pieno.
+- **Barra di progresso**: mostra la percentuale di download.
+- **Configurazione flessibile**: tramite `tg-config.txt`, supporta più profili.
+- **Comandi e regole da riga di comando**: vedi [Comandi](/README-commands.md) e [Regole](/README-rules.md).
 
 ## Requisiti
 - Python 3.9 o superiore
-
-## Readme utili
-- [Comandi](/README-commands.md)
-- [Regole](/README-rules.md)
+- [Telethon](https://github.com/LonamiWebs/Telethon) (vedi `requirements.txt` per le dipendenze)
 
 ## Installazione
-1. Clona questo repository:
+
+1. **Clona il repository:**
     ```bash
     git clone https://github.com/animalsina/telegram-video-downloader.git
     cd telegram-video-downloader
     ```
 
-2. Crea un account e recupera i dati da aggiungere nel file config: [Link MyTelegram App](https://my.telegram.org/apps)
+2. **(Consigliato) Crea e attiva un ambiente virtuale:**
+    ```bash
+    python3 -m venv venv
+    source venv/bin/activate  # Su Windows: venv\Scripts\activate
+    ```
 
-3. Crea un file di configurazione `tg-config.txt` con le seguenti informazioni:
+3. **Installa le dipendenze:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+## Configurazione
+
+1. **Recupera le credenziali API di Telegram:**  
+   Registra la tua app su [my.telegram.org/apps](https://my.telegram.org/apps) per ottenere `api_id` e `api_hash`.
+
+2. **Crea un file di configurazione `tg-config.txt`** nella cartella principale con questo formato:
+
     ```ini
     [telegram]
     api_id=YOUR_API_ID
@@ -148,15 +216,15 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     max_simultaneous_file_to_download=2
     max_download_size_request_limit_kb=8388608
     enable_video_compression=0
-    compression_ratio=28
+    compression_ratio=10
     disk_space_limit_percentage=90
 
     [groups]
-    # Key = ChannelID
+    # Key = ChannelID o nickname
     personal=me
     ```
 
-   Esempio di configurazione:
+   **Esempio di configurazione:**
     ```ini
     [telegram]
     api_id=120398
@@ -164,6 +232,7 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     phone=123123123
     download_folder=tg-video
     completed_folder=tg-video-completed
+    min_valid_file_size_mb=10
     session_name=session_name
     max_simultaneous_file_to_download=1
     max_download_size_request_limit_kb=8388608
@@ -172,57 +241,49 @@ Questo script Python utilizza la libreria [Telethon](https://github.com/LonamiWe
     disk_space_limit_percentage=90
 
     [groups]
-    # Key = ChannelID
     personal=me
+    movies_group=-1001234567890
     ```
 
-   - `api_id`: Il tuo ID API di Telegram.
-   - `api_hash`: Il tuo Hash API di Telegram.
-   - `phone`: Il tuo numero di telefono utilizzato per il login su Telegram.
-   - `download_folder`: La cartella in cui i video saranno inizialmente salvati.
-   - `completed_folder`: La cartella in cui i video saranno spostati dopo il download riuscito.
-   - `min_valid_file_size_mb`: La dimensione minima del file in megabyte per considerare valido un file. I file più piccoli di questa dimensione saranno considerati corrotti e riscaricati.
-   - `session_name`: Il nome del file di sessione utilizzato per il login su Telegram.
-   - `max_simultaneous_file_to_download`: Il numero massimo di file da scaricare simultaneamente.
-   - `max_download_size_request_limit_kb`: La dimensione massima per una richiesta di download in kilobytes.
-   - `enable_video_compression`: Attiva la compressione del video (0 per disattivare, 1 per attivare) \[BETA\].
-   - `compression_ratio`: La proporzione di compressione del video (valore da 1 a 100).
-   - `disk_space_limit_percentage`: La percentuale di spazio disponibile sul disco per il download dei video. Se lo spazio disponibile è inferiore a questa percentuale, il download verrà bloccato.
-
-# Opzionale
-Crea un ambiente virtuale
-   ```bash
-  python3 -m venv venv
-   ```
-
-Attiva l'ambiente virtuale
-   ```bash
-   source venv/bin/activate
-   ```
-
-infine puoi disattivare:
-```bash
-deactivate
-```
+   **Significato parametri:**
+   - `api_id`, `api_hash`, `phone`: Credenziali Telegram e numero di telefono per il login.
+   - `download_folder`: Dove vengono salvati i video inizialmente.
+   - `completed_folder`: Dove vengono spostati i video dopo il download.
+   - `min_valid_file_size_mb`: Dimensione minima (MB) per considerare valido un file.
+   - `session_name`: Nome del file di sessione Telethon.
+   - `max_simultaneous_file_to_download`: Max download in parallelo (intero).
+   - `max_download_size_request_limit_kb`: Limite dimensione richiesta download (KB).
+   - `enable_video_compression`: 0 = disattiva, 1 = attiva (beta).
+   - `compression_ratio`: Rapporto di compressione video (1-100).
+   - `disk_space_limit_percentage`: Percentuale max di utilizzo disco per i download.
+   - `[groups]`: Mappa una chiave a un ID di canale/gruppo Telegram o "me" per "Messaggi Salvati".
 
 ## Uso
-1. Assicurati di aver creato e configurato il file `tg-config.txt` come descritto sopra. [Link MyTelegram App](https://my.telegram.org/apps)
-2. Esegui lo script con il file di configurazione predefinito:
+
+1. Assicurati di aver creato e configurato `tg-config.txt` come sopra.
+2. Esegui lo script (file di configurazione predefinito):
     ```bash
     python run.py
     ```
-3. Per utilizzare un file di configurazione personalizzato, passa il nome del file come parametro:
+3. Per usare un file di configurazione diverso:
     ```bash
     python run.py tg-config-2.txt
     ```
 
 ## Note
-- I video vengono salvati nella cartella specificata e spostati in una cartella di completamento una volta scaricati con successo.
-- Se un messaggio non contiene testo, lo script tenterà di ottenere un nome dal messaggio successivo.
-- Lo script supporta la validazione della dimensione minima del file configurabile. I file più piccoli della dimensione configurata saranno considerati corrotti e riscaricati.
-- Lo script include ora il supporto per il resume dei download interrotti, garantendo che i download parziali possano continuare da dove erano stati interrotti.
-- Per utilizzare un file di configurazione diverso, fornisci il nome del file come parametro durante l'esecuzione dello script. Se non viene fornito alcun parametro, verrà utilizzato `tg-config.txt` come predefinito.
-- Durante i download vengono forniti aggiornamenti sul progresso, mostrando la percentuale di completamento.
+
+- I video vengono salvati nella cartella download e poi spostati in quella di completamento.
+- Se un messaggio non contiene testo, lo script tenta di usare il messaggio successivo per il nome file.
+- Supporta la validazione configurabile della dimensione minima: i file sotto soglia vengono riscaricati.
+- Supporta il resume di download interrotti.
+- Per usare un file di config diverso, specifica il nome come argomento (`python run.py custom-config.txt`).
+- La barra di progresso mostra la percentuale di download.
+- Elenco completo comandi e regole: [Comandi](/README-commands.md), [Regole](/README-rules.md).
+- **Sicurezza:** Le credenziali Telegram sono richieste ma non vengono condivise o caricate online.
+
+## Readme utili
+- [Comandi](/README-commands.md)
+- [Regole](/README-rules.md)
 
 ## Licenza
 Distribuito con licenza [MIT](https://opensource.org/licenses/MIT).
