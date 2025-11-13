@@ -1,0 +1,15 @@
+services:
+  python-app:
+    build: .
+    container_name: python-app
+    volumes:
+      - .:/app            # monta il codice locale
+      - venv_data:/app/venv  # mantiene il virtualenv tra i riavvii
+    working_dir: /app
+    environment:
+      - PYTHONUNBUFFERED=1  # output immediato nel log
+    tty: true  # utile per tenere aperto il container
+    restart: unless-stopped
+
+volumes:
+  venv_data:
